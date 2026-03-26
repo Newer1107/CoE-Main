@@ -51,8 +51,8 @@ export default function Navbar() {
             <Image
               src="/coe-logo.jpeg"
               alt="CoE Logo"
-              width={64}
-              height={48}
+              width={80}
+              height={80}
               priority // <--- This tells Next.js to preload this image
               className="object-contain w-12 h-10 md:w-16 md:h-12 transition-transform group-hover:scale-105"
             />
@@ -62,9 +62,9 @@ export default function Navbar() {
             href="/"
             className="text-lg md:text-xl font-bold text-white tracking-tighter uppercase flex flex-col leading-tight cursor-pointer"
           >
-            <span className="font-headline italic">TCET CoE</span>
+            <span className="font-multiple ">TCET CENTRE OF EXCELLENCE</span>
             <span className="text-[10px] md:text-[11px] tracking-[0.2em] font-label opacity-90 hidden sm:block">
-              Center of Excellence
+              For Research Culture & Development
             </span>
           </Link>
         </div>
@@ -90,9 +90,9 @@ export default function Navbar() {
               href="/facility-booking"
               className={`${
                 pathname === "/facility-booking"
-                  ? "bg-[#6b3b00]"
-                  : "bg-[#8c4f00] hover:bg-[#6b3b00]"
-              } px-4 py-2 text-white text-[10px] sm:text-xs font-['Inter'] uppercase tracking-[0.05rem] transition-colors`}
+                  ? "bg-[#f98e14]"
+                  : "bg-[#f98e14] hover:bg-[#6b3b00]"
+              } px-4 py-2 text-white font-bold text-[10px] sm:text-xs font-['Inter'] uppercase tracking-[0.05rem] transition-colors`}
             >
               Book Facility
             </Link>
