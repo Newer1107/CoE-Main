@@ -1,10 +1,32 @@
 import * as Minio from 'minio';
 import { v4 as uuidv4 } from 'uuid';
 
+const rawEndpoint = process.env.MINIO_ENDPOINT || 'localhost';
+
+let endPoint = rawEndpoint;
+let useSSL = process.env.MINIO_USE_SSL === 'true';
+let port = parseInt(process.env.MINIO_PORT || '9000');
+
+// Support MINIO_ENDPOINT as either host (minio.example.com) or full URL (https://minio.example.com).
+if (/^https?:\/\//i.test(rawEndpoint)) {
+  const parsed = new URL(rawEndpoint);
+  endPoint = parsed.hostname;
+
+  if (!process.env.MINIO_PORT) {
+    port = parsed.port ? parseInt(parsed.port) : parsed.protocol === 'https:' ? 443 : 80;
+  }
+
+  if (typeof process.env.MINIO_USE_SSL === 'undefined') {
+    useSSL = parsed.protocol === 'https:';
+  }
+} else {
+  endPoint = rawEndpoint.replace(/\/$/, '');
+}
+
 const minioClient = new Minio.Client({
-  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-  port: parseInt(process.env.MINIO_PORT || '9000'),
-  useSSL: process.env.MINIO_USE_SSL === 'true',
+  endPoint,
+  port,
+  useSSL,
   accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
   secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
 });
