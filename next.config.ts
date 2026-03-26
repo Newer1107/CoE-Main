@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+
+  allowedDevOrigins: ["coe.raunakcodes.me"],
 };
 
 export default nextConfig;
