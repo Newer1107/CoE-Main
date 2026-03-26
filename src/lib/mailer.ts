@@ -56,6 +56,17 @@ export const sendOTPEmail = async (email: string, otp: string) => {
   await send(email, `Verify your TCET CoE account — OTP: ${otp}`, body);
 };
 
+export const sendPasswordResetOTPEmail = async (email: string, otp: string) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Reset Your CoE Account Password</h2>
+    <p style="color:#434651;font-size:14px;">Use the following One-Time Password to reset your account password:</p>
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px 24px;margin:16px 0;text-align:center;">
+      <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#002155;">${otp}</span>
+    </div>
+    <p style="color:#747782;font-size:12px;">This code is valid for <strong>10 minutes</strong>. If you did not request this reset, you can ignore this email.</p>`;
+  await send(email, `Reset your TCET CoE password — OTP: ${otp}`, body);
+};
+
 interface BookingDetails {
   id: number;
   studentName?: string;

@@ -42,6 +42,8 @@ export default function LoginPage() {
       const role = data?.data?.user?.role;
       if (role === "ADMIN") {
         router.push("/admin");
+      } else if (role === "FACULTY") {
+        router.push("/faculty");
       } else {
         router.push("/facility-booking");
       }
@@ -149,6 +151,11 @@ export default function LoginPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
               />
+              <div className="pt-1 text-right">
+                <Link href="/forgot-password" className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]">
+                  Forgot Password?
+                </Link>
+              </div>
             </div>
             <button
               type="submit"

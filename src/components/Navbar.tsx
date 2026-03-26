@@ -13,6 +13,7 @@ export default function Navbar() {
     { label: "About", href: "/about" },
     { label: "Research", href: "#" },
     { label: "Laboratory", href: "/laboratory" },
+    { label: "Faculty Portal", href: "/faculty" },
     { label: "Events", href: "#" },
     { label: "Grants", href: "#" },
     { label: "News", href: "#" },

@@ -2,60 +2,98 @@ import prisma from '@/lib/prisma';
 import { sendBookingReminderEmail } from '@/lib/mailer';
 
 /**
- * Booking reminder cron logic.
- * Finds confirmed bookings starting within the next 30 minutes
- * where reminderSent is false, sends reminder emails, and marks them sent.
- * 
- * In Next.js, this can be triggered via a Vercel Cron Job or external scheduler
- * calling GET /api/cron/reminder
+ * Combines booking.date + booking.timeSlot into a proper Date object
  */
+function getBookingStartDateTime(date: Date, timeSlot: string): Date {
+  const [startTime] = timeSlot.split(' - '); // "18:00"
+  const [hours, minutes] = startTime.split(':').map(Number);
+
+  const bookingDateTime = new Date(date);
+  bookingDateTime.setHours(hours, minutes, 0, 0);
+
+  return bookingDateTime;
+}
+
 export async function GET() {
   try {
     const now = new Date();
     const thirtyMinsLater = new Date(now.getTime() + 30 * 60 * 1000);
 
-    // Find confirmed bookings starting soon
+    console.log('NOW:', now.toISOString());
+    console.log('30 MINS LATER:', thirtyMinsLater.toISOString());
+
+    // Step 1: Fetch relevant bookings (no date filtering here)
     const bookings = await prisma.booking.findMany({
       where: {
         status: 'CONFIRMED',
         reminderSent: false,
-        date: { gte: now, lte: thirtyMinsLater },
       },
       include: { student: true },
     });
 
     let sent = 0;
+
+    // Step 2: Process each booking
     for (const booking of bookings) {
       try {
-        await sendBookingReminderEmail(booking.student.email, {
-          id: booking.id,
-          date: booking.date.toISOString().split('T')[0],
-          timeSlot: booking.timeSlot,
-          lab: booking.lab,
-          facilities: booking.facilities as string[],
-        });
+        const bookingStart = getBookingStartDateTime(
+          booking.date,
+          booking.timeSlot
+        );
 
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { reminderSent: true },
-        });
+        console.log(
+          `Booking ${booking.id} starts at:`,
+          bookingStart.toISOString()
+        );
 
-        sent++;
+        // Step 3: Check if within next 30 minutes
+        if (
+          bookingStart >= now &&
+          bookingStart <= thirtyMinsLater
+        ) {
+          console.log(`Sending reminder for booking ${booking.id}`);
+
+          await sendBookingReminderEmail(booking.student.email, {
+            id: booking.id,
+            date: booking.date.toISOString().split('T')[0],
+            timeSlot: booking.timeSlot,
+            lab: booking.lab,
+            facilities: booking.facilities as string[],
+          });
+
+          // Step 4: Mark as sent
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: { reminderSent: true },
+          });
+
+          sent++;
+        }
       } catch (emailErr) {
-        console.error(`Reminder email failed for booking ${booking.id}:`, emailErr);
+        console.error(
+          `Reminder email failed for booking ${booking.id}:`,
+          emailErr
+        );
       }
     }
 
-    // Also clean up expired OTPs (older than 10 minutes)
+    // Step 5: Clean expired OTPs
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-    await prisma.otp.deleteMany({ where: { createdAt: { lt: tenMinutesAgo } } });
+
+    await prisma.otp.deleteMany({
+      where: { createdAt: { lt: tenMinutesAgo } },
+    });
 
     return Response.json({
       success: true,
-      message: `Cron executed. ${sent} reminder(s) sent. Expired OTPs cleaned.`,
+      message: `Cron executed. ${sent} reminder(s) sent.`,
     });
   } catch (err) {
     console.error('Cron error:', err);
-    return Response.json({ success: false, message: 'Cron failed.' }, { status: 500 });
+
+    return Response.json(
+      { success: false, message: 'Cron failed.' },
+      { status: 500 }
+    );
   }
 }

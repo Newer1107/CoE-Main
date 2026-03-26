@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function FacilityBookingPage() {
   const [step, setStep] = useState(1);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [isLogin, setIsLogin] = useState(true);
   
   // Auth Form
@@ -60,6 +61,55 @@ export default function FacilityBookingPage() {
 
   const availableEquipment = lab ? labEquipmentMap[lab] ?? [] : [];
   const timeSlots = ["09:00 - 11:00", "11:00 - 13:00", "13:00 - 15:00", "15:00 - 17:00", "17:00 - 19:00"];
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/bookings/my", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          setStep(3);
+          setAuthSuccess("Active session found. You can continue booking.");
+        }
+      } catch {
+        // Ignore network/session check failures and keep login step.
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    void checkSession();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Even if logout request fails, reset local UI state.
+    }
+
+    setStep(1);
+    setAuthSuccess("Logged out successfully.");
+    setAuthError("");
+    setEmail("");
+    setPassword("");
+  };
+
+  if (checkingSession) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-12 min-h-screen">
+        <div className="border border-[#c4c6d3] bg-white p-6 md:p-8">
+          <p className="text-sm text-[#434651]">Checking your session...</p>
+        </div>
+      </main>
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,7 +383,7 @@ export default function FacilityBookingPage() {
                 </h2>
                 <div className="flex gap-4 items-center">
                   <span className="text-[10px] font-['Inter'] font-bold text-[#8c4f00] uppercase tracking-widest bg-[#f5f4f0] px-3 py-1 border border-[#c4c6d3]">Authenticated</span>
-                  <button onClick={() => { setStep(1); setEmail(""); setPassword(""); }} className="text-xs uppercase text-red-600 font-bold hover:underline">Logout</button>
+                  <button onClick={handleLogout} className="text-xs uppercase text-red-600 font-bold hover:underline">Logout</button>
                 </div>
               </div>
               
