@@ -82,20 +82,20 @@ export default async function HomePage() {
   const heroSlides: HeroSlide[] =
     heroSlidesDb.length > 0
       ? heroSlidesDb.slice(0, 5).map((item) => ({
-          id: String(item.id),
-          image: item.imageUrl || "/vercel.svg",
-          title: item.title,
-          description: item.caption,
-        }))
+        id: String(item.id),
+        image: item.imageUrl || "/vercel.svg",
+        title: item.title,
+        description: item.caption,
+      }))
       : [
-          {
-            id: "fallback",
-            image: "/vercel.svg",
-            title: "Welcome to the TCET Center of Excellence",
-            description:
-              "Live hero slides will appear here once admins publish them via the hero slides API.",
-          },
-        ];
+        {
+          id: "fallback",
+          image: "/vercel.svg",
+          title: "Welcome to the TCET Center of Excellence",
+          description:
+            "Live hero slides will appear here once admins publish them via the hero slides API.",
+        },
+      ];
 
   return (
     <main className="max-w-[1560px] mx-auto grid grid-cols-12 gap-0 min-h-screen pt-[100px] sm:pt-[108px] md:pt-[120px]">
@@ -143,6 +143,68 @@ export default async function HomePage() {
               Live Circulars
             </div>
           </div>
+        </section>
+
+        <section className="mb-14">
+          <div className="border-l-4 border-[#002155] pl-4 md:pl-6 mb-6">
+            <h2 className="text-3xl font-headline tracking-tight text-[#002155]">
+              Verticals
+            </h2>
+            <p className="text-xs uppercase tracking-widest text-[#8c4f00] mt-1">
+              Explore CoE Domains
+            </p>
+          </div>
+
+          {(() => {
+            const verticals = [
+              { title: "Facility Booking", subtitle: "Reserve labs & resources", href: "/faculty" },
+              { title: "Coding Platform", subtitle: "Practice & compete", href: "#" },
+              { title: "Project Showcase", subtitle: "Display innovations", href: "#" },
+              { title: "Content Creation", subtitle: "Share knowledge", href: "#" },
+              { title: "Hackathon", subtitle: "Build under pressure", href: "#" },
+              { title: "Industry Internship", subtitle: "Real-world exposure", href: "#" },
+              { title: "Problem Statements", subtitle: "Solve real challenges", href: "#" },
+              { title: "Grants", subtitle: "Funding opportunities", href: "#" },
+              { title: "MOU's", subtitle: "Strategic collaborations", href: "#" },
+            ];
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {verticals.map((item, index) => (
+                  <Link key={index} href={item.href}>
+                    <div
+                      className="relative h-48 md:h-56 border border-[#c4c6d3] overflow-hidden group bg-[#efeeea] cursor-pointer"
+                    >
+   
+                      <img
+                        src="/vercel.svg"
+                        alt={item.title}
+                        className="w-full h-full object-cover 
+                        group-hover:scale-110 transition-transform duration-700 ease-out"
+                      />
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+                      <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
+                        <div>
+                          <h3 className="text-white text-sm md:text-base font-semibold uppercase tracking-wide leading-tight">
+                            {item.title}
+                          </h3>
+                          <p className="text-[10px] md:text-xs text-white/80 mt-1 tracking-wide">
+                            {item.subtitle}
+                          </p>
+                        </div>
+
+                        <span className="material-symbols-outlined text-white text-lg translate-x-0 group-hover:translate-x-1 transition-transform duration-300">
+                          arrow_forward
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            );
+          })()}
         </section>
 
         <section className="mb-14">
