@@ -157,7 +157,7 @@ export default async function HomePage() {
 
           {(() => {
             const verticals = [
-              { title: "Facility Booking", subtitle: "Reserve labs & resources", href: "/faculty" },
+              { title: "Facility Booking", subtitle: "Reserve labs & resources", href: "/facility-booking" },
               { title: "Coding Platform", subtitle: "Practice & compete", href: "#" },
               { title: "Project Showcase", subtitle: "Display innovations", href: "#" },
               { title: "Content Creation", subtitle: "Share knowledge", href: "#" },
