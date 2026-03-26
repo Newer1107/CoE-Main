@@ -165,7 +165,7 @@ export default async function HomePage() {
               { title: "Industry Internship", subtitle: "Real-world exposure", href: "#" },
               { title: "Problem Statements", subtitle: "Solve real challenges", href: "#" },
               { title: "Grants", subtitle: "Funding opportunities", href: "#" },
-              { title: "MOU's", subtitle: "Strategic collaborations", href: "#" },
+              { title: "MOUs", subtitle: "Strategic collaborations", href: "#" },
             ];
 
             return (
