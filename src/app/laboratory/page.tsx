@@ -1,240 +1,213 @@
-'use client';
-export default function Page() {
-    return (
-        <div className="font-body selection:bg-primary-container selection:text-white">
-            {/* Real Content */}
-            {/*  TopNavBar  */}
-<nav className="sticky top-0 z-50 bg-white dark:bg-stone-950 border-b-2 border-[#1C1C1C] dark:border-stone-800 flex justify-between items-center w-full px-8 py-4 max-w-full">
-<div onClick={() => window.location.href='/'} style={{cursor: 'pointer'}} className="flex items-center gap-2 font-['Space_Grotesk'] font-bold text-2xl text-[#1C1C1C] dark:text-white after:content-[''] after:w-4 after:h-4 after:bg-[#F7941D]">
-            CoE
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+
+export default function LaboratoryPage() {
+  const [activeFilter, setActiveFilter] = useState("All Equipment");
+
+  const filters = ["All Equipment", "Electronics", "Computing", "Fabrication"];
+
+  return (
+    <>
+      {/* TopNoticeTicker */}
+      <div className="bg-[#fd9923] flex items-center px-6 py-2 w-full z-[60] fixed top-0 border-none font-['Inter'] text-xs font-bold uppercase tracking-wider text-white overflow-hidden whitespace-nowrap">
+        <span className="mr-4 flex-shrink-0">🔔 Notice:</span>
+        <div className="overflow-hidden w-full">
+          <span className="inline-block animate-[marquee_30s_linear_infinite]">
+            Latest announcements and updates for TCET Center of Excellence — New Lab Equipment Procurement for FY 2024-25 — Grant Application Window Closing Soon.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Latest announcements and updates for TCET Center of Excellence — New Lab Equipment Procurement for FY 2024-25 — Grant Application Window Closing Soon.
+          </span>
         </div>
-<div className="hidden md:flex items-center gap-8">
-<a className="text-stone-400 font-medium text-[10px] tracking-[0.1em] uppercase hover:text-[#F7941D] transition-colors duration-200" href="/laboratory" >RESEARCH</a>
-<a className="text-[#F7941D] border-t-2 border-[#F7941D] pt-1 font-medium text-[10px] tracking-[0.1em] uppercase hover:text-[#F7941D] transition-colors duration-200" href="/laboratory" >FACILITIES</a>
-<a className="text-stone-400 font-medium text-[10px] tracking-[0.1em] uppercase hover:text-[#F7941D] transition-colors duration-200" href="#">JOURNAL</a>
-<a className="text-stone-400 font-medium text-[10px] tracking-[0.1em] uppercase hover:text-[#F7941D] transition-colors duration-200" href="#">ARCHIVE</a>
-</div>
-<button className="bg-[#1C1C1C] text-white font-['Space_Grotesk'] font-bold px-6 py-2 text-xs tracking-widest hover:bg-[#F7941D] transition-all active:opacity-80" onClick={() => window.location.href='/facility-booking'}>
-            BOOK FACILITY
-        </button>
-</nav>
-<main className="min-h-screen">
-{/*  Hero / Header Section  */}
-<header className="editorial-grid border-b border-[#1C1C1C]">
-<aside className="col-span-12 md:col-span-4 p-8 md:p-12 border-b md:border-b-0 md:border-r border-[#1C1C1C] flex flex-col justify-between">
-<div>
-<span className="font-stats text-5xl text-[#1C1C1C]">10</span>
-<p className="font-label text-xs font-bold uppercase tracking-[0.2em] mt-2">— Equipment &amp; Facilities</p>
-</div>
-<div className="mt-12 md:mt-0">
-<p className="font-body text-lg italic leading-relaxed text-on-surface-variant">
-                        Our laboratories are engineered for precision. We maintain a high-rigidity infrastructure to support advanced research in semiconductor physics, signal processing, and additive manufacturing.
-                    </p>
-</div>
-</aside>
-<div className="col-span-12 md:col-span-8 bg-surface-container-low p-8 md:p-24">
-<h1 className="font-headline font-bold text-6xl md:text-8xl tracking-tighter leading-[0.9] text-[#1C1C1C] uppercase">
-                    Institutional <br/> Infrastructure
-                </h1>
-</div>
-</header>
-{/*  Category Filter  */}
-<section className="border-b border-[#1C1C1C] bg-white sticky top-[74px] z-40">
-<div className="editorial-grid">
-<div className="col-span-12 md:col-span-8 md:col-start-5 flex items-center h-16">
-<div className="flex h-full">
-<button className="px-8 h-full bg-[#F7941D] text-white font-label font-bold text-[10px] tracking-[0.2em] uppercase">
-                            All
-                        </button>
-<button className="px-8 h-full bg-white text-[#1C1C1C] font-label font-medium text-[10px] tracking-[0.2em] uppercase border-r border-[#1C1C1C] hover:text-[#F7941D] transition-colors">
-                            Electronics
-                        </button>
-<button className="px-8 h-full bg-white text-[#1C1C1C] font-label font-medium text-[10px] tracking-[0.2em] uppercase border-r border-[#1C1C1C] hover:text-[#F7941D] transition-colors">
-                            Computing
-                        </button>
-<button className="px-8 h-full bg-white text-[#1C1C1C] font-label font-medium text-[10px] tracking-[0.2em] uppercase hover:text-[#F7941D] transition-colors">
-                            Fabrication
-                        </button>
-</div>
-</div>
-</div>
-</section>
-{/*  Equipment Grid  */}
-<section className="border-b border-[#1C1C1C]">
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-{/*  Equipment 1  */}
-<article className="border-r border-b border-[#1C1C1C] group">
-<div className="aspect-[4/3] overflow-hidden border-b border-[#1C1C1C]">
-<img alt="Lab Equipment" className="w-full h-full object-cover grayscale-img group-hover:scale-105 transition-transform duration-500" data-alt="Scientific digital oscilloscope in a high-tech laboratory setting with bright overhead lighting, professional archival photography style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB42TT8kNMLWIPYSobkHpsCu6XnTaqsxZu7mefvys72vnMKECVcZKEUX08tjqxUWcYnM1lAtfnJ192KdlSCuJFnatwfdhRiMhq3wo5ybW1NXNU-ZXXALyRWVOLbTYoo_OCUgAz2QGmy_LLeC6yY6HOxUmrIV2QYflbPI0kdzXrcJrHoAInnNgPxwJq-XzTNLAMW8HxxAQjp4RbAzHIVT-4UPkjZJZ-4zqNFwOe7h72pCCh1gQfh7zpRIRkRjtj2yJ7tPBGtzYfqXtA"/>
-</div>
-<div className="p-8">
-<span className="font-label text-[10px] text-primary font-bold tracking-widest uppercase mb-2 block">ELECTRONICS — E01</span>
-<h3 className="font-headline font-bold text-2xl uppercase tracking-tight text-[#1C1C1C] mb-4">Keysight InfiniiVision Oscilloscope</h3>
-<p className="font-body text-on-surface-variant leading-relaxed mb-6">
-                            100 MHz, 4 Analog Channels. Advanced triggering and hardware-based serial decoding for high-speed signal analysis and verification.
-                        </p>
-<div className="border-t border-stone-200 pt-4 flex justify-between items-center">
-<span className="font-stats text-2xl">04 UNITS</span>
-<span className="material-symbols-outlined text-[#1C1C1C]">arrow_outward</span>
-</div>
-</div>
-</article>
-{/*  Equipment 2  */}
-<article className="border-r border-b border-[#1C1C1C] group">
-<div className="aspect-[4/3] overflow-hidden border-b border-[#1C1C1C]">
-<img alt="Lab Equipment" className="w-full h-full object-cover grayscale-img group-hover:scale-105 transition-transform duration-500" data-alt="Industrial robotic arm performing micro-soldering on a circuit board, clinical lighting, high contrast monochromatic aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtwEIuB338DA0A8voipTHLMz7FypQveXVVIjyyNURStUdhp1LShY7BNBW9g5rxa6g4oBC6UhPtVDbD_CcDcY1_z_WZHeE7suAI8bDM33rz1I2pe2IjY4oym-836voWBlx8d6BAsHJYRHp7JVfCSbG-SDDsuSa1uSyUjgmgsFftdNaiEIqkiuA-rGV8kKKxAUfe_e1bepdG07f9PzEDwVJFb6laqxBRM9yYJMIVzTXNovC7vyzpV5hQyEtEzsljMNxwpLTR9yB-mJA"/>
-</div>
-<div className="p-8">
-<span className="font-label text-[10px] text-primary font-bold tracking-widest uppercase mb-2 block">FABRICATION — F09</span>
-<h3 className="font-headline font-bold text-2xl uppercase tracking-tight text-[#1C1C1C] mb-4">LPKF ProtoMat S103</h3>
-<p className="font-body text-on-surface-variant leading-relaxed mb-6">
-                            High-speed circuit board plotter for RF and microwave applications. Features 100,000 RPM spindle for ultra-fine structures.
-                        </p>
-<div className="border-t border-stone-200 pt-4 flex justify-between items-center">
-<span className="font-stats text-2xl">01 UNIT</span>
-<span className="material-symbols-outlined text-[#1C1C1C]">arrow_outward</span>
-</div>
-</div>
-</article>
-{/*  Equipment 3  */}
-<article className="border-b border-[#1C1C1C] group">
-<div className="aspect-[4/3] overflow-hidden border-b border-[#1C1C1C]">
-<img alt="Lab Equipment" className="w-full h-full object-cover grayscale-img group-hover:scale-105 transition-transform duration-500" data-alt="Server rack with neatly organized blue cables and blinking lights in a data center, minimalist clinical style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD045Ne6ygQ23FWz5IlimH4LksKp5SdjSsIzYI0SW-IIzXzhp6wDOkf2zBmT3b-MXnS6VBVZhxe6Etd_G1hOZ_7hCwoYUZFh5JpBWiH9ruSqI5-r5dQXsIuSu_xiXcx0oEvEaVkF2O71DH2GEfPGFwnfktpzoEmn_Mxa8LVLnOskwZA9yyaWL3-m8vxcBUxKfErntk7SdmnXNNcQ87n_yjeWYqMYAVO4JddeFzL6DicJ7ocbL00KZScU3zY93MWNMKyibbGRkS4EwI"/>
-</div>
-<div className="p-8">
-<span className="font-label text-[10px] text-primary font-bold tracking-widest uppercase mb-2 block">COMPUTING — C04</span>
-<h3 className="font-headline font-bold text-2xl uppercase tracking-tight text-[#1C1C1C] mb-4">NVIDIA DGX Station A100</h3>
-<p className="font-body text-on-surface-variant leading-relaxed mb-6">
-                            The world’s first AI data center-in-a-box. Integrated system for deep learning training and inference acceleration.
-                        </p>
-<div className="border-t border-stone-200 pt-4 flex justify-between items-center">
-<span className="font-stats text-2xl">02 UNITS</span>
-<span className="material-symbols-outlined text-[#1C1C1C]">arrow_outward</span>
-</div>
-</div>
-</article>
-</div>
-</section>
-{/*  Facilities List Section  */}
-<section className="bg-surface-container-low border-b border-[#1C1C1C] py-24">
-<div className="px-12 mb-16">
-<h2 className="font-headline font-bold text-4xl uppercase tracking-tighter">Research Facilities</h2>
-</div>
-<div className="editorial-grid px-12 gap-12">
-{/*  Column 1  */}
-<div className="col-span-12 md:col-span-6 border-r-0 md:border-r-2 border-[#1C1C1C] pr-0 md:pr-12">
-<div className="border-t border-[#1C1C1C] py-8">
-<div className="flex justify-between items-start mb-4">
-<h4 className="font-headline font-bold text-xl uppercase tracking-tight">Advanced Signal Processing Lab</h4>
-<span className="font-stats text-xl text-primary">A-204</span>
-</div>
-<p className="font-body text-on-surface-variant leading-relaxed">
-                            Focused on real-time hardware implementation of communication algorithms. Equipped with USRP Software Defined Radios and FPGA development boards.
-                        </p>
-</div>
-<div className="border-t border-[#1C1C1C] py-8">
-<div className="flex justify-between items-start mb-4">
-<h4 className="font-headline font-bold text-xl uppercase tracking-tight">Embedded Systems Center</h4>
-<span className="font-stats text-xl text-primary">B-101</span>
-</div>
-<p className="font-body text-on-surface-variant leading-relaxed">
-                            Institutional hub for IoT research and microcontroller interfacing. Houses industry-standard development environments and logic analyzers.
-                        </p>
-</div>
-<div className="border-t border-[#1C1C1C] py-8">
-<div className="flex justify-between items-start mb-4">
-<h4 className="font-headline font-bold text-xl uppercase tracking-tight">Applied AI &amp; Robotics Hub</h4>
-<span className="font-stats text-xl text-primary">C-305</span>
-</div>
-<p className="font-body text-on-surface-variant leading-relaxed">
-                            Interdisciplinary space for autonomous navigation and machine vision. Features 10Gbps dedicated research network and high-density GPU clusters.
-                        </p>
-</div>
-</div>
-{/*  Column 2  */}
-<div className="col-span-12 md:col-span-6">
-<div className="border-t border-[#1C1C1C] py-8">
-<div className="flex justify-between items-start mb-4">
-<h4 className="font-headline font-bold text-xl uppercase tracking-tight">VLSI Design &amp; Characterization</h4>
-<span className="font-stats text-xl text-primary">A-402</span>
-</div>
-<p className="font-body text-on-surface-variant leading-relaxed">
-                            Clean-room style environment for silicon testing. Includes semiconductor parameter analyzers and probe stations with thermal control.
-                        </p>
-</div>
-<div className="border-t border-[#1C1C1C] py-8">
-<div className="flex justify-between items-start mb-4">
-<h4 className="font-headline font-bold text-xl uppercase tracking-tight">Micro-Fabrication Unit</h4>
-<span className="font-stats text-xl text-primary">F-001</span>
-</div>
-<p className="font-body text-on-surface-variant leading-relaxed">
-                            Rapid prototyping of multi-layer PCBs and mechanical enclosures. Features CNC milling, laser cutting, and industrial grade SLA printing.
-                        </p>
-</div>
-<div className="border-t border-[#1C1C1C] py-8">
-<div className="flex justify-between items-start mb-4">
-<h4 className="font-headline font-bold text-xl uppercase tracking-tight">The Library of Components</h4>
-<span className="font-stats text-xl text-primary">L-100</span>
-</div>
-<p className="font-body text-on-surface-variant leading-relaxed">
-                            Archival inventory of over 50,000 discrete components and ICs. Managed via institutional ERP for seamless research workflow.
-                        </p>
-</div>
-</div>
-</div>
-</section>
-{/*  CTA Section  */}
-<section className="editorial-grid bg-[#1C1C1C] text-white">
-<div className="col-span-12 md:col-span-8 p-12 md:p-24">
-<h2 className="font-headline font-bold text-5xl md:text-7xl uppercase leading-none tracking-tighter mb-8">Access the <br/> Infrastructure.</h2>
-<p className="font-body text-stone-400 text-xl max-w-xl mb-12">
-                    Internal and external researchers may request facility access. We adhere to a strict rigorous booking protocol to ensure equipment integrity.
-                </p>
-<div className="flex flex-col md:flex-row gap-6">
-<button className="bg-[#F7941D] text-white font-label font-bold px-12 py-4 tracking-widest uppercase hover:bg-white hover:text-[#1C1C1C] transition-all" onClick={() => window.location.href='/facility-booking'}>
-                        SUBMIT PROTOCOL
-                    </button>
-<button className="border border-white text-white font-label font-bold px-12 py-4 tracking-widest uppercase hover:bg-white hover:text-[#1C1C1C] transition-all" onClick={() => alert('Downloading log...') }>
-                        DOWNLOAD LOG
-                    </button>
-</div>
-</div>
-<div className="col-span-12 md:col-span-4 border-l border-white/20 relative hidden md:block overflow-hidden">
-<img alt="Laboratory Window" className="absolute inset-0 w-full h-full object-cover opacity-50 grayscale-img" data-alt="Interior of a modern glass-walled research lab with glowing technical screens and sterile white workbenches, dramatic evening lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZyzEk-lmhWSBy82wJBxj95YWLkV3d3mi7r9so1tEBW1iojLFjNQXaiS3eRg2xEjNCf2BBwPA2nH9Fjfh4GOukGNiJ0bE25vnK1rZQE4lu5_h9nNH5HuFjAcDjPOkdqnCcAq1saPFDugkk8C-Ojm6IHaHrfrVhNl3XSGY7DSWcKeVKqP-Nf6Gl-J6wAiqAWqMeyRika7rHcypKItDFoBzXIGFOe0dLhBlmxvrGhtSisGogbt8u2ySSCDruGSNTiTuDI9HYmAXV-uI"/>
-</div>
-</section>
-</main>
-{/*  Footer  */}
-<footer className="bg-[#1C1C1C] dark:bg-black border-t border-[#F7941D]">
-<div className="grid grid-cols-1 md:grid-cols-3 gap-12 px-12 py-16 w-full">
-<div className="flex flex-col gap-8">
-<div className="text-xl font-bold text-white border-l-4 border-[#F7941D] pl-3 font-['Space_Grotesk'] uppercase tracking-widest">
-                    TCET COE
-                </div>
-<p className="font-['Space_Grotesk'] text-stone-400 text-[10px] tracking-[0.2em] uppercase leading-loose">
-                    Advanced Institutional Research <br/>
-                    Center of Excellence Building <br/>
-                    Plot No. 12, Research Park
-                </p>
-</div>
-<div className="flex flex-col gap-4">
-<span className="font-['Space_Grotesk'] text-[#F7941D] text-[10px] font-bold tracking-[0.2em] uppercase mb-4">RESOURCES</span>
-<a className="text-stone-400 font-['Space_Grotesk'] uppercase tracking-widest text-xs hover:text-[#F7941D] transition-colors" href="#">INSTITUTIONAL DATA</a>
-<a className="text-white underline underline-offset-4 font-['Space_Grotesk'] uppercase tracking-widest text-xs" href="#">EQUIPMENT LOG</a>
-<a className="text-stone-400 font-['Space_Grotesk'] uppercase tracking-widest text-xs hover:text-[#F7941D] transition-colors" href="#">EDITORIAL POLICY</a>
-</div>
-<div className="flex flex-col gap-4">
-<span className="font-['Space_Grotesk'] text-[#F7941D] text-[10px] font-bold tracking-[0.2em] uppercase mb-4">CONTACT</span>
-<p className="text-stone-400 font-['Space_Grotesk'] uppercase tracking-widest text-xs">FACILITIES@TCETCOE.ORG</p>
-<p className="text-stone-400 font-['Space_Grotesk'] uppercase tracking-widest text-xs">+91 22 2846 1891</p>
-</div>
-</div>
-<div className="border-t border-stone-800 px-12 py-8">
-<p className="font-['Space_Grotesk'] text-stone-500 uppercase tracking-widest text-[10px]">
-                © 2024 TCET CENTER OF EXCELLENCE. ALL RIGHTS RESERVED.
+      </div>
+
+      {/* TopNavBar */}
+      <header className="bg-[#002155] flex justify-between items-center w-full px-8 py-4 z-50 fixed top-[32px] border-none">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold text-white tracking-tighter uppercase font-['Inter']">TCET CoE</h1>
+        </div>
+        <nav className="hidden md:flex items-center gap-8">
+          <Link className="text-white opacity-80 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="/">Home</Link>
+          <Link className="text-white opacity-80 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="/about">About</Link>
+          <Link className="text-white opacity-80 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="#">Research</Link>
+          <Link className="text-[#fd9923] font-bold border-b-2 border-[#fd9923] pb-1 text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="/laboratory">Laboratory</Link>
+          <Link className="text-white opacity-80 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="#">Events</Link>
+          <Link className="text-white opacity-80 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="#">Grants</Link>
+          <Link className="text-white opacity-80 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]" href="#">News</Link>
+          <Link className="bg-[#8c4f00] px-4 py-2 text-white font-['Inter'] text-[10px] font-black uppercase tracking-widest hover:bg-[#6b3b00] transition-colors" href="/facility-booking">Book Facility</Link>
+        </nav>
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex items-center border border-[#747782] px-3 py-1 bg-[#003580]">
+            <span className="material-symbols-outlined text-white text-sm">search</span>
+            <input
+              className="bg-transparent border-none text-[10px] text-white placeholder:text-white/50 focus:outline-none w-32 font-['Inter'] uppercase"
+              placeholder="SEARCH ARCHIVES..."
+              type="text"
+            />
+          </div>
+        </div>
+      </header>
+
+      <main className="pt-[80px] pb-20 max-w-7xl mx-auto px-8">
+        {/* Hero Section */}
+        <section className="mb-16 border-l-4 border-[#002155] pl-8 py-4 mt-8">
+          <h2 className="text-[40px] font-headline tracking-tight leading-none mb-4">Laboratory Infrastructure &amp; Research Facilities</h2>
+          <p className="max-w-3xl text-lg text-[#434651] font-body leading-relaxed">
+            The TCET Center of Excellence houses state-of-the-art computational and experimental environments designed for high-impact multidisciplinary research. Our facilities serve as the bedrock for innovation in Electronics, Fabrication, and Advanced Computing.
+          </p>
+        </section>
+
+        {/* Equipment Filter */}
+        <section className="mb-12">
+          <div className="flex flex-wrap gap-1 border-b border-[#c4c6d3] pb-px">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-8 py-3 font-['Inter'] text-xs font-bold uppercase tracking-wider transition-all ${
+                  activeFilter === filter
+                    ? "bg-[#002155] text-white"
+                    : "bg-[#e9e8e4] text-[#434651] hover:bg-[#e3e2df]"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Equipment Grid */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 border-t border-l border-[#c4c6d3] mb-20">
+          {/* Equipment Item 1 */}
+          <div className="border-r border-b border-[#c4c6d3] p-6 bg-white">
+            <div className="aspect-video mb-6 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="w-full h-full object-cover grayscale-img"
+                alt="High-precision digital oscilloscope on a clean laboratory workbench"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhoT1SdZZYyvVB7pZ01EbLd_ybTFnomxautcchnI1YaNhLR3ATcfvIk9rV_S0DzDLTYVJBfS3q_AtaAQPzCdMRt2iMks5Pf9nld3T9Tna1dEs5FIs4LAmEbSWN31CXyxxrUWvLPbOpjmdr6TDlSAZ5mKLdocKNhqmUPm1bGP74NgLeT4KtcwxTEv3ca8TB9dwOGrGyx0vxHtR4n7DIZCp1yxPtq4ssjOdaSI2uQrJIUQRk36efMx5tLkd-E-JDOOKl1iRW5wZuw-M"
+              />
+            </div>
+            <h3 className="font-headline font-bold text-2xl mb-2 italic">DSOX3024T Digital Storage Oscilloscope</h3>
+            <p className="text-sm font-['Inter'] text-[#8c4f00] font-bold uppercase mb-4 tracking-tighter">Electronics / Signal Analysis</p>
+            <div className="space-y-2 text-sm text-[#434651] border-t border-[#c4c6d3] pt-4">
+              <div className="flex justify-between"><span>Bandwidth:</span><span className="font-semibold text-[#1b1c1a]">200 MHz</span></div>
+              <div className="flex justify-between"><span>Channels:</span><span className="font-semibold text-[#1b1c1a]">4 Analog + 16 Digital</span></div>
+              <div className="flex justify-between"><span>Sample Rate:</span><span className="font-semibold text-[#1b1c1a]">5 GSa/s</span></div>
+            </div>
+          </div>
+
+          {/* Equipment Item 2 */}
+          <div className="border-r border-b border-[#c4c6d3] p-6 bg-white">
+            <div className="aspect-video mb-6 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="w-full h-full object-cover grayscale-img"
+                alt="Powerful server rack in a dark room with blue status lights"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtZsCIDkxEcZaGGO4P6OhC7AEkY-d9qnaeizUsxOcMWqMcxN-xyWoxn9wl3vhFlw7a0mkLdZQGL6-7Ayk6yyQ0EdcA-Bd-osNCUkMVat6K68bnu2LP_uxvOXw4VOq5dZrnovEslGpF4MTyAuiK9JuLrzk3Le_ea7AZlcT5Fo7_1X6CRHh2C5_FVPtT4s9Tpi2l57VSlmAYRlgexhBbDJt1vD5g7YwZHYH8DNxhrLt0cJGWqjKY3XhDm3FiDEvGuRaz1jrg0-DhKyg"
+              />
+            </div>
+            <h3 className="font-headline font-bold text-2xl mb-2 italic">NVIDIA DGX Station A100</h3>
+            <p className="text-sm font-['Inter'] text-[#8c4f00] font-bold uppercase mb-4 tracking-tighter">Computing / AI &amp; ML</p>
+            <div className="space-y-2 text-sm text-[#434651] border-t border-[#c4c6d3] pt-4">
+              <div className="flex justify-between"><span>GPU Memory:</span><span className="font-semibold text-[#1b1c1a]">320 GB Total</span></div>
+              <div className="flex justify-between"><span>Performance:</span><span className="font-semibold text-[#1b1c1a]">2.5 PetaFLOPS AI</span></div>
+              <div className="flex justify-between"><span>CUDA Cores:</span><span className="font-semibold text-[#1b1c1a]">27,648</span></div>
+            </div>
+          </div>
+
+          {/* Equipment Item 3 */}
+          <div className="border-r border-b border-[#c4c6d3] p-6 bg-white">
+            <div className="aspect-video mb-6 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="w-full h-full object-cover grayscale-img"
+                alt="Industrial 3D printer extruding precision mechanical parts"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB44-P8e82oNHPGyeEsbnTLJwJtu0QaE4W3EISMUQ1TgKDD3_uy5fvTcbL0IoVHwHUbriSb3j_M19Az1MNjSQetFn0One6JXleY_uNffATgM4w-sQC9MqCLXaFJD5l-UOwlfbdRixYQJmkHr75iKNSKXNuawvFoNikDWIgfsFJWPyLfc0spohHeQ6m9Fc7obCAch7V7upesoFZydIVrp-vv9tFLGALZLDwBPQEo5kvpuZRHsu3Ai0Em8-y3pQo3P2-5GdWftkGL0DU"
+              />
+            </div>
+            <h3 className="font-headline font-bold text-2xl mb-2 italic">Ultimaker S5 Pro Bundle</h3>
+            <p className="text-sm font-['Inter'] text-[#8c4f00] font-bold uppercase mb-4 tracking-tighter">Fabrication / Prototyping</p>
+            <div className="space-y-2 text-sm text-[#434651] border-t border-[#c4c6d3] pt-4">
+              <div className="flex justify-between"><span>Build Volume:</span><span className="font-semibold text-[#1b1c1a]">330 x 240 x 300 mm</span></div>
+              <div className="flex justify-between"><span>Layer Resolution:</span><span className="font-semibold text-[#1b1c1a]">20 Microns</span></div>
+              <div className="flex justify-between"><span>Feeder:</span><span className="font-semibold text-[#1b1c1a]">Dual Extrusion</span></div>
+            </div>
+          </div>
+        </section>
+
+        {/* Facilities List */}
+        <section className="mb-8">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="h-[1px] flex-grow bg-[#c4c6d3]"></div>
+            <h2 className="text-sm font-['Inter'] font-black uppercase tracking-[0.2em] text-[#002155]">Specialized Research Facilities</h2>
+            <div className="h-[1px] flex-grow bg-[#c4c6d3]"></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4">
+            {[
+              "Advanced VLSI Design Center",
+              "Cyber-Physical Systems Lab",
+              "Center for Embedded Systems & IoT",
+              "Digital Signal Processing Unit",
+              "Microwave Engineering Laboratory",
+              "Robotics & Automation Hub",
+              "Cloud Computing & Big Data Lab",
+              "Renewable Energy Systems Cell",
+            ].map((facility) => (
+              <div key={facility} className="flex justify-between py-3 border-b border-[#c4c6d3]">
+                <span className="font-headline italic text-lg text-[#002155]">{facility}</span>
+                <span className="material-symbols-outlined text-[#747782]">chevron_right</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-[#f5f4f0] text-[#002155] border-t-4 border-[#002155] mt-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 w-full px-12 py-16 max-w-full">
+          <div className="space-y-6">
+            <div className="text-lg font-bold text-[#002155] uppercase font-['Inter']">TCET Center of Excellence</div>
+            <p className="font-body leading-relaxed opacity-80 text-sm">
+              Thakur College of Engineering and Technology,<br />
+              A-Block, Thakur Educational Campus,<br />
+              Shyamnarayan Thakur Marg, Thakur Village,<br />
+              Kandivali (E), Mumbai - 400101.
             </p>
-</div>
-</footer>
+            <div className="flex gap-4">
+              <span className="material-symbols-outlined">location_on</span>
+              <span className="material-symbols-outlined">mail</span>
+              <span className="material-symbols-outlined">phone</span>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <h4 className="text-sm font-black uppercase tracking-widest border-b border-[#c4c6d3] pb-2">Institutional Links</h4>
+            <ul className="space-y-3 text-sm font-body">
+              <li><a className="text-slate-600 hover:text-[#002155] underline transition-colors" href="#">Institute Address &amp; NAAC</a></li>
+              <li><a className="text-slate-600 hover:text-[#002155] underline transition-colors" href="#">Mumbai University</a></li>
+              <li><a className="text-slate-600 hover:text-[#002155] underline transition-colors" href="#">Quick Links</a></li>
+              <li><a className="text-slate-600 hover:text-[#002155] underline transition-colors" href="#">Privacy Policy</a></li>
+            </ul>
+          </div>
+          <div className="space-y-6">
+            <h4 className="text-sm font-black uppercase tracking-widest border-b border-[#c4c6d3] pb-2">Facility Access</h4>
+            <p className="text-sm font-body leading-relaxed opacity-80 mb-4">
+              Researchers and students from external institutions can apply for facility usage through our centralized booking system.
+            </p>
+            <Link className="inline-block bg-[#002155] text-white px-6 py-2 font-['Inter'] text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity" href="/facility-booking">
+              Request Lab Access
+            </Link>
+          </div>
         </div>
-    );
+        <div className="bg-[#002155] py-4 px-12 text-white/60 text-[10px] font-['Inter'] uppercase tracking-widest flex justify-between items-center">
+          <span>© 2024 TCET Center of Excellence. All Rights Reserved.</span>
+          <button
+            className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            Back to Top <span className="material-symbols-outlined text-xs">arrow_upward</span>
+          </button>
+        </div>
+      </footer>
+    </>
+  );
 }
