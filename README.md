@@ -236,15 +236,20 @@ Navigation and access behavior:
 
 ```mermaid
 flowchart LR
-  IH[innovation landing page (/innovation)] --> ED[event detail page (/innovation/events/:id)]
+  IH[Innovation Landing Page] --> ED[Event Detail Page]
   ED --> RF[Register Team form\nStudent only]
   ED --> LB[Leaderboard\nvisible in JUDGING or CLOSED]
-  IF[faculty workspace (/innovation/faculty)] --> ET[Events tab]
+  IF[Faculty Workspace] --> ET[Events tab]
   IF --> ST[Submissions tab]
   ET --> TM[Registered Teams view\nPending, Shortlisted, Approved, Rejected]
   ST --> SC[Stage 1: PPT screening actions]
   ST --> JG[Stage 2: final judging + rubric]
 ```
+
+Route mapping for this flow:
+- Innovation landing page: `/innovation`
+- Event detail page: `/innovation/events/[id]`
+- Faculty workspace: `/innovation/faculty`
 
 ## 7) API Reference
 
