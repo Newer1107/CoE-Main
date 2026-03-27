@@ -135,6 +135,51 @@ flowchart LR
   R2 --> LB
 ```
 
+### 4.5 Hackathon event structure (domain view)
+
+```mermaid
+flowchart TD
+  HE[HackathonEvent\nstatus: UPCOMING or ACTIVE or JUDGING or CLOSED\nregistrationOpen: true or false\npptFileKey: optional] --> P[Problem statements\nmode: CLOSED]
+  P --> C[Claim per team\nstatus lifecycle: IN_PROGRESS -> SUBMITTED -> SHORTLISTED -> ACCEPTED or REJECTED]
+  C --> CM[ClaimMember list\nLEAD + MEMBER]
+  C --> SF[Submission assets\nsubmissionFileKey or submissionUrl]
+  C --> RB[Rubric scores\ninnovation, technical, impact, ux, execution, presentation, feasibility]
+  RB --> FS[finalScore and score]
+
+  ST[Student] -->|register with PPT| C
+  FC[Faculty or Admin] -->|screening + judging sync| C
+  CR[Innovation reminder cron] -->|status transitions + auto-submit| HE
+```
+
+### 4.6 Hackathon end-to-end sequence
+
+```mermaid
+sequenceDiagram
+  participant S as Student Team
+  participant E as /api/innovation/events/[id]/register
+  participant DB as Prisma DB
+  participant F as Faculty Workspace
+  participant SY as /api/innovation/faculty/claims/sync
+  participant M as Mailer
+  participant L as /api/innovation/events/[id]/leaderboard
+
+  S->>E: Register team + upload PPT
+  E->>DB: Create claim + upload file + set status SUBMITTED
+
+  F->>SY: Stage=SCREENING (SHORTLISTED or REJECTED)
+  SY->>DB: Update claim status
+  SY->>M: Send screening result email
+
+  F->>DB: Move event status to JUDGING
+
+  F->>SY: Stage=JUDGING (ACCEPTED or REJECTED + rubrics)
+  SY->>DB: Persist rubrics + finalScore
+  SY->>M: Send final score email
+
+  S->>L: View leaderboard (JUDGING or CLOSED)
+  L->>DB: Rank by finalScore then score
+```
+
 ## 5) Data Model
 
 Primary entities:
@@ -186,6 +231,20 @@ Navigation and access behavior:
 - Navbar is role-aware (faculty/admin links hidden from unauthorized users)
 - Login supports `next` redirect for student return flow
 - Admin/faculty pages hard-redirect unauthorized users
+
+### 6.1 Hackathon page-level flow
+
+```mermaid
+flowchart LR
+  IH[/innovation/] --> ED[/innovation/events/[id]/]
+  ED --> RF[Register Team form\nStudent only]
+  ED --> LB[Leaderboard\nvisible in JUDGING or CLOSED]
+  IF[/innovation/faculty/] --> ET[Events tab]
+  IF --> ST[Submissions tab]
+  ET --> TM[Registered Teams view\nPending, Shortlisted, Approved, Rejected]
+  ST --> SC[Stage 1: PPT screening actions]
+  ST --> JG[Stage 2: final judging + rubric]
+```
 
 ## 7) API Reference
 
