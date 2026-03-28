@@ -32,6 +32,7 @@ type SubmissionRow = {
   id: number;
   teamName: string | null;
   status: string;
+  isAbsent: boolean;
   score: number | null;
   finalScore: number | null;
   innovationScore: number | null;
@@ -192,6 +193,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         (submission) =>
           submission.problem.event &&
           submission.status === 'SHORTLISTED' &&
+          !submission.isAbsent &&
           (selectedSubmissionEventId === null || submission.problem.event.id === selectedSubmissionEventId)
       ),
     [submissions, selectedSubmissionEventId]
@@ -201,7 +203,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     () =>
       new Set(
         submissions
-          .filter((submission) => submission.problem.event && ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED'].includes(submission.status))
+          .filter((submission) => submission.problem.event && ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED'].includes(submission.status) && !(submission.status === 'SHORTLISTED' && submission.isAbsent))
           .map((submission) => submission.id)
       ),
     [submissions]
@@ -246,11 +248,11 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     [filteredSelectedEventRegistrations]
   );
   const shortlistedSelectedEventRegistrations = useMemo(
-    () => filteredSelectedEventRegistrations.filter((registration) => registration.status === 'SHORTLISTED'),
+    () => filteredSelectedEventRegistrations.filter((registration) => registration.status === 'SHORTLISTED' && !registration.isAbsent),
     [filteredSelectedEventRegistrations]
   );
-  const approvedSelectedEventRegistrations = useMemo(
-    () => filteredSelectedEventRegistrations.filter((registration) => registration.status === 'ACCEPTED'),
+  const absentSelectedEventRegistrations = useMemo(
+    () => filteredSelectedEventRegistrations.filter((registration) => registration.status === 'SHORTLISTED' && registration.isAbsent),
     [filteredSelectedEventRegistrations]
   );
   const rejectedSelectedEventRegistrations = useMemo(
@@ -282,7 +284,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   );
 
   const reviewableJudgingCountForSelectedRegistrationEvent = useMemo(
-    () => selectedEventRegistrations.filter((registration) => registration.status === 'SHORTLISTED').length,
+    () => selectedEventRegistrations.filter((registration) => registration.status === 'SHORTLISTED' && !registration.isAbsent).length,
     [selectedEventRegistrations]
   );
 
@@ -334,7 +336,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       const next: Record<number, HackathonRubricScores> = {};
 
       submissions
-        .filter((submission) => submission.problem.event && submission.status === 'SHORTLISTED')
+        .filter((submission) => submission.problem.event && submission.status === 'SHORTLISTED' && !submission.isAbsent)
         .forEach((submission) => {
           next[submission.id] = prev[submission.id] || getRubricsFromSubmission(submission);
         });
@@ -512,22 +514,22 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         delete next[submission.id];
         return next;
       });
-    }, status === 'SHORTLISTED' ? 'Team approved and moved to judging shortlist.' : 'Team rejected from PPT screening.');
+    }, status === 'SHORTLISTED' ? 'Team shortlisted for judging round.' : 'Team rejected from PPT screening.');
   };
 
   const syncJudgingForEvent = async (eventId: number) => {
     const eventSubmissions = submissions.filter(
-      (submission) => submission.problem.event?.id === eventId && submission.status === 'SHORTLISTED'
+      (submission) => submission.problem.event?.id === eventId && submission.status === 'SHORTLISTED' && !submission.isAbsent
     );
 
     if (eventSubmissions.length === 0) {
-      setErrorMessage('No shortlisted teams are available for final judging sync.');
+      setErrorMessage('No present shortlisted teams are available for final judging sync.');
       return;
     }
 
     const eventMeta = events.find((event) => event.id === eventId);
-    if (eventMeta?.status !== 'JUDGING') {
-      setErrorMessage('Move the event to JUDGING status before syncing final judging results.');
+    if (eventMeta?.status !== 'ACTIVE') {
+      setErrorMessage('Move the event to ACTIVE status before syncing final judging results.');
       return;
     }
 
@@ -577,6 +579,28 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     }, 'Final judging synced and rubric score emails sent to teams.');
   };
 
+  const toggleClaimAbsence = async (claimId: number, isAbsent: boolean) => {
+    await runAction(async () => {
+      await fetchJson(`/api/innovation/faculty/claims/${claimId}/attendance`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isAbsent }),
+      });
+
+      if (isAbsent) {
+        setStagedDecisions((prev) => {
+          const next = { ...prev };
+          delete next[claimId];
+          return next;
+        });
+        setStagedRubrics((prev) => {
+          const next = { ...prev };
+          delete next[claimId];
+          return next;
+        });
+      }
+    }, isAbsent ? 'Team marked absent for judging round.' : 'Team marked present for judging round.');
+  };
+
   const syncSingleJudgingDecision = async (submission: SubmissionRow, status: JudgingDecisionStatus) => {
     const eventId = submission.problem.event?.id;
     if (!eventId) {
@@ -584,9 +608,14 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       return;
     }
 
+    if (submission.isAbsent) {
+      setErrorMessage('This team is marked absent. Mark it present before finalizing judging.');
+      return;
+    }
+
     const eventMeta = events.find((event) => event.id === eventId);
-    if (eventMeta?.status !== 'JUDGING') {
-      setErrorMessage('Move the event to JUDGING status before finalizing a specific team.');
+    if (eventMeta?.status !== 'ACTIVE') {
+      setErrorMessage('Move the event to ACTIVE status before finalizing a specific team.');
       return;
     }
 
@@ -622,7 +651,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         delete next[submission.id];
         return next;
       });
-    }, status === 'ACCEPTED' ? 'Team approved in final judging.' : 'Team rejected in final judging.');
+    }, status === 'ACCEPTED' ? 'Team finalized as selected in judging.' : 'Team rejected in final judging.');
   };
 
   const syncScreeningDecisions = async () => {
@@ -676,7 +705,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     }, 'Hackathon event created successfully.');
   };
 
-  const advanceEventStatus = async (eventId: number, status: 'ACTIVE' | 'JUDGING' | 'CLOSED') => {
+  const advanceEventStatus = async (eventId: number, status: 'ACTIVE' | 'CLOSED') => {
     await runAction(async () => {
       await fetchJson(`/api/innovation/admin/events/${eventId}/status`, {
         method: 'PATCH',
@@ -770,12 +799,15 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   };
 
   const renderRegistrationCard = (registration: SubmissionRow) => (
-    <div key={registration.id} className="border border-[#d8dae6] bg-[#faf9f5] p-3">
+    <div key={registration.id} className="border border-[#d8dae6] bg-white p-3 md:p-4">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
-          <p className="text-xs font-bold text-[#002155]">{registration.teamName || `Team-${registration.id}`}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-[#8c4f00]">{registration.status}</p>
+          <p className="mt-1 text-sm font-bold text-[#002155]">{registration.teamName || `Team-${registration.id}`}</p>
           <p className="mt-1 text-xs text-[#434651]">Problem Statement: {registration.problem.title}</p>
-          <p className="mt-1 text-xs text-[#434651]">Status: {registration.status}</p>
+          {registration.status === 'SHORTLISTED' && registration.isAbsent ? (
+            <p className="mt-1 text-xs font-bold uppercase tracking-wider text-[#ba1a1a]">Attendance: Absent</p>
+          ) : null}
           <p className="mt-1 text-xs text-[#434651]">
             Members: {registration.members.map((member) => `${member.user.name}${member.user.uid ? ` (${member.user.uid})` : ''}`).join(', ')}
           </p>
@@ -787,7 +819,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
               className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${stagedDecisions[registration.id] === 'SHORTLISTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
               disabled={loading}
             >
-              Approve
+              Shortlist
             </button>
             <button
               onClick={() => stageDecision(registration.id, 'REJECTED')}
@@ -806,90 +838,179 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
           </div>
         ) : registration.status === 'SHORTLISTED' ? (
           <div className="flex flex-wrap gap-2 md:justify-end">
-            <button
-              onClick={() => stageDecision(registration.id, 'ACCEPTED')}
-              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${stagedDecisions[registration.id] === 'ACCEPTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
-              disabled={loading}
-            >
-              Final Select
-            </button>
-            <button
-              onClick={() => stageDecision(registration.id, 'REJECTED')}
-              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${stagedDecisions[registration.id] === 'REJECTED' ? 'bg-[#ba1a1a] text-white border-[#ba1a1a]' : 'bg-white text-[#ba1a1a] border-[#ba1a1a]'}`}
-              disabled={loading}
-            >
-              Final Reject
-            </button>
-            <button
-              onClick={() => void syncSingleJudgingDecision(registration, 'ACCEPTED')}
-              className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#0b6b2e] text-[#0b6b2e] bg-white"
-              disabled={loading}
-            >
-              Approve Team
-            </button>
-            <button
-              onClick={() => void syncSingleJudgingDecision(registration, 'REJECTED')}
-              className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#ba1a1a] text-[#ba1a1a] bg-white"
-              disabled={loading}
-            >
-              Reject Team
-            </button>
+            {registration.isAbsent ? (
+              <button
+                onClick={() => void toggleClaimAbsence(registration.id, false)}
+                className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#002155] text-[#002155] bg-white"
+                disabled={loading}
+              >
+                Mark Present
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => stageDecision(registration.id, 'ACCEPTED')}
+                  className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${stagedDecisions[registration.id] === 'ACCEPTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
+                  disabled={loading}
+                >
+                  Final Select
+                </button>
+                <button
+                  onClick={() => stageDecision(registration.id, 'REJECTED')}
+                  className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${stagedDecisions[registration.id] === 'REJECTED' ? 'bg-[#ba1a1a] text-white border-[#ba1a1a]' : 'bg-white text-[#ba1a1a] border-[#ba1a1a]'}`}
+                  disabled={loading}
+                >
+                  Final Reject
+                </button>
+                <button
+                  onClick={() => void syncSingleJudgingDecision(registration, 'ACCEPTED')}
+                  className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#0b6b2e] text-[#0b6b2e] bg-white"
+                  disabled={loading}
+                >
+                  Finalize Select
+                </button>
+                <button
+                  onClick={() => void syncSingleJudgingDecision(registration, 'REJECTED')}
+                  className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#ba1a1a] text-[#ba1a1a] bg-white"
+                  disabled={loading}
+                >
+                  Finalize Reject
+                </button>
+                <button
+                  onClick={() => void toggleClaimAbsence(registration.id, true)}
+                  className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#ba1a1a] text-[#ba1a1a] bg-white"
+                  disabled={loading}
+                >
+                  Mark Absent
+                </button>
+              </>
+            )}
           </div>
         ) : null}
       </div>
-      {registration.status === 'SHORTLISTED' ? renderRubricEditor(registration) : null}
+      {registration.status === 'SHORTLISTED' && !registration.isAbsent ? renderRubricEditor(registration) : null}
       {registration.status === 'SHORTLISTED' ? (
-        <p className="mt-2 text-xs font-bold text-[#002155]">Team is shortlisted from PPT screening and awaiting final judging sync.</p>
+        <p className="mt-2 text-xs font-bold text-[#002155]">
+          {registration.isAbsent
+            ? 'Team is shortlisted but marked absent for judging round.'
+            : 'Team is shortlisted from PPT screening and awaiting final judging sync.'}
+        </p>
       ) : null}
       {['ACCEPTED', 'REJECTED'].includes(registration.status) ? (
         <p className="mt-2 text-xs font-bold text-[#002155]">Final Score: {registration.finalScore ?? registration.score ?? 'N/A'}/100</p>
       ) : null}
       {registration.submissionFileUrl ? (
-        <div className="mt-3">
+        <details className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-3">
+          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#002155]">View Uploaded PPT/PDF</summary>
           <iframe
             src={registration.submissionFileUrl}
             title={`Registration file ${registration.id}`}
-            className="w-full h-64 border border-[#c4c6d3] bg-white"
+            className="mt-3 w-full h-64 border border-[#c4c6d3] bg-white"
           />
           <a href={registration.submissionFileUrl} target="_blank" rel="noreferrer" className="inline-flex mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
             Open File in New Tab
           </a>
-        </div>
+        </details>
       ) : (
         <p className="mt-2 text-xs text-[#434651]">No PPT uploaded.</p>
       )}
     </div>
   );
 
-  return (
-    <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
-      <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
-        <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">Innovation Faculty Workspace</h1>
-        <p className="mt-2 text-[#434651] max-w-3xl font-body">Create and manage innovation problems, review submissions, and coordinate hackathon events.</p>
-      </header>
+  const workspaceStats = useMemo(
+    () => ({
+      ownOpenProblems: ownProblems.length,
+      reviewQueue: screeningHackathonSubmissions.length + judgingHackathonSubmissions.length,
+      managedEvents: manageableEvents.length,
+      eventTeams: filteredSelectedEventRegistrations.length,
+    }),
+    [ownProblems.length, screeningHackathonSubmissions.length, judgingHackathonSubmissions.length, manageableEvents.length, filteredSelectedEventRegistrations.length]
+  );
 
-      <section className="mb-6 flex flex-wrap gap-3">
-        <Link href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
-          Innovation Home
-        </Link>
-        <Link href="/innovation/problems" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
-          Problems Board
-        </Link>
-      </section>
+  const activeTabDescription =
+    activeTab === 'problems'
+      ? 'Author open innovation problems and maintain your existing statements.'
+      : activeTab === 'submissions'
+        ? 'Process screening and final judging in one focused review queue.'
+        : 'Create events, control lifecycle, and manage registered teams.';
+
+  return (
+    <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[116px] pb-16 min-h-screen">
+      <header className="mb-6 border border-[#002155] bg-[linear-gradient(125deg,#0f2d57_0%,#1d4a7d_52%,#295f97_100%)] p-6 md:p-8 text-white shadow-[0_18px_45px_-28px_rgba(0,33,85,0.9)]">
+        <p className="text-[11px] uppercase tracking-[0.26em] text-[#d3e7ff] font-bold">Innovation Operations Console</p>
+        <h1 className="mt-2 font-headline text-3xl md:text-[42px] font-bold tracking-tight leading-none">Faculty Workspace</h1>
+        <p className="mt-3 text-[#e5f0ff] max-w-3xl text-sm md:text-base">
+          Review teams faster with focused queues, structured actions, and clean event controls.
+        </p>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link href="/innovation" className="bg-white text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider border border-white">
+            Innovation Home
+          </Link>
+          <Link href="/innovation/problems" className="border border-[#d3e7ff] text-[#d3e7ff] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+            Problems Board
+          </Link>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
+          <div className="border border-[#87acd6] bg-[#ffffff14] p-3">
+            <p className="text-[10px] uppercase tracking-widest text-[#d8ebff] font-bold">Open Problems</p>
+            <p className="mt-1 text-2xl font-bold">{workspaceStats.ownOpenProblems}</p>
+          </div>
+          <div className="border border-[#87acd6] bg-[#ffffff14] p-3">
+            <p className="text-[10px] uppercase tracking-widest text-[#d8ebff] font-bold">Review Queue</p>
+            <p className="mt-1 text-2xl font-bold">{workspaceStats.reviewQueue}</p>
+          </div>
+          <div className="border border-[#87acd6] bg-[#ffffff14] p-3">
+            <p className="text-[10px] uppercase tracking-widest text-[#d8ebff] font-bold">Managed Events</p>
+            <p className="mt-1 text-2xl font-bold">{workspaceStats.managedEvents}</p>
+          </div>
+          <div className="border border-[#87acd6] bg-[#ffffff14] p-3">
+            <p className="text-[10px] uppercase tracking-widest text-[#d8ebff] font-bold">Teams (Filtered)</p>
+            <p className="mt-1 text-2xl font-bold">{workspaceStats.eventTeams}</p>
+          </div>
+        </div>
+      </header>
 
       {statusMessage ? <p className="mb-4 border border-green-300 bg-green-50 text-green-800 px-4 py-3 text-sm">{statusMessage}</p> : null}
       {errorMessage ? <p className="mb-4 border border-red-300 bg-red-50 text-red-700 px-4 py-3 text-sm">{errorMessage}</p> : null}
 
-      <section className="mb-8 flex flex-wrap gap-2">
-        <button onClick={() => setActiveTab('problems')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === 'problems' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-white text-[#002155] border-[#c4c6d3]'}`}>Problems</button>
-        <button onClick={() => setActiveTab('submissions')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === 'submissions' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-white text-[#002155] border-[#c4c6d3]'}`}>Submissions</button>
-        <button onClick={() => setActiveTab('events')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === 'events' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-white text-[#002155] border-[#c4c6d3]'}`}>Hackathon Events</button>
+      <section className="mb-8 border border-[#c4c6d3] bg-white p-4 md:p-5">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-[#747782] font-bold">Workspace Sections</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab('problems')}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              activeTab === 'problems' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
+            }`}
+          >
+            Problems
+          </button>
+          <button
+            onClick={() => setActiveTab('submissions')}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              activeTab === 'submissions' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
+            }`}
+          >
+            Submissions
+          </button>
+          <button
+            onClick={() => setActiveTab('events')}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              activeTab === 'events' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
+            }`}
+          >
+            Hackathon Events
+          </button>
+        </div>
+        <p className="mt-3 text-sm text-[#434651]">{activeTabDescription}</p>
       </section>
 
       {activeTab === 'problems' ? (
         <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="border border-[#c4c6d3] bg-white p-5">
-            <h2 className="font-headline text-2xl text-[#002155] mb-4">Create Problem</h2>
+          <div className="border border-[#c4c6d3] bg-white p-5 md:p-6 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Authoring</p>
+            <h2 className="font-headline text-2xl text-[#002155] mt-2 mb-4">Create Open Problem</h2>
             <form className="space-y-4" onSubmit={createProblem}>
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Title" value={newProblemTitle} onChange={(e) => setNewProblemTitle(e.target.value)} required />
               <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Description" value={newProblemDescription} onChange={(e) => setNewProblemDescription(e.target.value)} required />
@@ -899,8 +1020,9 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
             </form>
           </div>
 
-          <div className="border border-[#c4c6d3] bg-[#f5f4f0] p-5">
-            <h2 className="font-headline text-2xl text-[#002155] mb-4">Own Problems</h2>
+          <div className="border border-[#c4c6d3] bg-[#f5f4f0] p-5 md:p-6 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Maintenance</p>
+            <h2 className="font-headline text-2xl text-[#002155] mt-2 mb-4">Own Problems</h2>
             {ownProblems.length === 0 ? (
               <p className="text-sm text-[#434651]">No authored problems yet.</p>
             ) : (
@@ -923,157 +1045,189 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       ) : null}
 
       {activeTab === 'submissions' ? (
-        <section>
-          <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <h2 className="font-headline text-2xl text-[#002155]">Claims and Submissions</h2>
-            <div className="flex flex-col md:flex-row md:items-center gap-2">
-              <select
-                className="border border-[#747782] p-2 text-xs md:w-[320px]"
-                value={selectedSubmissionEventId ?? ''}
-                onChange={(e) => setSelectedSubmissionEventId(Number(e.target.value))}
-                disabled={hackathonReviewEvents.length === 0}
-              >
-                {hackathonReviewEvents.length === 0 ? (
-                  <option value="">No hackathon event reviews pending</option>
-                ) : (
-                  hackathonReviewEvents.map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.title}
-                    </option>
-                  ))
-                )}
-              </select>
-              <p className="text-xs text-[#434651]">
-                Screening staged: {stagedScreeningCountForSelectedSubmissionEvent}/{screeningHackathonSubmissions.length} • Judging staged: {stagedJudgingCountForSelectedSubmissionEvent}/{judgingHackathonSubmissions.length}
-              </p>
-              <button
-                onClick={() => void syncScreeningDecisions()}
-                disabled={loading || selectedSubmissionEventId === null || screeningHackathonSubmissions.length === 0}
-                className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-70"
-              >
-                Sync PPT Screening
-              </button>
-              <button
-                onClick={() => void syncJudgingDecisions()}
-                disabled={loading || selectedSubmissionEventId === null || judgingHackathonSubmissions.length === 0}
-                className="bg-[#0b6b2e] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-70"
-              >
-                Sync Final Judging
-              </button>
+        <section className="space-y-5">
+          <div className="border border-[#c4c6d3] bg-white p-4 md:p-5 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Review Controls</p>
+            <div className="mt-3 grid grid-cols-1 xl:grid-cols-[1fr_auto] gap-4 items-start">
+              <div className="space-y-3">
+                <h2 className="font-headline text-2xl text-[#002155]">Claims and Submissions</h2>
+                <select
+                  className="border border-[#747782] p-2 text-xs md:w-[360px] bg-[#fdfdfd]"
+                  value={selectedSubmissionEventId ?? ''}
+                  onChange={(e) => setSelectedSubmissionEventId(Number(e.target.value))}
+                  disabled={hackathonReviewEvents.length === 0}
+                >
+                  {hackathonReviewEvents.length === 0 ? (
+                    <option value="">No hackathon event reviews pending</option>
+                  ) : (
+                    hackathonReviewEvents.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.title}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="text-xs text-[#434651]">
+                  Screening staged: {stagedScreeningCountForSelectedSubmissionEvent}/{screeningHackathonSubmissions.length} | Judging staged: {stagedJudgingCountForSelectedSubmissionEvent}/{judgingHackathonSubmissions.length}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 xl:justify-end">
+                <button
+                  onClick={() => void syncScreeningDecisions()}
+                  disabled={loading || selectedSubmissionEventId === null || screeningHackathonSubmissions.length === 0}
+                  className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-70"
+                >
+                  Sync PPT Screening
+                </button>
+                <button
+                  onClick={() => void syncJudgingDecisions()}
+                  disabled={loading || selectedSubmissionEventId === null || judgingHackathonSubmissions.length === 0}
+                  className="bg-[#0b6b2e] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-70"
+                >
+                  Sync Final Judging
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="mb-4 border border-[#c4c6d3] bg-[#f5f4f0] p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Final Judging Rubric Guide (After PPT Shortlisting)</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[#434651]">
+          <details className="border border-[#c4c6d3] bg-[#f5f4f0] p-4" open>
+            <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#002155]">Final Judging Rubric Guide</summary>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[#434651]">
               {HACKATHON_RUBRIC_ORDER.map((field) => (
                 <p key={field}>
                   {HACKATHON_RUBRIC_LABELS[field]}: 0-10 ({HACKATHON_RUBRIC_WEIGHTS[field]}%)
                 </p>
               ))}
             </div>
-          </div>
+          </details>
 
           {submissionsForDisplay.length === 0 ? (
             <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No claims found for your authored problems.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {submissionsForDisplay.map((submission) => {
                 const canScreen = submission.status === 'IN_PROGRESS' || submission.status === 'SUBMITTED' || submission.status === 'REVISION_REQUESTED';
-                const canJudge = submission.status === 'SHORTLISTED';
+                const canJudge = submission.status === 'SHORTLISTED' && !submission.isAbsent;
                 const isHackathonSubmission = !!submission.problem.event;
                 const staged = stagedDecisions[submission.id] || null;
                 const form = reviewForms[submission.id] || { status: 'REVISION_REQUESTED', score: '', feedback: '', badges: '' };
-                return (
-                  <article key={submission.id} className="border border-[#c4c6d3] bg-white p-5">
-                    <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{submission.status}</p>
-                    <h3 className="mt-1 text-base font-bold text-[#002155]">{submission.problem.title}</h3>
-                    <p className="mt-1 text-xs text-[#434651]">Team: {submission.teamName || 'Individual'}</p>
-                    <p className="mt-1 text-xs text-[#434651]">
-                      Members: {submission.members.map((member) => `${member.user.name}${member.user.uid ? ` (${member.user.uid})` : ''}`).join(', ')}
-                    </p>
-                    {['ACCEPTED', 'REJECTED'].includes(submission.status) ? (
-                      <p className="mt-1 text-xs font-bold text-[#002155]">Final Score: {submission.finalScore ?? submission.score ?? 'N/A'}/100</p>
-                    ) : null}
-                    {submission.problem.event ? (
-                      <Link
-                        href={`/innovation/events/${submission.problem.event.id}`}
-                        className="inline-flex mt-2 mr-3 text-xs font-bold uppercase tracking-wider text-[#002155] underline"
-                      >
-                        View Event Page
-                      </Link>
-                    ) : null}
-                    {submission.submissionUrl ? (
-                      <a href={submission.submissionUrl} target="_blank" rel="noreferrer" className="inline-block mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                        Open Submission URL
-                      </a>
-                    ) : null}
 
-                    {(canScreen || canJudge) && isHackathonSubmission ? (
-                      <div className="mt-4 border border-[#e3e2df] bg-[#faf9f5] p-3">
-                        <p className="text-xs text-[#434651] mb-2">
-                          {canScreen
-                            ? 'Stage 1: review PPT quality and shortlist teams for the judging round.'
-                            : 'Stage 2: score shortlisted teams and mark final decision.'}
-                        </p>
-                        {canScreen ? (
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => stageDecision(submission.id, 'SHORTLISTED')}
-                              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'SHORTLISTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
-                              disabled={loading}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => stageDecision(submission.id, 'REJECTED')}
-                              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'REJECTED' ? 'bg-[#ba1a1a] text-white border-[#ba1a1a]' : 'bg-white text-[#ba1a1a] border-[#ba1a1a]'}`}
-                              disabled={loading}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => stageDecision(submission.id, 'ACCEPTED')}
-                              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'ACCEPTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
-                              disabled={loading}
-                            >
-                              Final Select
-                            </button>
-                            <button
-                              onClick={() => stageDecision(submission.id, 'REJECTED')}
-                              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'REJECTED' ? 'bg-[#ba1a1a] text-white border-[#ba1a1a]' : 'bg-white text-[#ba1a1a] border-[#ba1a1a]'}`}
-                              disabled={loading}
-                            >
-                              Final Reject
-                            </button>
-                          </div>
-                        )}
-                        <p className="mt-2 text-xs text-[#434651]">
-                          Current staged decision: <span className="font-bold">{staged ? staged : 'Not marked'}</span>
-                        </p>
-                        {canJudge ? renderRubricEditor(submission) : null}
+                return (
+                  <details key={submission.id} className="group border border-[#c4c6d3] bg-white">
+                    <summary className="list-none cursor-pointer p-4 md:p-5">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c4f00]">{submission.status}</p>
+                          <h3 className="mt-1 text-base font-bold text-[#002155]">{submission.problem.title}</h3>
+                          <p className="mt-1 text-xs text-[#434651]">Team: {submission.teamName || 'Individual'}</p>
+                        </div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#747782]">Expand to review</p>
                       </div>
-                    ) : canScreen ? (
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <select className="border border-[#747782] p-2 text-xs" value={form.status} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, status: e.target.value as 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED' } }))}>
-                          <option value="ACCEPTED">ACCEPTED</option>
-                          <option value="REVISION_REQUESTED">REVISION_REQUESTED</option>
-                          <option value="REJECTED">REJECTED</option>
-                        </select>
-                        <input className="border border-[#747782] p-2 text-xs" placeholder="Score (0-100)" value={form.score} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, score: e.target.value } }))} />
-                        <input className="border border-[#747782] p-2 text-xs" placeholder="Badges" value={form.badges} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, badges: e.target.value } }))} />
-                        <input className="border border-[#747782] p-2 text-xs" placeholder="Feedback" value={form.feedback} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, feedback: e.target.value } }))} />
-                        <button onClick={() => void submitReview(submission.id)} className="md:col-span-2 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit">
-                          Submit Review
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-[#434651]">Claim is created. Review will be available after the team submits URL/file.</p>
-                    )}
-                  </article>
+                    </summary>
+
+                    <div className="border-t border-[#e3e2df] p-4 md:p-5">
+                      <p className="text-xs text-[#434651]">
+                        Members: {submission.members.map((member) => `${member.user.name}${member.user.uid ? ` (${member.user.uid})` : ''}`).join(', ')}
+                      </p>
+                      {submission.status === 'SHORTLISTED' && submission.isAbsent ? (
+                        <p className="mt-1 text-xs font-bold uppercase tracking-wider text-[#ba1a1a]">Attendance: Absent</p>
+                      ) : null}
+                      {['ACCEPTED', 'REJECTED'].includes(submission.status) ? (
+                        <p className="mt-1 text-xs font-bold text-[#002155]">Final Score: {submission.finalScore ?? submission.score ?? 'N/A'}/100</p>
+                      ) : null}
+                      {submission.problem.event ? (
+                        <Link
+                          href={`/innovation/events/${submission.problem.event.id}`}
+                          className="inline-flex mt-2 mr-3 text-xs font-bold uppercase tracking-wider text-[#002155] underline"
+                        >
+                          View Event Page
+                        </Link>
+                      ) : null}
+                      {submission.submissionUrl ? (
+                        <a href={submission.submissionUrl} target="_blank" rel="noreferrer" className="inline-block mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                          Open Submission URL
+                        </a>
+                      ) : null}
+
+                      {(canScreen || canJudge) && isHackathonSubmission ? (
+                        <div className="mt-4 border border-[#e3e2df] bg-[#faf9f5] p-3">
+                          <p className="text-xs text-[#434651] mb-2">
+                            {canScreen
+                              ? 'Stage 1: review PPT quality and shortlist teams for final judging.'
+                              : 'Stage 2: assign rubric scores and finalize the team decision.'}
+                          </p>
+                          {canScreen ? (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => stageDecision(submission.id, 'SHORTLISTED')}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'SHORTLISTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
+                                disabled={loading}
+                              >
+                                Shortlist
+                              </button>
+                              <button
+                                onClick={() => stageDecision(submission.id, 'REJECTED')}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'REJECTED' ? 'bg-[#ba1a1a] text-white border-[#ba1a1a]' : 'bg-white text-[#ba1a1a] border-[#ba1a1a]'}`}
+                                disabled={loading}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => stageDecision(submission.id, 'ACCEPTED')}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'ACCEPTED' ? 'bg-[#0b6b2e] text-white border-[#0b6b2e]' : 'bg-white text-[#0b6b2e] border-[#0b6b2e]'}`}
+                                disabled={loading}
+                              >
+                                Final Select
+                              </button>
+                              <button
+                                onClick={() => stageDecision(submission.id, 'REJECTED')}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${staged === 'REJECTED' ? 'bg-[#ba1a1a] text-white border-[#ba1a1a]' : 'bg-white text-[#ba1a1a] border-[#ba1a1a]'}`}
+                                disabled={loading}
+                              >
+                                Final Reject
+                              </button>
+                            </div>
+                          )}
+                          <p className="mt-2 text-xs text-[#434651]">
+                            Current staged decision: <span className="font-bold">{staged ? staged : 'Not marked'}</span>
+                          </p>
+                          {canJudge ? renderRubricEditor(submission) : null}
+                        </div>
+                      ) : submission.status === 'SHORTLISTED' && submission.isAbsent ? (
+                        <div className="mt-4 border border-[#f1b7b7] bg-[#fff3f3] p-3">
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#ba1a1a]">Team marked absent for judging round</p>
+                          <p className="mt-1 text-xs text-[#7f2a2a]">Mark the team present to re-enable final judging actions for this submission.</p>
+                          <button
+                            onClick={() => void toggleClaimAbsence(submission.id, false)}
+                            className="mt-2 px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#002155] text-[#002155] bg-white"
+                            disabled={loading}
+                          >
+                            Mark Present
+                          </button>
+                        </div>
+                      ) : canScreen ? (
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <select className="border border-[#747782] p-2 text-xs" value={form.status} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, status: e.target.value as 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED' } }))}>
+                            <option value="ACCEPTED">ACCEPTED</option>
+                            <option value="REVISION_REQUESTED">REVISION_REQUESTED</option>
+                            <option value="REJECTED">REJECTED</option>
+                          </select>
+                          <input className="border border-[#747782] p-2 text-xs" placeholder="Score (0-100)" value={form.score} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, score: e.target.value } }))} />
+                          <input className="border border-[#747782] p-2 text-xs" placeholder="Badges" value={form.badges} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, badges: e.target.value } }))} />
+                          <input className="border border-[#747782] p-2 text-xs" placeholder="Feedback" value={form.feedback} onChange={(e) => setReviewForms((prev) => ({ ...prev, [submission.id]: { ...form, feedback: e.target.value } }))} />
+                          <button onClick={() => void submitReview(submission.id)} className="md:col-span-2 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit">
+                            Submit Review
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs text-[#434651]">Claim is created. Review will be available after the team submits URL/file.</p>
+                      )}
+                    </div>
+                  </details>
                 );
               })}
             </div>
@@ -1083,20 +1237,26 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
 
       {activeTab === 'events' ? (
         <>
-          <section className="mb-4 flex flex-wrap gap-2">
-            <button onClick={() => setEventsSubTab('create')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${eventsSubTab === 'create' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-white text-[#002155] border-[#c4c6d3]'}`}>Create Event</button>
-            <button onClick={() => setEventsSubTab('manage')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${eventsSubTab === 'manage' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-white text-[#002155] border-[#c4c6d3]'}`}>Manage Event</button>
-            <button onClick={() => setEventsSubTab('teams')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${eventsSubTab === 'teams' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-white text-[#002155] border-[#c4c6d3]'}`}>Registered Teams</button>
+          <section className="mb-5 border border-[#c4c6d3] bg-white p-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Event Workspace</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={() => setEventsSubTab('create')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${eventsSubTab === 'create' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'}`}>Create Event</button>
+              <button onClick={() => setEventsSubTab('manage')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${eventsSubTab === 'manage' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'}`}>Manage Event</button>
+              <button onClick={() => setEventsSubTab('teams')} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${eventsSubTab === 'teams' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'}`}>Registered Teams</button>
+            </div>
           </section>
 
           {eventsSubTab === 'create' ? (
-            <section className="border border-[#c4c6d3] bg-white p-5">
-              <h2 className="font-headline text-2xl text-[#002155] mb-4">Create Hackathon Event</h2>
+            <section className="border border-[#c4c6d3] bg-white p-5 md:p-6 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Setup</p>
+              <h2 className="font-headline text-2xl text-[#002155] mt-2 mb-4">Create Hackathon Event</h2>
               <form className="space-y-4" onSubmit={createEvent}>
                 <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Title" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} required />
                 <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Description" value={eventDescription} onChange={(e) => setEventDescription(e.target.value)} />
-                <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventStartTime} onChange={(e) => setEventStartTime(e.target.value)} required />
-                <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventEndTime} onChange={(e) => setEventEndTime(e.target.value)} required />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventStartTime} onChange={(e) => setEventStartTime(e.target.value)} required />
+                  <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventEndTime} onChange={(e) => setEventEndTime(e.target.value)} required />
+                </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1151,23 +1311,30 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                   ))}
                 </div>
 
-                <input type="file" accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf" onChange={(e) => setEventPpt(e.target.files?.[0] ?? null)} />
+                <div className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
+                  <p className="text-xs text-[#434651] mb-2">Optional event brief (PPT/PDF) shown to participants.</p>
+                  <input type="file" accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf" onChange={(e) => setEventPpt(e.target.files?.[0] ?? null)} />
+                </div>
                 <button type="submit" disabled={loading} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider">Create Event</button>
               </form>
             </section>
           ) : null}
 
           {eventsSubTab === 'manage' ? (
-            <section className="border border-[#c4c6d3] bg-[#f5f4f0] p-5">
-              <h2 className="font-headline text-2xl text-[#002155] mb-4">Manage Event</h2>
+            <section className="border border-[#c4c6d3] bg-[#f5f4f0] p-5 md:p-6 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Lifecycle</p>
+              <h2 className="font-headline text-2xl text-[#002155] mt-2 mb-4">Manage Event</h2>
               {manageableEvents.length === 0 ? (
                 <p className="text-sm text-[#434651]">No events available for your account.</p>
               ) : (
                 <div className="space-y-3">
                   {manageableEvents.map((event) => (
-                    <article key={event.id} className="border border-[#e3e2df] bg-white p-4">
-                      <p className="text-sm font-bold text-[#002155]">{event.title}</p>
-                      <p className="mt-1 text-xs text-[#434651]">{event.status} • Problems: {event._count.problems}</p>
+                    <article key={event.id} className="border border-[#d8dae6] bg-white p-4 md:p-5">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <p className="text-sm md:text-base font-bold text-[#002155]">{event.title}</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c4f00]">{event.status}</p>
+                      </div>
+                      <p className="mt-1 text-xs text-[#434651]">Problems: {event._count.problems}</p>
                       <p className="mt-1 text-xs text-[#434651]">Registration: {event.registrationOpen ? 'OPEN' : 'CLOSED'}</p>
                       <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
                       <Link
@@ -1197,16 +1364,14 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                         {event.status === 'UPCOMING' ? (
                           <button onClick={() => void advanceEventStatus(event.id, 'ACTIVE')} className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider">Mark ACTIVE</button>
                         ) : null}
-                        {event.status === 'ACTIVE' ? (
-                          <button onClick={() => void advanceEventStatus(event.id, 'JUDGING')} className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider">Mark JUDGING</button>
-                        ) : null}
-                        {event.status === 'JUDGING' ? (
+                        {event.status === 'ACTIVE' || event.status === 'JUDGING' ? (
                           <button onClick={() => void advanceEventStatus(event.id, 'CLOSED')} className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider">Mark CLOSED</button>
                         ) : null}
                       </div>
 
-                      <div className="mt-4 border border-[#e3e2df] bg-[#faf9f5] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#434651] mb-2">Edit Event Problem Statements</p>
+                      <details className="mt-4 border border-[#e3e2df] bg-[#faf9f5] p-3">
+                        <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-[#434651]">Edit Event Problem Statements</summary>
+                        <div className="mt-3">
                         {(problemsByEvent[event.id] || []).length === 0 ? (
                           <p className="text-xs text-[#434651]">No problem statements found for this event.</p>
                         ) : (
@@ -1287,7 +1452,8 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                             Add Problem Statement
                           </button>
                         </div>
-                      </div>
+                        </div>
+                      </details>
                     </article>
                   ))}
                 </div>
@@ -1296,9 +1462,12 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
           ) : null}
 
           {eventsSubTab === 'teams' ? (
-            <section className="border border-[#c4c6d3] bg-white p-5">
+            <section className="border border-[#c4c6d3] bg-white p-5 md:p-6 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                <h2 className="font-headline text-2xl text-[#002155]">Registered Teams</h2>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Operations Queue</p>
+                  <h2 className="font-headline text-2xl text-[#002155] mt-1">Registered Teams</h2>
+                </div>
                 <div className="flex flex-col md:flex-row md:items-center gap-2">
                   {manageableEvents.length > 0 ? (
                     <select
@@ -1369,46 +1538,46 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                   <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                     <div className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-[#434651]">Total: <span className="font-bold">{filteredSelectedEventRegistrations.length}</span></div>
                     <div className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-[#8c4f00]">Shortlisted: <span className="font-bold">{shortlistedSelectedEventRegistrations.length}</span></div>
-                    <div className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-[#0b6b2e]">Approved: <span className="font-bold">{approvedSelectedEventRegistrations.length}</span></div>
+                    <div className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-[#ba1a1a]">Absent: <span className="font-bold">{absentSelectedEventRegistrations.length}</span></div>
                     <div className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-[#ba1a1a]">Rejected: <span className="font-bold">{rejectedSelectedEventRegistrations.length}</span></div>
                   </div>
 
                   <div className="space-y-5">
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#8c4f00] mb-2">Pending Teams</h3>
+                    <details open className="border border-[#d8dae6] bg-[#faf9f5] p-3">
+                      <summary className="cursor-pointer text-sm font-bold uppercase tracking-wider text-[#8c4f00]">Pending Teams ({pendingSelectedEventRegistrations.length})</summary>
                       {pendingSelectedEventRegistrations.length === 0 ? (
-                        <p className="text-xs text-[#434651]">No pending teams in this filter.</p>
+                        <p className="text-xs text-[#434651] mt-3">No pending teams in this filter.</p>
                       ) : (
-                        <div className="space-y-3">{pendingSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
+                        <div className="space-y-3 mt-3">{pendingSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
                       )}
-                    </div>
+                    </details>
 
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#8c4f00] mb-2">Shortlisted Teams (Judging Round)</h3>
+                    <details open className="border border-[#d8dae6] bg-[#faf9f5] p-3">
+                      <summary className="cursor-pointer text-sm font-bold uppercase tracking-wider text-[#8c4f00]">Shortlisted Teams ({shortlistedSelectedEventRegistrations.length})</summary>
                       {shortlistedSelectedEventRegistrations.length === 0 ? (
-                        <p className="text-xs text-[#434651]">No shortlisted teams in this filter.</p>
+                        <p className="text-xs text-[#434651] mt-3">No shortlisted teams in this filter.</p>
                       ) : (
-                        <div className="space-y-3">{shortlistedSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
+                        <div className="space-y-3 mt-3">{shortlistedSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
                       )}
-                    </div>
+                    </details>
 
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#0b6b2e] mb-2">Approved Teams</h3>
-                      {approvedSelectedEventRegistrations.length === 0 ? (
-                        <p className="text-xs text-[#434651]">No approved teams in this filter.</p>
+                    <details className="border border-[#d8dae6] bg-[#faf9f5] p-3">
+                      <summary className="cursor-pointer text-sm font-bold uppercase tracking-wider text-[#ba1a1a]">Absent Teams ({absentSelectedEventRegistrations.length})</summary>
+                      {absentSelectedEventRegistrations.length === 0 ? (
+                        <p className="text-xs text-[#434651] mt-3">No absent teams in this filter.</p>
                       ) : (
-                        <div className="space-y-3">{approvedSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
+                        <div className="space-y-3 mt-3">{absentSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
                       )}
-                    </div>
+                    </details>
 
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#ba1a1a] mb-2">Rejected Teams</h3>
+                    <details className="border border-[#d8dae6] bg-[#faf9f5] p-3">
+                      <summary className="cursor-pointer text-sm font-bold uppercase tracking-wider text-[#ba1a1a]">Rejected Teams ({rejectedSelectedEventRegistrations.length})</summary>
                       {rejectedSelectedEventRegistrations.length === 0 ? (
-                        <p className="text-xs text-[#434651]">No rejected teams in this filter.</p>
+                        <p className="text-xs text-[#434651] mt-3">No rejected teams in this filter.</p>
                       ) : (
-                        <div className="space-y-3">{rejectedSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
+                        <div className="space-y-3 mt-3">{rejectedSelectedEventRegistrations.map((registration) => renderRegistrationCard(registration))}</div>
                       )}
-                    </div>
+                    </details>
                   </div>
                 </>
               )}

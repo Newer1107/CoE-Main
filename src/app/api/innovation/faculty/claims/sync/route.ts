@@ -108,9 +108,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (stage === 'JUDGING') {
-      const invalidJudgingEvent = claims.find((claim) => claim.problem.event?.status !== 'JUDGING');
+      const invalidJudgingEvent = claims.find((claim) => claim.problem.event?.status !== 'ACTIVE');
       if (invalidJudgingEvent) {
-        return errorRes('Invalid event stage', ['Final judging sync is allowed only when event status is JUDGING'], 400);
+        return errorRes('Invalid event stage', ['Final judging sync is allowed only when event status is ACTIVE'], 400);
+      }
+
+      const absentClaim = claims.find((claim) => claim.isAbsent);
+      if (absentClaim) {
+        return errorRes('Invalid claim state', [`Claim #${absentClaim.id} is marked absent. Mark the team present before judging sync.`], 400);
       }
     }
 
@@ -123,6 +128,7 @@ export async function PATCH(req: NextRequest) {
           where: { id: claim.id },
           data: {
             status: decision.status,
+            isAbsent: stage === 'JUDGING' ? false : claim.isAbsent,
             innovationScore: stage === 'JUDGING' ? decision.rubrics?.innovation : null,
             technicalScore: stage === 'JUDGING' ? decision.rubrics?.technical : null,
             impactScore: stage === 'JUDGING' ? decision.rubrics?.impact : null,

@@ -13,8 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
     if (!event) return errorRes('Hackathon event not found', [], 404);
 
-    if (!['JUDGING', 'CLOSED'].includes(event.status)) {
-      return errorRes('Leaderboard not available', ['Leaderboard is visible only during JUDGING or CLOSED phases'], 400);
+    if (event.status !== 'CLOSED') {
+      return errorRes('Leaderboard not available', ['Leaderboard is visible only after the event is closed'], 400);
     }
 
     const ranked = await getEventLeaderboard(prisma, eventId);

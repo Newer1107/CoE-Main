@@ -127,20 +127,22 @@ flowchart LR
   SUB --> SCR[Stage 1 sync: SCREENING]
   SCR --> SHORT[SHORTLISTED]
   SCR --> R1[REJECTED]
-  SHORT --> JUD[Event status JUDGING]
-  JUD --> FIN[Stage 2 sync: JUDGING + rubric]
+  SHORT --> ATT[Attendance mark: Present or Absent]
+  ATT --> ABS[Absent tracked]
+  ATT --> FIN[Stage 2 sync: JUDGING + rubric while event ACTIVE]
   FIN --> ACC[ACCEPTED + scored]
   FIN --> R2[REJECTED + scored]
-  ACC --> LB[Leaderboard]
-  R2 --> LB
+  ACC --> CLS[Event CLOSED]
+  R2 --> CLS
+  CLS --> LB[Leaderboard + result emails]
 ```
 
 ### 4.5 Hackathon event structure (domain view)
 
 ```mermaid
 flowchart TD
-  HE[HackathonEvent\nstatus: UPCOMING or ACTIVE or JUDGING or CLOSED\nregistrationOpen: true or false\npptFileKey: optional] --> P[Problem statements\nmode: CLOSED]
-  P --> C[Claim per team\nstatus lifecycle: IN_PROGRESS -> SUBMITTED -> SHORTLISTED -> ACCEPTED or REJECTED]
+  HE[HackathonEvent\nstatus: UPCOMING or ACTIVE or CLOSED\nregistrationOpen: true or false\npptFileKey: optional] --> P[Problem statements\nmode: CLOSED]
+  P --> C[Claim per team\nstatus lifecycle: IN_PROGRESS -> SUBMITTED -> SHORTLISTED -> ACCEPTED or REJECTED\nattendance flag: isAbsent]
   C --> CM[ClaimMember list\nLEAD + MEMBER]
   C --> SF[Submission assets\nsubmissionFileKey or submissionUrl]
   C --> RB[Rubric scores\ninnovation, technical, impact, ux, execution, presentation, feasibility]
@@ -148,7 +150,7 @@ flowchart TD
 
   ST[Student] -->|register with PPT| C
   FC[Faculty or Admin] -->|screening + judging sync| C
-  CR[Innovation reminder cron] -->|status transitions + auto-submit| HE
+  CR[Innovation reminder cron] -->|activate events + reminders + active notifications| HE
 ```
 
 ### 4.6 Hackathon end-to-end sequence
@@ -159,6 +161,7 @@ sequenceDiagram
   participant E as /api/innovation/events/:id/register
   participant DB as Prisma DB
   participant F as Faculty Workspace
+  participant AD as /api/innovation/admin/events/:id/status
   participant SY as /api/innovation/faculty/claims/sync
   participant M as Mailer
   participant L as /api/innovation/events/:id/leaderboard
@@ -166,17 +169,21 @@ sequenceDiagram
   S->>E: Register team + upload PPT
   E->>DB: Create claim + upload file + set status SUBMITTED
 
+  F->>AD: Move event UPCOMING to ACTIVE
+  AD->>M: Send active-phase event notification
+
   F->>SY: Stage=SCREENING (SHORTLISTED or REJECTED)
   SY->>DB: Update claim status
   SY->>M: Send screening result email
 
-  F->>DB: Move event status to JUDGING
-
-  F->>SY: Stage=JUDGING (ACCEPTED or REJECTED + rubrics)
+  F->>SY: Stage=JUDGING (ACCEPTED or REJECTED + rubrics, present shortlisted teams only)
   SY->>DB: Persist rubrics + finalScore
   SY->>M: Send final score email
 
-  S->>L: View leaderboard (JUDGING or CLOSED)
+  F->>AD: Move event ACTIVE to CLOSED
+  AD->>M: Send winners announcement emails
+
+  S->>L: View leaderboard (CLOSED only)
   L->>DB: Rank by finalScore then score
 ```
 
@@ -201,10 +208,13 @@ Key innovation enums and lifecycle:
 - `ProblemStatus`: `UNCLAIMED`, `CLAIMED`, `SOLVED`, `ARCHIVED`
 - `ClaimStatus`: `IN_PROGRESS`, `SUBMITTED`, `SHORTLISTED`, `ACCEPTED`, `REVISION_REQUESTED`, `REJECTED`
 - `EventStatus`: `UPCOMING`, `ACTIVE`, `JUDGING`, `CLOSED`
+  - operational transition flow currently used: `UPCOMING -> ACTIVE -> CLOSED`
+  - `JUDGING` remains as a compatibility enum value
 
 Scoring fields persisted on `Claim` for hackathon judging:
 - `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
 - `finalScore` and `score`
+- `isAbsent` tracks judging-round attendance for shortlisted teams
 
 ## 6) App Routes and UX Flows
 
@@ -238,12 +248,12 @@ Navigation and access behavior:
 flowchart LR
   IH[Innovation Landing Page] --> ED[Event Detail Page]
   ED --> RF[Register Team form\nStudent only]
-  ED --> LB[Leaderboard\nvisible in JUDGING or CLOSED]
+  ED --> LB[Leaderboard\nvisible in CLOSED only]
   IF[Faculty Workspace] --> ET[Events tab]
   IF --> ST[Submissions tab]
-  ET --> TM[Registered Teams view\nPending, Shortlisted, Approved, Rejected]
+  ET --> TM[Registered Teams view\nPending, Shortlisted, Absent, Rejected]
   ST --> SC[Stage 1: PPT screening actions]
-  ST --> JG[Stage 2: final judging + rubric]
+  ST --> JG[Stage 2: final judging + rubric during ACTIVE]
 ```
 
 Route mapping for this flow:
@@ -338,16 +348,17 @@ Hackathon events:
 - `POST /api/innovation/events` (faculty/admin)
 - `PATCH /api/innovation/events/[id]` (creator faculty or admin)
 - `POST /api/innovation/events/[id]/register` (student)
-- `GET /api/innovation/events/[id]/leaderboard` (event must be `JUDGING` or `CLOSED`)
+- `GET /api/innovation/events/[id]/leaderboard` (event must be `CLOSED`)
 
 Event stage controls and review:
 - `PATCH /api/innovation/admin/events/[id]/status` (admin, or creator faculty)
 - `GET /api/innovation/admin/submissions` (admin)
 - `GET /api/innovation/faculty/submissions` (faculty/admin)
 - `PATCH /api/innovation/faculty/claims/sync` (faculty/admin)
+- `PATCH /api/innovation/faculty/claims/[id]/attendance` (owner faculty or admin)
   - Stage-aware payload:
     - `stage=SCREENING`: decision statuses `SHORTLISTED` or `REJECTED`
-    - `stage=JUDGING`: decision statuses `ACCEPTED` or `REJECTED`, rubrics required
+    - `stage=JUDGING`: decision statuses `ACCEPTED` or `REJECTED`, rubrics required, absent teams excluded
 
 ### 7.6 Utility and Ops APIs
 
@@ -438,10 +449,9 @@ Innovation reminder job:
 - Endpoint: `GET /api/cron/innovation-reminder`
 - Behavior:
   - transitions `UPCOMING -> ACTIVE` when start time is reached
-  - transitions `ACTIVE -> JUDGING` when end time is reached
-  - auto-submits `IN_PROGRESS` event claims to `SUBMITTED`
+  - sends active-phase participant notifications at activation
   - sends event ending reminders
-  - sends judging transition notifications
+  - does not auto-close events; closure is a manual status control
 
 Operational health:
 - `GET /api/health`
@@ -467,11 +477,12 @@ Mixed-content or broken media URLs:
 - Use `POST`, not `GET`
 
 Leaderboard endpoint failing:
-- Verify event status is `JUDGING` or `CLOSED`
+- Verify event status is `CLOSED`
 
 Final judging sync failing:
-- Ensure event status is `JUDGING`
-- Ensure only shortlisted claims are included
+- Ensure event status is `ACTIVE`
+- Ensure only present shortlisted claims are included
+- If a shortlisted team was marked absent, mark it present first
 - Ensure all rubric fields are present
 
 ## 14) Verification Checklist
@@ -484,8 +495,8 @@ Before release:
 - Verify innovation two-stage flow:
   - registration/submission
   - screening sync
-  - shortlist visibility
-  - judging sync with rubric scoring
+  - shortlist and absent-team visibility
+  - judging sync with rubric scoring for present teams
   - leaderboard output
 - Verify reminder cron endpoints
 - Ensure `.env` secrets are not committed

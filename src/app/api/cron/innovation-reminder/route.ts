@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma';
 import { errorRes, successRes } from '@/lib/api-helpers';
 import { getEventParticipantEmails } from '@/lib/innovation';
-import { sendInnovationEventJudgingEmail, sendInnovationEventReminderEmail } from '@/lib/mailer';
+import { sendInnovationEventActiveEmail, sendInnovationEventReminderEmail } from '@/lib/mailer';
 
 // GET /api/cron/innovation-reminder
 export async function GET() {
@@ -9,50 +9,38 @@ export async function GET() {
     const now = new Date();
     const inThirty = new Date(now.getTime() + 30 * 60 * 1000);
 
-    const activated = await prisma.hackathonEvent.updateMany({
+    const upcomingToActivate = await prisma.hackathonEvent.findMany({
       where: {
         status: 'UPCOMING',
         startTime: { lte: now },
       },
-      data: { status: 'ACTIVE' },
-    });
-
-    const expiredActiveEvents = await prisma.hackathonEvent.findMany({
-      where: {
-        status: 'ACTIVE',
-        endTime: { lte: now },
-      },
       select: { id: true, title: true },
     });
 
-    let movedToJudging = 0;
-    let autoSubmittedClaims = 0;
-    let judgingNotificationsSent = 0;
+    let activatedEvents = 0;
+    let activeNotificationsSent = 0;
 
-    for (const event of expiredActiveEvents) {
-      await prisma.$transaction(async (tx) => {
-        await tx.hackathonEvent.update({ where: { id: event.id }, data: { status: 'JUDGING' } });
-
-        const result = await tx.claim.updateMany({
-          where: {
-            status: 'IN_PROGRESS',
-            problem: { eventId: event.id },
-          },
-          data: { status: 'SUBMITTED' },
+    for (const event of upcomingToActivate) {
+      const didActivate = await prisma.$transaction(async (tx) => {
+        const activation = await tx.hackathonEvent.updateMany({
+          where: { id: event.id, status: 'UPCOMING' },
+          data: { status: 'ACTIVE' },
         });
 
-        autoSubmittedClaims += result.count;
+        if (activation.count === 0) return false;
+        activatedEvents += 1;
+        return true;
       });
 
-      movedToJudging += 1;
+      if (!didActivate) continue;
 
       const emails = await getEventParticipantEmails(prisma, event.id);
       if (emails.length > 0) {
         try {
-          await sendInnovationEventJudgingEmail(emails, { eventTitle: event.title });
-          judgingNotificationsSent += emails.length;
+          await sendInnovationEventActiveEmail(emails, { eventTitle: event.title });
+          activeNotificationsSent += emails.length;
         } catch (mailErr) {
-          console.error(`Judging notification failed for event ${event.id}:`, mailErr);
+          console.error(`Active notification failed for event ${event.id}:`, mailErr);
         }
       }
     }
@@ -115,12 +103,10 @@ export async function GET() {
 
     return successRes(
       {
-        activatedEvents: activated.count,
-        movedToJudging,
-        autoSubmittedClaims,
+        activatedEvents,
         reminderEvents,
         remindersSent,
-        judgingNotificationsSent,
+        activeNotificationsSent,
       },
       'Innovation cron executed successfully.'
     );

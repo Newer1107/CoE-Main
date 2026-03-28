@@ -274,20 +274,23 @@ export const sendInnovationEventReminderEmail = async (
   await send(recipients, 'Innovation Reminder: 30 Minutes Remaining', body);
 };
 
-// ─── 11. Innovation: Event Moved to Judging ───
-export const sendInnovationEventJudgingEmail = async (
+// ─── 11. Innovation: Event Became Active ───
+export const sendInnovationEventActiveEmail = async (
   recipients: string[],
   details: {
     eventTitle: string;
   }
 ) => {
   const body = `
-    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Status Updated: Judging</h2>
-    <p style="color:#434651;font-size:14px;">The event <strong>${details.eventTitle}</strong> has moved to the judging phase.</p>
-    <p style="color:#434651;font-size:14px;">You can now track rankings from the event page leaderboard.</p>`;
+    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Status Updated: Active</h2>
+    <p style="color:#434651;font-size:14px;">The event <strong>${details.eventTitle}</strong> is now active.</p>
+    <p style="color:#434651;font-size:14px;">Final judging is now open during the active phase. Results are announced when the event is closed.</p>`;
 
-  await send(recipients, 'Innovation Update: Event In Judging', body);
+  await send(recipients, 'Innovation Update: Event Is Active', body);
 };
+
+// Backward-compatible alias for older imports.
+export const sendInnovationEventJudgingEmail = sendInnovationEventActiveEmail;
 
 // ─── 12. Innovation: Winners Announced ───
 export const sendInnovationWinnerEmail = async (

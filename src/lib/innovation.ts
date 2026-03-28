@@ -4,7 +4,7 @@ export const ACTIVE_CLAIM_STATUSES = ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQU
 
 const validTransitions: Record<string, string[]> = {
   UPCOMING: ['ACTIVE'],
-  ACTIVE: ['JUDGING'],
+  ACTIVE: ['CLOSED'],
   JUDGING: ['CLOSED'],
   CLOSED: [],
 };

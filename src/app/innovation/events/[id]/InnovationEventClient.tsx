@@ -63,7 +63,7 @@ export default function InnovationEventClient({
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   useEffect(() => {
-    if (!['JUDGING', 'CLOSED'].includes(status)) return;
+    if (status !== 'CLOSED') return;
 
     const loadLeaderboard = async () => {
       setLeaderboardLoading(true);
@@ -315,7 +315,7 @@ export default function InnovationEventClient({
         </p>
       ) : null}
 
-      {['JUDGING', 'CLOSED'].includes(status) ? (
+      {status === 'CLOSED' ? (
         <section>
           <h3 className="font-headline text-2xl text-[#002155] mb-4">Leaderboard</h3>
           {leaderboardLoading ? (

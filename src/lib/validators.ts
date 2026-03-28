@@ -155,6 +155,10 @@ export const innovationClaimReviewSchema = z.object({
   badges: z.string().optional().or(z.literal('')),
 });
 
+export const innovationClaimAttendanceSchema = z.object({
+  isAbsent: z.boolean(),
+});
+
 export const innovationHackathonRubricSchema = z.object({
   innovation: z.coerce.number().int().min(0).max(10),
   technical: z.coerce.number().int().min(0).max(10),

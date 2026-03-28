@@ -134,6 +134,7 @@ model Claim {
   score             Int?
   feedback          String?       @db.Text
   badges            String?
+  isAbsent          Boolean       @default(false)
   reminderSent      Boolean       @default(false)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

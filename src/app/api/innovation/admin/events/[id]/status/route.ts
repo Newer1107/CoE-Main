@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationEventStatusSchema } from '@/lib/validators';
 import { canTransitionEventStatus, getEventLeaderboard, getEventParticipantEmails } from '@/lib/innovation';
-import { sendInnovationEventJudgingEmail, sendInnovationWinnerEmail } from '@/lib/mailer';
+import { sendInnovationEventActiveEmail, sendInnovationWinnerEmail } from '@/lib/mailer';
 
 // PATCH /api/innovation/admin/events/[id]/status
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      if (nextStatus === 'JUDGING') {
+      if (nextStatus === 'CLOSED') {
         await tx.claim.updateMany({
           where: {
             status: 'IN_PROGRESS',
@@ -53,13 +53,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
     });
 
-    if (nextStatus === 'JUDGING') {
+    if (nextStatus === 'ACTIVE') {
       const emails = await getEventParticipantEmails(prisma, eventId);
       if (emails.length > 0) {
         try {
-          await sendInnovationEventJudgingEmail(emails, { eventTitle: updated.title });
+          await sendInnovationEventActiveEmail(emails, { eventTitle: updated.title });
         } catch (mailErr) {
-          console.error('Innovation judging transition email failed:', mailErr);
+          console.error('Innovation active transition email failed:', mailErr);
         }
       }
     }

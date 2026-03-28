@@ -255,7 +255,7 @@ export default function AdminPanelClient({
     }
   };
 
-  const handleInnovationEventStatus = async (eventId: number, status: "ACTIVE" | "JUDGING" | "CLOSED") => {
+  const handleInnovationEventStatus = async (eventId: number, status: "ACTIVE" | "CLOSED") => {
     try {
       setErrorMessage("");
       setStatusMessage("");
@@ -684,16 +684,7 @@ export default function AdminPanelClient({
                           Mark ACTIVE
                         </button>
                       ) : null}
-                      {event.status === "ACTIVE" ? (
-                        <button
-                          onClick={() => handleInnovationEventStatus(event.id, "JUDGING")}
-                          disabled={busyInnovationEventId === event.id}
-                          className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                        >
-                          Mark JUDGING
-                        </button>
-                      ) : null}
-                      {event.status === "JUDGING" ? (
+                      {event.status === "ACTIVE" || event.status === "JUDGING" ? (
                         <button
                           onClick={() => handleInnovationEventStatus(event.id, "CLOSED")}
                           disabled={busyInnovationEventId === event.id}

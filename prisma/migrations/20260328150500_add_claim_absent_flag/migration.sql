@@ -1,0 +1,2 @@
+ALTER TABLE `claims`
+ADD COLUMN `isAbsent` BOOLEAN NOT NULL DEFAULT false;
