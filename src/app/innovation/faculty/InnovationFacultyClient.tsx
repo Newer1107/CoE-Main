@@ -1297,14 +1297,6 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
               >
                 Open Statement Submissions
               </button>
-              <button
-                onClick={() => setSubmissionsSubTab('hackathon')}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
-                  submissionsSubTab === 'hackathon' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
-                }`}
-              >
-                Hackathon Submissions
-              </button>
             </div>
           </div>
 
