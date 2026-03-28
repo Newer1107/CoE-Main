@@ -24,7 +24,7 @@ export const facultyRegisterSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(2, 'Email or UID is required'),
   password: z.string().min(1),
 });
 

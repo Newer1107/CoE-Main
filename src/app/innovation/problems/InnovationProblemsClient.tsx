@@ -251,7 +251,7 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
                       />
                       <input
                         className="border border-[#747782] p-2 text-xs"
-                        placeholder="Member UIDs comma-separated"
+                        placeholder="Member UIDs comma-separated (e.g. 24-COMPD13-28)"
                         value={form.memberCsv}
                         onChange={(event) =>
                           setClaimForms((prev) => ({
@@ -260,6 +260,7 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
                           }))
                         }
                       />
+                      <p className="md:col-span-2 text-[11px] text-[#434651]">UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28)</p>
                       <button type="submit" className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider md:w-fit" disabled={loading}>
                         Claim Problem
                       </button>

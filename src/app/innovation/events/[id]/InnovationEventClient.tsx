@@ -20,6 +20,17 @@ type LeaderboardRow = {
   members: { id: number; name: string; email: string; role: string }[];
 };
 
+type UidLookupRow = {
+  uid: string;
+  found: boolean;
+  eligible: boolean;
+  name: string | null;
+  email: string | null;
+  role: string | null;
+  status: string | null;
+  isVerified: boolean | null;
+};
+
 type InnovationEventClientProps = {
   eventId: number;
   title: string;
@@ -58,6 +69,10 @@ export default function InnovationEventClient({
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [uidLookupBusy, setUidLookupBusy] = useState(false);
+  const [uidLookupMessage, setUidLookupMessage] = useState('');
+  const [uidLookupRows, setUidLookupRows] = useState<UidLookupRow[]>([]);
+  const [verifiedUidSnapshot, setVerifiedUidSnapshot] = useState('');
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -91,6 +106,95 @@ export default function InnovationEventClient({
     });
   }, [teamSize]);
 
+  useEffect(() => {
+    setVerifiedUidSnapshot('');
+    setUidLookupRows([]);
+    setUidLookupMessage('');
+  }, [teamLeadUid, memberUids, teamSize]);
+
+  const getNormalizedUidInputs = () => {
+    const cleanedLeadUid = teamLeadUid.trim().toUpperCase();
+    const cleanedMemberUids = memberUids.map((uid) => uid.trim().toUpperCase());
+    const snapshot = JSON.stringify([cleanedLeadUid, ...cleanedMemberUids]);
+
+    return {
+      cleanedLeadUid,
+      cleanedMemberUids,
+      snapshot,
+    };
+  };
+
+  const validateUidInputs = (cleanedLeadUid: string, cleanedMemberUids: string[]) => {
+    if (!cleanedLeadUid || cleanedMemberUids.some((uid) => !uid)) {
+      return 'Please fill all required UID fields.';
+    }
+
+    if (teamSize !== cleanedMemberUids.length + 1) {
+      return 'Team size must match team lead plus member UID fields.';
+    }
+
+    if (new Set(cleanedMemberUids).size !== cleanedMemberUids.length) {
+      return 'Member UIDs must be unique.';
+    }
+
+    if (cleanedMemberUids.includes(cleanedLeadUid)) {
+      return 'Team lead UID cannot be repeated in member UID fields.';
+    }
+
+    return null;
+  };
+
+  const handleFetchUidDetails = async () => {
+    setErrorMessage('');
+    setStatusMessage('');
+    setUidLookupMessage('');
+
+    const { cleanedLeadUid, cleanedMemberUids, snapshot } = getNormalizedUidInputs();
+    const validationError = validateUidInputs(cleanedLeadUid, cleanedMemberUids);
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    const requestedUids = [cleanedLeadUid, ...cleanedMemberUids];
+
+    setUidLookupBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/users/lookup?uids=${encodeURIComponent(JSON.stringify(requestedUids))}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      const payload = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data: UidLookupRow[];
+      };
+
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.message || 'Failed to fetch UID details');
+      }
+
+      setUidLookupRows(payload.data);
+
+      const hasIneligible = payload.data.some((row) => !row.eligible);
+      if (hasIneligible) {
+        setVerifiedUidSnapshot('');
+        setUidLookupMessage('Some UIDs are not eligible. Check the status below and update before submitting.');
+        return;
+      }
+
+      setVerifiedUidSnapshot(snapshot);
+      setUidLookupMessage('UID details fetched and verified. You can now submit registration.');
+    } catch (err) {
+      setUidLookupRows([]);
+      setVerifiedUidSnapshot('');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to fetch UID details');
+    } finally {
+      setUidLookupBusy(false);
+    }
+  };
+
   const registrationClosed = !registrationOpen || status === 'CLOSED' || new Date() > new Date(registrationCloseISO);
   const canShowRegistrationForm = viewerRole === 'STUDENT' && !registrationClosed && problems.length > 0;
 
@@ -99,26 +203,21 @@ export default function InnovationEventClient({
     setErrorMessage('');
     setStatusMessage('');
 
-    const cleanedLeadUid = teamLeadUid.trim().toUpperCase();
-    const cleanedMemberUids = memberUids.map((uid) => uid.trim().toUpperCase());
+    const { cleanedLeadUid, cleanedMemberUids, snapshot } = getNormalizedUidInputs();
 
-    if (!cleanedLeadUid || cleanedMemberUids.some((uid) => !uid)) {
-      setErrorMessage('Please fill all required UID fields.');
+    const validationError = validateUidInputs(cleanedLeadUid, cleanedMemberUids);
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
-    if (teamSize !== cleanedMemberUids.length + 1) {
-      setErrorMessage('Team size must match team lead plus member UID fields.');
+    if (verifiedUidSnapshot !== snapshot) {
+      setErrorMessage('Please fetch and verify UID details first before submitting registration.');
       return;
     }
 
-    if (new Set(cleanedMemberUids).size !== cleanedMemberUids.length) {
-      setErrorMessage('Member UIDs must be unique.');
-      return;
-    }
-
-    if (cleanedMemberUids.includes(cleanedLeadUid)) {
-      setErrorMessage('Team lead UID cannot be repeated in member UID fields.');
+    if (uidLookupRows.some((row) => !row.eligible)) {
+      setErrorMessage('One or more UIDs are not eligible. Please correct them and fetch details again.');
       return;
     }
 
@@ -152,6 +251,9 @@ export default function InnovationEventClient({
       setTeamLeadUid('');
       setMemberUids([]);
       setPptFile(null);
+      setUidLookupRows([]);
+      setUidLookupMessage('');
+      setVerifiedUidSnapshot('');
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -239,7 +341,7 @@ export default function InnovationEventClient({
       {canShowRegistrationForm ? (
         <section id="register-team" className="mb-8 border border-[#c4c6d3] bg-white p-5">
           <h3 className="font-headline text-2xl text-[#002155] mb-4">Register Team</h3>
-          <p className="mb-3 text-xs text-[#434651]">Enter valid UIDs for all team members. If any UID is not registered, the request will be rejected and that user must register first.</p>
+          <p className="mb-3 text-xs text-[#434651]">UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28). Enter valid UIDs for all team members. First fetch user details to verify the team, then submit registration.</p>
           <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleRegister}>
             <input className="border border-[#747782] p-3 text-sm" placeholder="Team name" value={teamName} onChange={(e) => setTeamName(e.target.value)} required />
             <input
@@ -261,7 +363,7 @@ export default function InnovationEventClient({
             </select>
             <input
               className="border border-[#747782] p-3 text-sm"
-              placeholder="Team lead UID"
+              placeholder="Team lead UID (e.g. 24-COMPD13-28)"
               value={teamLeadUid}
               onChange={(e) => setTeamLeadUid(e.target.value)}
               required
@@ -270,7 +372,7 @@ export default function InnovationEventClient({
               <input
                 key={index}
                 className="border border-[#747782] p-3 text-sm md:col-span-2"
-                placeholder={`Member ${index + 1} UID`}
+                placeholder={`Member ${index + 1} UID (e.g. 24-COMPD13-28)`}
                 value={uid}
                 onChange={(e) =>
                   setMemberUids((prev) => {
@@ -282,14 +384,46 @@ export default function InnovationEventClient({
                 required
               />
             ))}
-            <input
-              type="file"
-              accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
-              onChange={(e) => setPptFile(e.target.files?.[0] ?? null)}
-              className="md:col-span-2"
-              required
-            />
-            <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit">
+            <button
+              type="button"
+              onClick={() => void handleFetchUidDetails()}
+              disabled={uidLookupBusy || busy}
+              className="border border-[#002155] text-[#002155] px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-60"
+            >
+              {uidLookupBusy ? 'Fetching UID Details...' : 'Fetch UID Details'}
+            </button>
+            {uidLookupMessage ? (
+              <p className={`md:col-span-2 text-xs ${verifiedUidSnapshot ? 'text-green-700' : 'text-[#8c4f00]'}`}>{uidLookupMessage}</p>
+            ) : null}
+            {uidLookupRows.length > 0 ? (
+              <div className="md:col-span-2 border border-[#e3e2df] bg-[#faf9f5] p-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">UID Verification Results</p>
+                <ul className="mt-2 space-y-2">
+                  {uidLookupRows.map((row) => (
+                    <li key={row.uid} className="text-xs text-[#434651]">
+                      <span className="font-bold text-[#002155]">{row.uid}</span>: {row.found ? `${row.name || 'Unknown'} (${row.email || 'No email'})` : 'Not found'}
+                      {row.found ? ` | ${row.role} | ${row.status} | ${row.isVerified ? 'Verified' : 'Not verified'}` : ''}
+                      {' | '}
+                      <span className={row.eligible ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}>
+                        {row.eligible ? 'Eligible' : 'Not eligible'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#434651] mb-2">Choose File (PPT/PPTX/PDF)</label>
+              <p className="mb-2 text-xs text-[#8c4f00]">PPT is compulsory to upload.</p>
+              <input
+                type="file"
+                accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
+                onChange={(e) => setPptFile(e.target.files?.[0] ?? null)}
+                className="w-full"
+                required
+              />
+            </div>
+            <button type="submit" disabled={busy || uidLookupBusy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-70">
               {busy ? 'Submitting...' : 'Register Team'}
             </button>
           </form>

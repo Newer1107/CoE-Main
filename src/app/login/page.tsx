@@ -7,8 +7,9 @@ import Link from "next/link";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [verificationEmail, setVerificationEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
@@ -34,13 +35,14 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
         credentials: "include",
       });
 
       const data = await res.json();
       if (!res.ok) {
         if (data?.needsVerification) {
+          setVerificationEmail(data?.email || "");
           setNeedsOtp(true);
           setStatus("Verify your email with the OTP we just sent.");
           return;
@@ -69,10 +71,15 @@ export default function LoginPage() {
     setStatus("");
     setOtpLoading(true);
     try {
+      const targetEmail = verificationEmail || (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
+      if (!targetEmail) {
+        throw new Error("Email is required to resend OTP. Please login using email once.");
+      }
+
       const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: targetEmail }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to resend OTP.");
@@ -90,10 +97,15 @@ export default function LoginPage() {
     setStatus("");
     setOtpLoading(true);
     try {
+      const targetEmail = verificationEmail || (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
+      if (!targetEmail) {
+        throw new Error("Email is required for OTP verification. Please login using email once.");
+      }
+
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ email: targetEmail, otp }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "OTP verification failed.");
@@ -134,7 +146,7 @@ export default function LoginPage() {
         <div className="lg:col-span-7 bg-white border border-[#c4c6d3] p-6 md:p-10">
           <h2 className="font-headline text-2xl md:text-3xl text-[#002155]">Account Login</h2>
           <p className="mt-2 text-sm text-[#434651] font-body">
-            Sign in with your @tcetmumbai.in email address to continue.
+            Sign in with your @tcetmumbai.in email address or your UID. UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28).
           </p>
 
           {error ? <p className="mt-4 border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">{error}</p> : null}
@@ -142,15 +154,16 @@ export default function LoginPage() {
 
           <form className="mt-6 space-y-5" onSubmit={handleLogin}>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Email</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Email or UID</label>
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@tcetmumbai.in"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="name@tcetmumbai.in or 24-COMPD13-28"
                 className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
               />
+              <p className="text-[11px] text-[#434651]">UID format example: 24-COMPD13-28</p>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Password</label>

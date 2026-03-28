@@ -69,8 +69,7 @@ type InnovationFacultyClientProps = {
 };
 
 type ScreeningDecisionStatus = 'SHORTLISTED' | 'REJECTED';
-type JudgingDecisionStatus = 'ACCEPTED' | 'REJECTED';
-type StagedDecisionStatus = ScreeningDecisionStatus | JudgingDecisionStatus;
+type StagedDecisionStatus = ScreeningDecisionStatus | 'ACCEPTED' | 'REJECTED';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -601,59 +600,6 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     }, isAbsent ? 'Team marked absent for judging round.' : 'Team marked present for judging round.');
   };
 
-  const syncSingleJudgingDecision = async (submission: SubmissionRow, status: JudgingDecisionStatus) => {
-    const eventId = submission.problem.event?.id;
-    if (!eventId) {
-      setErrorMessage('This submission is not linked to a hackathon event.');
-      return;
-    }
-
-    if (submission.isAbsent) {
-      setErrorMessage('This team is marked absent. Mark it present before finalizing judging.');
-      return;
-    }
-
-    const eventMeta = events.find((event) => event.id === eventId);
-    if (eventMeta?.status !== 'ACTIVE') {
-      setErrorMessage('Move the event to ACTIVE status before finalizing a specific team.');
-      return;
-    }
-
-    const rubric = stagedRubrics[submission.id] || getRubricsFromSubmission(submission);
-    if (!isRubricComplete(rubric)) {
-      setErrorMessage('Fill all rubric scores (0-10) before finalizing this team.');
-      return;
-    }
-
-    await runAction(async () => {
-      await fetchJson('/api/innovation/faculty/claims/sync', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          stage: 'JUDGING',
-          eventId,
-          decisions: [
-            {
-              claimId: submission.id,
-              status,
-              rubrics: rubric,
-            },
-          ],
-        }),
-      });
-
-      setStagedDecisions((prev) => {
-        const next = { ...prev };
-        delete next[submission.id];
-        return next;
-      });
-      setStagedRubrics((prev) => {
-        const next = { ...prev };
-        delete next[submission.id];
-        return next;
-      });
-    }, status === 'ACCEPTED' ? 'Team finalized as selected in judging.' : 'Team rejected in final judging.');
-  };
-
   const syncScreeningDecisions = async () => {
     if (selectedSubmissionEventId === null) {
       setErrorMessage('Select a hackathon event first.');
@@ -861,20 +807,6 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                   disabled={loading}
                 >
                   Final Reject
-                </button>
-                <button
-                  onClick={() => void syncSingleJudgingDecision(registration, 'ACCEPTED')}
-                  className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#0b6b2e] text-[#0b6b2e] bg-white"
-                  disabled={loading}
-                >
-                  Finalize Select
-                </button>
-                <button
-                  onClick={() => void syncSingleJudgingDecision(registration, 'REJECTED')}
-                  className="px-3 py-2 text-xs font-bold uppercase tracking-wider border border-[#ba1a1a] text-[#ba1a1a] bg-white"
-                  disabled={loading}
-                >
-                  Finalize Reject
                 </button>
                 <button
                   onClick={() => void toggleClaimAbsence(registration.id, true)}

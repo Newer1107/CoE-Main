@@ -12,6 +12,8 @@ export default function FacilityBookingPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+   const [loginIdentifier, setLoginIdentifier] = useState("");
+   const [verificationEmail, setVerificationEmail] = useState("");
   const [uid, setUid] = useState("");
   const [role, setRole] = useState("STUDENT"); // STUDENT or FACULTY
   
@@ -98,6 +100,8 @@ export default function FacilityBookingPage() {
     setAuthSuccess("Logged out successfully.");
     setAuthError("");
     setEmail("");
+    setLoginIdentifier("");
+    setVerificationEmail("");
     setPassword("");
   };
 
@@ -119,18 +123,25 @@ export default function FacilityBookingPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier: loginIdentifier, password }),
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) {
         if (data.needsVerification) {
+          const targetEmail = data?.email || (loginIdentifier.includes("@") ? loginIdentifier.trim().toLowerCase() : "");
+          if (!targetEmail) {
+            throw new Error("Email is required for OTP verification. Please login once with email.");
+          }
+
           // Trigger OTP resend and switch view
           await fetch("/api/auth/resend-otp", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email: targetEmail })
           });
+          setEmail(targetEmail);
+          setVerificationEmail(targetEmail);
           setIsLogin(false);
           setRole("STUDENT");
           setOtpSent(true);
@@ -140,6 +151,8 @@ export default function FacilityBookingPage() {
         throw new Error(data.message || "Login failed");
       }
       
+        setEmail(data?.data?.user?.email || email);
+
       // Successfully logged in (Cookie is set), skip to booking
       setStep(3);
     } catch (err: any) {
@@ -189,10 +202,15 @@ export default function FacilityBookingPage() {
     setAuthError("");
     setLoading(true);
     try {
+      const targetEmail = verificationEmail || email;
+      if (!targetEmail) {
+        throw new Error("Email is required for OTP verification.");
+      }
+
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
+        body: JSON.stringify({ email: targetEmail, otp })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "OTP Verification failed");
@@ -298,11 +316,12 @@ export default function FacilityBookingPage() {
                 // --- LOGIN FORM ---
                 <form className="space-y-6 max-w-md" onSubmit={handleLogin}>
                   <div className="flex flex-col gap-2">
-                    <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">Institutional Email</label>
+                    <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">Institutional Email or UID</label>
                     <input
                       className="w-full bg-white border border-[#747782] focus:border-[#002155] focus:ring-1 p-3 text-sm outline-none placeholder:text-[#c4c6d3]"
-                      placeholder="aditya.shah@tcetmumbai.in" type="email" value={email} onChange={e => setEmail(e.target.value)} required style={{ borderRadius: 0 }}
+                      placeholder="aditya.shah@tcetmumbai.in or 24-COMPD13-28" type="text" value={loginIdentifier} onChange={e => setLoginIdentifier(e.target.value)} required style={{ borderRadius: 0 }}
                     />
+                    <p className="text-[11px] text-[#434651]">UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28)</p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">Password</label>
@@ -342,8 +361,8 @@ export default function FacilityBookingPage() {
                     </div>
                     {role === "STUDENT" && (
                       <div className="flex flex-col gap-2 md:col-span-2">
-                        <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">TCET UID</label>
-                        <input className="w-full bg-white border border-[#747782] p-3 text-sm outline-none" placeholder="e.g. 12345" type="text" value={uid} onChange={e => setUid(e.target.value)} required style={{ borderRadius: 0 }} />
+                        <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">TCET UID (Format: XX-BRANCHYY-ZZ, e.g. 24-COMPD13-28)</label>
+                        <input className="w-full bg-white border border-[#747782] p-3 text-sm outline-none" placeholder="e.g. 24-COMPD13-28" type="text" value={uid} onChange={e => setUid(e.target.value)} required style={{ borderRadius: 0 }} />
                       </div>
                     )}
                   </div>

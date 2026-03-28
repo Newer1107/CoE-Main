@@ -13,22 +13,29 @@ export async function POST(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((e: any) => e.message), 400);
     }
 
-    const { email, password } = parsed.data;
+    const { identifier, password } = parsed.data;
+    const normalizedIdentifier = identifier.trim();
+    const normalizedEmail = normalizedIdentifier.toLowerCase();
+    const normalizedUid = normalizedIdentifier.toUpperCase();
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: normalizedEmail }, { uid: normalizedUid }],
+      },
+    });
     if (!user) {
-      return errorRes('Invalid email or password.', [], 401);
+      return errorRes('Invalid email/UID or password.', [], 401);
     }
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return errorRes('Invalid email or password.', [], 401);
+      return errorRes('Invalid email/UID or password.', [], 401);
     }
 
     if (user.role === 'STUDENT' && !user.isVerified) {
       return NextResponse.json(
-        { success: false, message: 'Please verify your email with the OTP.', needsVerification: true },
+        { success: false, message: 'Please verify your email with the OTP.', needsVerification: true, email: user.email },
         { status: 403 }
       );
     }
