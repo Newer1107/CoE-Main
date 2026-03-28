@@ -217,8 +217,7 @@ export default async function HomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {verticals.map((item) => (
                   <Link key={item.title} href={item.href}>
-git add .
-git commit                    <div
+                  <div
                       className="relative h-48 md:h-56 border border-[#c4c6d3] overflow-hidden group bg-[#efeeea] cursor-pointer"
                     >
 
