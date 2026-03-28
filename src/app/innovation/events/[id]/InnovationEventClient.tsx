@@ -204,6 +204,7 @@ export default function InnovationEventClient({
   };
 
   const registrationClosed = !registrationOpen || status === 'CLOSED' || new Date() > new Date(registrationCloseISO);
+  const canSeeMySubmissions = viewerRole === 'STUDENT';
   const canShowRegistrationForm = viewerRole === 'STUDENT' && !registrationClosed && problems.length > 0;
 
   const handleRegister = async (event: React.FormEvent) => {
@@ -281,9 +282,11 @@ export default function InnovationEventClient({
         <Link href="/innovation/problems" className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider">
           Open Problem Statements
         </Link>
-        <Link href="/innovation/my-submissions" className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider">
-          My Submissions
-        </Link>
+        {canSeeMySubmissions ? (
+          <Link href="/innovation/my-submissions" className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+            My Submissions
+          </Link>
+        ) : null}
       </section>
 
       <section className="mb-8 border border-[#c4c6d3] bg-white p-5">

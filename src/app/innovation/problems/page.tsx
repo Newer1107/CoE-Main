@@ -18,5 +18,5 @@ export default async function InnovationProblemsPage() {
 
   if (!['STUDENT', 'FACULTY', 'ADMIN'].includes(payload.role)) redirect('/login');
 
-  return <InnovationProblemsClient role={payload.role as 'STUDENT' | 'FACULTY' | 'ADMIN'} userId={payload.id} />;
+  return <InnovationProblemsClient role={payload.role as 'STUDENT' | 'FACULTY' | 'ADMIN'} />;
 }

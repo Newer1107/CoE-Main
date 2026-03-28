@@ -17,6 +17,7 @@ export default async function InnovationLandingPage() {
   }
 
   const canSeeFacultyWorkspace = role === 'FACULTY';
+  const canSeeMySubmissions = role === 'STUDENT';
 
   const events = await prisma.hackathonEvent.findMany({
     where: { status: { in: ['ACTIVE', 'UPCOMING'] } },
@@ -60,12 +61,14 @@ export default async function InnovationLandingPage() {
         >
           Open Problem Statements
         </Link>
-        <Link
-          href="/innovation/my-submissions"
-          className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"
-        >
-          My Submissions
-        </Link>
+        {canSeeMySubmissions ? (
+          <Link
+            href="/innovation/my-submissions"
+            className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+          >
+            My Submissions
+          </Link>
+        ) : null}
         {canSeeFacultyWorkspace ? (
           <Link
             href="/innovation/faculty"

@@ -53,7 +53,6 @@ type OpenRegistrationFormState = {
 
 type InnovationProblemsClientProps = {
   role: 'STUDENT' | 'FACULTY' | 'ADMIN';
-  userId: number;
 };
 
 const parseUidTokens = (value: string): string[] =>
@@ -91,7 +90,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return payload.data;
 }
 
-export default function InnovationProblemsClient({ role, userId }: InnovationProblemsClientProps) {
+export default function InnovationProblemsClient({ role }: InnovationProblemsClientProps) {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -99,13 +98,6 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
 
   const [tagFilter, setTagFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-
-  const [newTitle, setNewTitle] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newTags, setNewTags] = useState('');
-  const [newIsIndustryProblem, setNewIsIndustryProblem] = useState(false);
-  const [newIndustryName, setNewIndustryName] = useState('');
-  const [newSupportDocument, setNewSupportDocument] = useState<File | null>(null);
 
   const [registrationForms, setRegistrationForms] = useState<Record<number, OpenRegistrationFormState>>({});
 
@@ -132,8 +124,6 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const ownProblems = useMemo(() => problems.filter((p) => p.createdById === userId), [problems, userId]);
-
   const runAction = async (action: () => Promise<void>, success: string) => {
     setErrorMessage('');
     setStatusMessage('');
@@ -147,31 +137,6 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
     } finally {
       setLoading(false);
     }
-  };
-
-  const submitCreateProblem = async (event: React.FormEvent) => {
-    event.preventDefault();
-    await runAction(async () => {
-      const formData = new FormData();
-      formData.set('title', newTitle);
-      formData.set('description', newDescription);
-      formData.set('tags', newTags);
-      formData.set('mode', 'OPEN');
-      formData.set('isIndustryProblem', String(newIsIndustryProblem));
-      if (newIsIndustryProblem) formData.set('industryName', newIndustryName);
-      if (newSupportDocument) formData.set('supportDocument', newSupportDocument);
-
-      await fetchJson('/api/innovation/problems', {
-        method: 'POST',
-        body: formData,
-      });
-      setNewTitle('');
-      setNewDescription('');
-      setNewTags('');
-      setNewIsIndustryProblem(false);
-      setNewIndustryName('');
-      setNewSupportDocument(null);
-    }, 'Problem created successfully.');
   };
 
   const getRegistrationForm = (problemId: number): OpenRegistrationFormState => registrationForms[problemId] || emptyRegistrationForm();
@@ -365,86 +330,6 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
           {loading ? 'Loading...' : 'Apply Filters'}
         </button>
       </section>
-
-      {(role === 'FACULTY' || role === 'ADMIN') && (
-        <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
-          <h2 className="font-headline text-2xl text-[#002155] mb-4">Create Problem</h2>
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={submitCreateProblem}>
-            <input className="border border-[#747782] p-3 text-sm" placeholder="Title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
-            <div className="border border-[#e3e2df] bg-[#faf9f5] p-3 text-xs text-[#434651] flex items-center">Creates OPEN innovation problem</div>
-            <select
-              className="border border-[#747782] p-3 text-sm"
-              value={newIsIndustryProblem ? 'industry' : 'normal'}
-              onChange={(e) => {
-                const isIndustry = e.target.value === 'industry';
-                setNewIsIndustryProblem(isIndustry);
-                if (!isIndustry) setNewIndustryName('');
-              }}
-            >
-              <option value="normal">Problem Type: Normal</option>
-              <option value="industry">Problem Type: Industry</option>
-            </select>
-            {newIsIndustryProblem ? (
-              <input
-                className="border border-[#747782] p-3 text-sm"
-                placeholder="Industry name"
-                value={newIndustryName}
-                onChange={(e) => setNewIndustryName(e.target.value)}
-                required
-              />
-            ) : (
-              <div className="border border-[#e3e2df] bg-[#faf9f5] p-3 text-xs text-[#434651] flex items-center">
-                Normal problem selected
-              </div>
-            )}
-            <input className="border border-[#747782] p-3 text-sm md:col-span-2" placeholder="Tags (comma-separated)" value={newTags} onChange={(e) => setNewTags(e.target.value)} />
-            <textarea
-              className="border border-[#747782] p-3 text-sm min-h-[120px] md:col-span-2"
-              placeholder="Description"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              required
-            />
-            <div className="md:col-span-2 border-2 border-dashed border-[#8c4f00] bg-[#fff8ee] p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] mb-1">Upload Zone: Support Document</p>
-              <p className="text-xs text-[#434651] mb-2">Optional support document for this open problem statement (PDF only).</p>
-              <input
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={(e) => setNewSupportDocument(e.target.files?.[0] ?? null)}
-              />
-              <p className="mt-2 text-[11px] text-[#434651]">{newSupportDocument ? `Selected: ${newSupportDocument.name}` : 'No file selected yet.'}</p>
-            </div>
-            <button type="submit" className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit" disabled={loading}>
-              Create Problem
-            </button>
-          </form>
-
-          <div className="mt-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-[#434651] mb-3">My Problems</h3>
-            {ownProblems.length === 0 ? (
-              <p className="text-sm text-[#434651]">No authored problems yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {ownProblems.map((problem) => (
-                  <article key={problem.id} className="border border-[#e3e2df] p-3 bg-[#faf9f5]">
-                    <p className="text-sm font-bold text-[#002155]">{problem.title}</p>
-                    <p className="text-xs text-[#434651] mt-1">{problem.mode} • {problem.status} • Registrations {problem._count.openSubmissions}</p>
-                    <p className="text-xs text-[#434651] mt-1">
-                      Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
-                    </p>
-                    {problem.supportDocumentUrl ? (
-                      <a href={problem.supportDocumentUrl} target="_blank" rel="noreferrer" className="inline-flex mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                        Open Support PDF
-                      </a>
-                    ) : null}
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
 
       <section>
         <h2 className="font-headline text-2xl text-[#002155] mb-4">Problem Board</h2>
