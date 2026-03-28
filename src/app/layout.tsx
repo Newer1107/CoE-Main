@@ -1,19 +1,33 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { verifyAccessToken } from "@/lib/jwt";
 
 export const metadata: Metadata = {
   title: "TCET Center of Excellence | Official Portal",
   description: "TCET Center of Excellence - Bridging academic theory and industrial application through rigorous research and development.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("accessToken")?.value;
+
+  let userRole: string | null = null;
+  if (token) {
+    try {
+      userRole = verifyAccessToken(token).role;
+    } catch {
+      userRole = null;
+    }
+  }
+
   return (
     <html lang="en" className="scroll-smooth">
       <head>
@@ -27,7 +41,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-surface font-body text-on-surface">
-        <Navbar />
+        <Navbar userRole={userRole} />
         {children}
         <Footer />
       </body>

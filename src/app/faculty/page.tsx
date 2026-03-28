@@ -8,16 +8,16 @@ export default async function FacultyPortalPage() {
   const token = cookieStore.get("accessToken")?.value;
 
   if (!token) {
-    redirect("/login");
+    redirect("/login?next=%2Ffaculty");
   }
 
   try {
     const payload = verifyAccessToken(token);
     if (payload.role !== "FACULTY" && payload.role !== "ADMIN") {
-      redirect("/login");
+      redirect("/facility-booking");
     }
   } catch {
-    redirect("/login");
+    redirect("/login?next=%2Ffaculty");
   }
 
   return <FacultyPortalClient />;

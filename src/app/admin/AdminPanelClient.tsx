@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type BookingStudent = {
   id: number;
@@ -52,6 +53,33 @@ type HeroSlide = {
   createdAt: string;
 };
 
+type InnovationSubmission = {
+  id: number;
+  teamName: string | null;
+  status: string;
+  updatedAt: string;
+  problem: {
+    id: number;
+    title: string;
+    event: { id: number; title: string; status: string } | null;
+  };
+};
+
+type InnovationEvent = {
+  id: number;
+  title: string;
+  status: "UPCOMING" | "ACTIVE" | "JUDGING" | "CLOSED";
+  startTime: string;
+  endTime: string;
+};
+
+type InnovationLeaderboardRow = {
+  rank: number;
+  teamName: string;
+  score: number;
+  members: { id: number; name: string; email: string; role: string }[];
+};
+
 type AdminPanelClientProps = {
   stats: Stats;
   pendingBookings: Booking[];
@@ -59,6 +87,8 @@ type AdminPanelClientProps = {
   pendingFaculty: FacultyUser[];
   users: FacultyUser[];
   heroSlides: HeroSlide[];
+  innovationSubmissions: InnovationSubmission[];
+  innovationEvents: InnovationEvent[];
 };
 
 const apiCall = async (url: string, options?: RequestInit) => {
@@ -85,6 +115,8 @@ export default function AdminPanelClient({
   pendingFaculty,
   users,
   heroSlides,
+  innovationSubmissions,
+  innovationEvents,
 }: AdminPanelClientProps) {
   const router = useRouter();
 
@@ -96,6 +128,11 @@ export default function AdminPanelClient({
   const [heroCaption, setHeroCaption] = useState("");
   const [heroImage, setHeroImage] = useState<File | null>(null);
   const [heroUploading, setHeroUploading] = useState(false);
+  const [activeView, setActiveView] = useState<"operations" | "innovation">("operations");
+  const [busyInnovationEventId, setBusyInnovationEventId] = useState<number | null>(null);
+  const [selectedInnovationEventId, setSelectedInnovationEventId] = useState<number | null>(null);
+  const [innovationLeaderboard, setInnovationLeaderboard] = useState<InnovationLeaderboardRow[]>([]);
+  const [loadingInnovationLeaderboard, setLoadingInnovationLeaderboard] = useState(false);
 
   const recentUsers = useMemo(() => users.slice(0, 12), [users]);
   const prepBookings = useMemo(() => {
@@ -218,6 +255,41 @@ export default function AdminPanelClient({
     }
   };
 
+  const handleInnovationEventStatus = async (eventId: number, status: "ACTIVE" | "JUDGING" | "CLOSED") => {
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setBusyInnovationEventId(eventId);
+
+      await apiCall(`/api/innovation/admin/events/${eventId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+
+      setStatusMessage(`Innovation event #${eventId} moved to ${status}.`);
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not update event status.");
+    } finally {
+      setBusyInnovationEventId(null);
+    }
+  };
+
+  const handleLoadInnovationLeaderboard = async (eventId: number) => {
+    try {
+      setErrorMessage("");
+      setSelectedInnovationEventId(eventId);
+      setLoadingInnovationLeaderboard(true);
+      const payload = await apiCall(`/api/innovation/events/${eventId}/leaderboard`, { method: "GET" });
+      setInnovationLeaderboard((payload?.data || []) as InnovationLeaderboardRow[]);
+    } catch (err) {
+      setInnovationLeaderboard([]);
+      setErrorMessage(err instanceof Error ? err.message : "Could not load innovation leaderboard.");
+    } finally {
+      setLoadingInnovationLeaderboard(false);
+    }
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
@@ -239,6 +311,28 @@ export default function AdminPanelClient({
           {errorMessage}
         </p>
       ) : null}
+
+      <section className="mb-8 flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveView("operations")}
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+            activeView === "operations" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+          }`}
+        >
+          Operations
+        </button>
+        <button
+          onClick={() => setActiveView("innovation")}
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+            activeView === "innovation" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+          }`}
+        >
+          Innovation
+        </button>
+      </section>
+
+      {activeView === "operations" ? (
+        <>
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <div className="border border-[#c4c6d3] bg-white p-5">
@@ -513,6 +607,160 @@ export default function AdminPanelClient({
           </table>
         </div>
       </section>
+
+      </>
+      ) : null}
+
+      {activeView === "innovation" ? (
+        <section className="space-y-8">
+          <section className="flex flex-wrap gap-3">
+            <Link href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+              Innovation Home
+            </Link>
+            <Link href="/innovation/faculty" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+              Faculty Review Workspace
+            </Link>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-headline text-2xl text-[#002155]">Pending Innovation Submissions</h2>
+              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+                {innovationSubmissions.length} submitted
+              </span>
+            </div>
+
+            {innovationSubmissions.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No submitted innovation claims.</p>
+            ) : (
+              <div className="space-y-3">
+                {innovationSubmissions.map((submission) => (
+                  <article key={submission.id} className="border border-[#c4c6d3] bg-white p-5">
+                    <p className="text-sm font-bold text-[#002155]">Claim #{submission.id} • {submission.problem.title}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Team: {submission.teamName || "Individual"}</p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Event: {submission.problem.event ? submission.problem.event.title : "Continuous Mode"}
+                    </p>
+                    <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(submission.updatedAt).toLocaleString()}</p>
+                    {submission.problem.event ? (
+                      <Link
+                        href={`/innovation/events/${submission.problem.event.id}`}
+                        className="inline-flex mt-3 border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                      >
+                        View Event Page
+                      </Link>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-headline text-2xl text-[#002155]">Innovation Event Status Controls</h2>
+              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+                {innovationEvents.length} events
+              </span>
+            </div>
+
+            {innovationEvents.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No innovation events found.</p>
+            ) : (
+              <div className="space-y-3">
+                {innovationEvents.map((event) => (
+                  <article key={event.id} className="border border-[#c4c6d3] bg-white p-5">
+                    <p className="text-sm font-bold text-[#002155]">#{event.id} • {event.title}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Status: {event.status}</p>
+                    <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {event.status === "UPCOMING" ? (
+                        <button
+                          onClick={() => handleInnovationEventStatus(event.id, "ACTIVE")}
+                          disabled={busyInnovationEventId === event.id}
+                          className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                        >
+                          Mark ACTIVE
+                        </button>
+                      ) : null}
+                      {event.status === "ACTIVE" ? (
+                        <button
+                          onClick={() => handleInnovationEventStatus(event.id, "JUDGING")}
+                          disabled={busyInnovationEventId === event.id}
+                          className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                        >
+                          Mark JUDGING
+                        </button>
+                      ) : null}
+                      {event.status === "JUDGING" ? (
+                        <button
+                          onClick={() => handleInnovationEventStatus(event.id, "CLOSED")}
+                          disabled={busyInnovationEventId === event.id}
+                          className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                        >
+                          Mark CLOSED
+                        </button>
+                      ) : null}
+
+                      <button
+                        onClick={() => void handleLoadInnovationLeaderboard(event.id)}
+                        className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                      >
+                        Leaderboard
+                      </button>
+                      <Link
+                        href={`/innovation/events/${event.id}`}
+                        className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                      >
+                        View Event Page
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-headline text-2xl text-[#002155]">Leaderboard Overview</h2>
+              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+                {selectedInnovationEventId ? `event #${selectedInnovationEventId}` : "select event"}
+              </span>
+            </div>
+
+            {loadingInnovationLeaderboard ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading leaderboard...</p>
+            ) : innovationLeaderboard.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No leaderboard rows loaded yet.</p>
+            ) : (
+              <div className="overflow-x-auto border border-[#c4c6d3] bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#f5f4f0] text-[#434651] uppercase text-xs tracking-wider">
+                    <tr>
+                      <th className="text-left px-4 py-3">Rank</th>
+                      <th className="text-left px-4 py-3">Team</th>
+                      <th className="text-left px-4 py-3">Score</th>
+                      <th className="text-left px-4 py-3">Members</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {innovationLeaderboard.map((row) => (
+                      <tr key={`${row.rank}-${row.teamName}`} className="border-t border-[#e3e2df]">
+                        <td className="px-4 py-3">#{row.rank}</td>
+                        <td className="px-4 py-3">{row.teamName}</td>
+                        <td className="px-4 py-3">{row.score}</td>
+                        <td className="px-4 py-3">{row.members.map((m) => m.name).join(", ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </section>
+      ) : null}
     </main>
   );
 }

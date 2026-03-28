@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -14,6 +15,14 @@ export default function LoginPage() {
   const [needsOtp, setNeedsOtp] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+
+  const getSafeNextPath = () => {
+    const next = searchParams.get("next") || "";
+    if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/login")) {
+      return null;
+    }
+    return next;
+  };
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,12 +49,13 @@ export default function LoginPage() {
       }
 
       const role = data?.data?.user?.role;
+      const safeNext = getSafeNextPath();
       if (role === "ADMIN") {
         router.push("/admin");
       } else if (role === "FACULTY") {
         router.push("/faculty");
       } else {
-        router.push("/facility-booking");
+        router.push(safeNext || "/facility-booking");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");

@@ -35,7 +35,7 @@ const wrap = (body: string) => `
   </div>
 </body></html>`;
 
-const send = async (to: string, subject: string, htmlBody: string) => {
+const send = async (to: string | string[], subject: string, htmlBody: string) => {
   await transporter.sendMail({
     from: process.env.SMTP_FROM || '"TCET CoE" <noreply@tcetmumbai.in>',
     to,
@@ -153,4 +153,156 @@ export const sendFacultyRejectionEmail = async (email: string, name: string) => 
     <p style="color:#434651;font-size:14px;">Dear <strong>${name}</strong>,</p>
     <p style="color:#434651;font-size:14px;">Your faculty account registration for the TCET Center of Excellence has been rejected. Please contact the CoE office if you believe this is an error.</p>`;
   await send(email, 'Faculty Account Registration Rejected — TCET CoE', body);
+};
+
+// ─── 8. Innovation: Problem Claimed ───
+export const sendInnovationProblemClaimedEmail = async (
+  facultyEmail: string,
+  details: {
+    problemTitle: string;
+    teamName?: string | null;
+    claimedBy: string;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">A Student Team Claimed Your Problem</h2>
+    <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
+    <p style="color:#434651;font-size:14px;">Claimed by: <strong>${details.claimedBy}</strong></p>
+    <p style="color:#434651;font-size:14px;">Team: <strong>${details.teamName || 'Individual'}</strong></p>
+    <p style="color:#747782;font-size:12px;">Please review submissions in the Innovation dashboard.</p>`;
+
+  await send(facultyEmail, 'Innovation Update: Problem Claimed', body);
+};
+
+// ─── 9. Innovation: Claim Reviewed ───
+export const sendInnovationClaimReviewEmail = async (
+  recipients: string[],
+  details: {
+    problemTitle: string;
+    status: 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED';
+    score?: number | null;
+    feedback?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Submission Review Result</h2>
+    <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
+    <p style="color:#434651;font-size:14px;">Status: <strong>${details.status.replaceAll('_', ' ')}</strong></p>
+    <p style="color:#434651;font-size:14px;">Score: <strong>${details.score ?? 'Not assigned'}</strong></p>
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:12px 16px;margin:16px 0;">
+      <p style="margin:0;color:#434651;">Feedback:</p>
+      <p style="margin:4px 0 0;color:#002155;">${details.feedback || 'No feedback shared.'}</p>
+    </div>`;
+
+  await send(recipients, 'Innovation Submission Review Update', body);
+};
+
+// ─── 9a. Innovation: Hackathon Screening Result ───
+export const sendInnovationScreeningResultEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+    problemTitle: string;
+    status: 'SHORTLISTED' | 'REJECTED';
+  }
+) => {
+  const statusLine =
+    details.status === 'SHORTLISTED'
+      ? 'SHORTLISTED for the Judging Round'
+      : 'NOT SHORTLISTED after PPT Screening';
+
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">PPT Screening Result</h2>
+    <p style="color:#434651;font-size:14px;">Event: <strong>${details.eventTitle}</strong></p>
+    <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
+    <p style="color:#434651;font-size:14px;">Result: <strong>${statusLine}</strong></p>`;
+
+  await send(recipients, 'Hackathon PPT Screening Result', body);
+};
+
+// ─── 9b. Innovation: Hackathon Rubric Result ───
+export const sendInnovationRubricScoreEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+    problemTitle: string;
+    status: 'ACCEPTED' | 'REJECTED';
+    rubrics: {
+      innovation: number;
+      technical: number;
+      impact: number;
+      ux: number;
+      execution: number;
+      presentation: number;
+      feasibility: number;
+    };
+    finalScore: number;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Evaluation Scorecard</h2>
+    <p style="color:#434651;font-size:14px;">Event: <strong>${details.eventTitle}</strong></p>
+    <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
+    <p style="color:#434651;font-size:14px;">Result: <strong>${details.status}</strong></p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Innovation</td><td style="padding:8px;color:#002155;">${details.rubrics.innovation}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Technical</td><td style="padding:8px;color:#002155;">${details.rubrics.technical}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Impact</td><td style="padding:8px;color:#002155;">${details.rubrics.impact}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">UX</td><td style="padding:8px;color:#002155;">${details.rubrics.ux}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Execution</td><td style="padding:8px;color:#002155;">${details.rubrics.execution}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Presentation</td><td style="padding:8px;color:#002155;">${details.rubrics.presentation}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Feasibility</td><td style="padding:8px;color:#002155;">${details.rubrics.feasibility}/10</td></tr>
+      <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Final Score</td><td style="padding:8px;color:#002155;"><strong>${details.finalScore}/100</strong></td></tr>
+    </table>`;
+
+  await send(recipients, 'Hackathon Evaluation Result', body);
+};
+
+// ─── 10. Innovation: Event Ending Reminder ───
+export const sendInnovationEventReminderEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+    endTime: string;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Reminder: 30 Minutes Left</h2>
+    <p style="color:#434651;font-size:14px;">Your event <strong>${details.eventTitle}</strong> is closing soon.</p>
+    <p style="color:#434651;font-size:14px;">Submission lock time: <strong>${details.endTime}</strong></p>`;
+
+  await send(recipients, 'Innovation Reminder: 30 Minutes Remaining', body);
+};
+
+// ─── 11. Innovation: Event Moved to Judging ───
+export const sendInnovationEventJudgingEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Status Updated: Judging</h2>
+    <p style="color:#434651;font-size:14px;">The event <strong>${details.eventTitle}</strong> has moved to the judging phase.</p>
+    <p style="color:#434651;font-size:14px;">You can now track rankings from the event page leaderboard.</p>`;
+
+  await send(recipients, 'Innovation Update: Event In Judging', body);
+};
+
+// ─── 12. Innovation: Winners Announced ───
+export const sendInnovationWinnerEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+    rank: number;
+    score: number;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Congratulations! Winner Announcement</h2>
+    <p style="color:#434651;font-size:14px;">You placed <strong>#${details.rank}</strong> in <strong>${details.eventTitle}</strong>.</p>
+    <p style="color:#434651;font-size:14px;">Final Score: <strong>${details.score}</strong></p>
+    <p style="color:#434651;font-size:14px;">Please watch the admin announcements for certificate and recognition details.</p>`;
+
+  await send(recipients, `Innovation Winners: ${details.eventTitle}`, body);
 };

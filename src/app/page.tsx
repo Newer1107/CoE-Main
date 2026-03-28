@@ -145,7 +145,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mb-14">
+        <section id="verticals" className="mb-14">
           <div className="border-l-4 border-[#002155] pl-4 md:pl-6 mb-6">
             <h2 className="text-3xl font-headline tracking-tight text-[#002155]">
               Verticals
@@ -157,15 +157,60 @@ export default async function HomePage() {
 
           {(() => {
             const verticals = [
-              { title: "Facility Booking", subtitle: "Reserve labs & resources", href: "/faculty" },
-              { title: "Coding Platform", subtitle: "Practice & compete", href: "#" },
-              { title: "Project Showcase", subtitle: "Display innovations", href: "#" },
-              { title: "Content Creation", subtitle: "Share knowledge", href: "#" },
-              { title: "Hackathon", subtitle: "Build under pressure", href: "#" },
-              { title: "Industry Internship", subtitle: "Real-world exposure", href: "#" },
-              { title: "Problem Statements", subtitle: "Solve real challenges", href: "#" },
-              { title: "Grants", subtitle: "Funding opportunities", href: "#" },
-              { title: "MOU's", subtitle: "Strategic collaborations", href: "#" },
+              {
+                title: "Facility Booking",
+                subtitle: "Reserve labs & resources",
+                href: "/#",
+                image: "/Faculty Booking.png",
+              },
+              {
+                title: "Coding Platform",
+                subtitle: "Practice & compete",
+                href: "#",
+                image: "/Coding Platform.png",
+              },
+              {
+                title: "Project Showcase",
+                subtitle: "Display innovations",
+                href: "#",
+                image: "/Project Showcase.png",
+              },
+              {
+                title: "Content Creation",
+                subtitle: "Share knowledge",
+                href: "#",
+                image: "/Content Creation.jpeg",
+              },
+              {
+                title: "Hackathon",
+                subtitle: "Build under pressure",
+                href: "#",
+                image: "/Hackathon.jpeg",
+              },
+              {
+                title: "Industry Internship",
+                subtitle: "Real-world exposure",
+                href: "#",
+                image: "/Industry Internship.png",
+              },
+              {
+                title: "Problem Statements",
+                subtitle: "Solve real challenges",
+                href: "#",
+                image: "/Problem Statements.png",
+              },
+              {
+                title: "Grants",
+                subtitle: "Funding opportunities",
+                href: "#",
+                image: "/Grants.png",
+              },
+              {
+                title: "MOU's",
+                subtitle: "Strategic collaborations",
+                href: "#",
+                image: "/MOUs.jpeg",
+              },
             ];
 
             return (
@@ -175,15 +220,15 @@ export default async function HomePage() {
                     <div
                       className="relative h-48 md:h-56 border border-[#c4c6d3] overflow-hidden group bg-[#efeeea] cursor-pointer"
                     >
-   
+
                       <img
-                        src="/vercel.svg"
+                        src={item.image}
                         alt={item.title}
                         className="w-full h-full object-cover 
                         group-hover:scale-110 transition-transform duration-700 ease-out"
                       />
 
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent" />
 
                       <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
                         <div>
@@ -207,7 +252,7 @@ export default async function HomePage() {
           })()}
         </section>
 
-        <section className="mb-14">
+        <section id="news" className="mb-14">
           <div className="border-l-4 border-[#002155] pl-4 md:pl-6 mb-6 flex justify-between items-end">
             <div>
               <h2 className="font-headline text-2xl sm:text-3xl text-[#002155] tracking-tight">
@@ -229,7 +274,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mb-14">
+        <section id="grants" className="mb-14">
           <div className="border-l-4 border-[#002155] pl-4 md:pl-6 mb-6">
             <h2 className="text-2xl sm:text-3xl font-headline tracking-tight text-[#002155]">
               Current Grant Opportunities
@@ -294,7 +339,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mb-10">
+        <section id="events" className="mb-10">
           <div className="border-l-4 border-[#002155] pl-4 md:pl-6 mb-6">
             <h2 className="text-2xl sm:text-3xl font-headline tracking-tight text-[#002155]">
               Upcoming Events
@@ -414,6 +459,22 @@ export default async function HomePage() {
                 </span>
                 <h5 className="text-xs font-bold text-[#002155] uppercase">
                   Publish Content
+                </h5>
+              </div>
+              <span className="material-symbols-outlined text-[#8c4f00] mr-2 group-hover:translate-x-1 transition-transform">
+                arrow_forward
+              </span>
+            </Link>
+            <Link
+              href="/innovation"
+              className="border-l-2 border-[#8c4f00] pl-4 py-2 bg-white border border-[#c4c6d3] flex items-center justify-between group"
+            >
+              <div>
+                <span className="text-[9px] font-bold text-[#747782] uppercase tracking-widest">
+                  Innovation Hub
+                </span>
+                <h5 className="text-xs font-bold text-[#002155] uppercase">
+                  Problems & Hackathons
                 </h5>
               </div>
               <span className="material-symbols-outlined text-[#8c4f00] mr-2 group-hover:translate-x-1 transition-transform">

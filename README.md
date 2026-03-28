@@ -1,11 +1,12 @@
 # TCET Center of Excellence Portal
 
-A production-oriented Next.js App Router application for TCET CoE that combines:
-- role-based authentication and authorization
-- student facility booking with admin approval lifecycle
-- faculty content publishing workflows
-- announcement/news/event/grant public feeds
-- email notifications and reminder automation
+Production-oriented Next.js App Router portal for TCET CoE with:
+- role-based authentication and access control
+- student facility booking and admin moderation
+- faculty/admin content publishing (news, events, grants, announcements)
+- innovation platform (open problems + hackathon events)
+- two-stage hackathon evaluation (PPT screening -> final judging)
+- email notifications and cron-driven reminders
 - MinIO-backed object storage with browser-safe proxying
 
 ## Table of Contents
@@ -13,11 +14,11 @@ A production-oriented Next.js App Router application for TCET CoE that combines:
 1. System Overview
 2. Feature Matrix by Role
 3. Technical Stack
-4. Architecture
-5. Domain Model
-6. Page and UX Flows
-7. API Contract
-8. Environment and Configuration
+4. Architecture and Core Flows
+5. Data Model
+6. App Routes and UX Flows
+7. API Reference
+8. Environment Configuration
 9. Local Development
 10. Deployment Notes
 11. Operational Runbook
@@ -27,35 +28,41 @@ A production-oriented Next.js App Router application for TCET CoE that combines:
 
 ## 1) System Overview
 
-This portal serves three primary personas:
-- Students: register, verify email via OTP, log in, create/cancel bookings
-- Faculty: publish and manage institutional content (news, events, grants, announcements)
-- Admin: approve faculty users, approve/reject bookings, monitor booking readiness and portal stats
+The portal serves three authenticated personas plus public visitors:
+- Students: register, verify OTP, login, book facilities, participate in innovation
+- Faculty: manage content, create and review innovation/hackathon workflows
+- Admin: operational moderation, analytics, and platform governance
+- Public: browse homepage content and innovation landing/event pages
 
-The public home page is dynamic and reads live data from the database:
-- News
-- Events
-- Grants
-- Announcements
-
-Object assets (news images, event posters, grant attachments) are stored in MinIO and surfaced either via signed URL or via an app-level proxy route depending on MinIO transport settings.
+Major capability groups:
+- Public content feed: news, grants, events, announcements, hero slides
+- Facility booking: student request lifecycle with admin confirm/reject and reminders
+- Innovation platform:
+  - Open track: students claim and submit innovation problems
+  - Hackathon track: event registration, problem statements, staged faculty judging, leaderboard
 
 ## 2) Feature Matrix by Role
 
 | Capability | Public | Student | Faculty | Admin |
 |---|---:|---:|---:|---:|
-| View home feed (news/events/grants/announcements) | Yes | Yes | Yes | Yes |
+| View homepage feeds | Yes | Yes | Yes | Yes |
 | Register account | No | Yes | Yes | No |
-| Email OTP verification | No | Yes | N/A | No |
-| Login | No | Yes | Yes | Yes |
-| Forgot password via email OTP | No | Yes | Yes | Yes |
-| Create booking | No | Yes | No | No |
+| Verify OTP / reset password via OTP | No | Yes | Yes | Yes |
+| Login / logout / refresh session | No | Yes | Yes | Yes |
+| Create facility booking | No | Yes | No | No |
 | Cancel own pending booking | No | Yes | No | No |
 | Access faculty content portal | No | No | Yes | Yes |
-| Create content (news/events/grants/announcements) | No | No | Yes | Yes |
-| Moderate faculty registrations | No | No | No | Yes |
-| Moderate bookings | No | No | No | Yes |
-| View operational dashboard | No | No | No | Yes |
+| Create news/events/grants/announcements | No | No | Yes | Yes |
+| Manage hero slides | No | No | No | Yes |
+| View innovation landing and event pages | Yes | Yes | Yes | Yes |
+| Claim open innovation problems | No | Yes | No | No |
+| Submit claim URL/file | No | Yes | No | No |
+| Register team for hackathon event | No | Yes | No | No |
+| Review innovation submissions | No | No | Yes | Yes |
+| Create hackathon events and problem sets | No | No | Yes | Yes |
+| Change hackathon stage status | No | No | Yes (own events) | Yes |
+| Moderate faculty users | No | No | No | Yes |
+| Moderate bookings and view admin stats | No | No | No | Yes |
 
 ## 3) Technical Stack
 
@@ -63,51 +70,39 @@ Object assets (news images, event posters, grant attachments) are stored in MinI
 - Runtime: Node.js
 - Language: TypeScript
 - UI: React 19 + Tailwind CSS v4
-- Database: MySQL via Prisma ORM
-- Authentication: JWT access/refresh tokens in httpOnly cookies
+- Database: MySQL + Prisma ORM
+- Auth: JWT access/refresh in httpOnly cookies
 - Validation: Zod
 - Email: Nodemailer (SMTP)
 - Storage: MinIO (S3-compatible)
-- Scheduler integration: cron trigger endpoint at /api/cron/reminder
+- Scheduled jobs: cron-triggered route handlers
 
-## 4) Architecture
+## 4) Architecture and Core Flows
 
-### 4.1 High-level runtime architecture
+### 4.1 High-level architecture
 
 ```mermaid
 flowchart TD
   B[Browser] --> N[Next.js App]
   N --> P[Pages and Server Components]
   N --> R[Route Handlers: /api/*]
-  R --> A[Auth + RBAC]
+  R --> A[Auth and RBAC]
   R --> D[(MySQL via Prisma)]
   R --> M[SMTP via Nodemailer]
   R --> S[MinIO Object Store]
-  C[Scheduler] --> CR[GET /api/cron/reminder]
-  CR --> R
+  C[Scheduler] --> CR1[GET /api/cron/reminder]
+  C --> CR2[GET /api/cron/innovation-reminder]
+  CR1 --> R
+  CR2 --> R
 ```
 
-### 4.2 Authentication and session lifecycle
+### 4.2 Session lifecycle
 
-```mermaid
-sequenceDiagram
-  participant U as User
-  participant L as POST /api/auth/login
-  participant K as Browser Cookies
-  participant X as Protected API
-  participant F as POST /api/auth/refresh
-  participant O as POST /api/auth/logout
-
-  U->>L: email + password
-  L-->>K: set accessToken (15m), refreshToken (7d)
-  U->>X: request with cookies
-  X->>X: authenticate + authorize
-  X-->>U: 200 or 401/403
-  U->>F: refresh session
-  F-->>K: rotate accessToken cookie
-  U->>O: logout
-  O-->>K: clear accessToken + refreshToken
-```
+- Login sets `accessToken` (short-lived) and `refreshToken` (long-lived)
+- Protected APIs validate token via cookie or bearer token
+- Refresh endpoint rotates access token
+- Logout clears auth cookies
+- Page-level redirects enforce role boundaries
 
 ### 4.3 Booking lifecycle
 
@@ -117,235 +112,259 @@ flowchart LR
   B1 --> PENDING[PENDING]
   PENDING --> A1[PATCH /api/admin/bookings/:id/confirm]
   PENDING --> A2[PATCH /api/admin/bookings/:id/reject]
+  PENDING --> CXL[DELETE /api/bookings/:id]
   A1 --> CONF[CONFIRMED]
   A2 --> REJ[REJECTED]
-  PENDING --> CXL[DELETE /api/bookings/:id]
   CXL --> CAN[CANCELLED]
   CONF --> REM[GET /api/cron/reminder]
-  REM --> MAIL[Send reminder email]
 ```
 
-## 5) Domain Model
-
-Core entities in Prisma:
-- User: identity, role, status, verification flags
-- Otp: temporary email OTPs (verification and password reset)
-- Booking: student booking request and status transitions
-- NewsPost: image-backed news item
-- Event: dated event with optional poster
-- Grant: grant opportunity with optional attachment and link
-- Announcement: time-bound notice with optional link
-
-### 5.1 Entity relationship diagram
+### 4.4 Hackathon evaluation lifecycle
 
 ```mermaid
-erDiagram
-  User ||--o{ Booking : creates
-  User ||--o{ NewsPost : posts
-  User ||--o{ Grant : posts
-  User ||--o{ Event : posts
-  User ||--o{ Announcement : creates
-
-  User {
-    int id
-    string name
-    string email
-    string role
-    string status
-    bool isVerified
-  }
-
-  Booking {
-    int id
-    string lab
-    string timeSlot
-    string status
-    string purpose
-    bool reminderSent
-  }
-
-  NewsPost {
-    int id
-    string title
-    string imageKey
-    bool isVisible
-  }
-
-  Event {
-    int id
-    string title
-    string mode
-    date date
-    bool isVisible
-  }
-
-  Grant {
-    int id
-    string title
-    string category
-    date deadline
-    bool isActive
-  }
-
-  Announcement {
-    int id
-    string text
-    date expiresAt
-  }
+flowchart LR
+  REG[Team registers with PPT] --> SUB[SUBMITTED or REVISION_REQUESTED]
+  SUB --> SCR[Stage 1 sync: SCREENING]
+  SCR --> SHORT[SHORTLISTED]
+  SCR --> R1[REJECTED]
+  SHORT --> JUD[Event status JUDGING]
+  JUD --> FIN[Stage 2 sync: JUDGING + rubric]
+  FIN --> ACC[ACCEPTED + scored]
+  FIN --> R2[REJECTED + scored]
+  ACC --> LB[Leaderboard]
+  R2 --> LB
 ```
 
-## 6) Page and UX Flows
+### 4.5 Hackathon event structure (domain view)
 
-### Public and common pages
-- / : dynamic homepage (reads live content from DB)
-- /about : institutional page
-- /laboratory : lab information page
+```mermaid
+flowchart TD
+  HE[HackathonEvent\nstatus: UPCOMING or ACTIVE or JUDGING or CLOSED\nregistrationOpen: true or false\npptFileKey: optional] --> P[Problem statements\nmode: CLOSED]
+  P --> C[Claim per team\nstatus lifecycle: IN_PROGRESS -> SUBMITTED -> SHORTLISTED -> ACCEPTED or REJECTED]
+  C --> CM[ClaimMember list\nLEAD + MEMBER]
+  C --> SF[Submission assets\nsubmissionFileKey or submissionUrl]
+  C --> RB[Rubric scores\ninnovation, technical, impact, ux, execution, presentation, feasibility]
+  RB --> FS[finalScore and score]
 
-### Authentication and recovery
-- /login : login with role-based redirection
-  - ADMIN -> /admin
-  - FACULTY -> /faculty
-  - STUDENT -> /facility-booking
-- /forgot-password : request OTP and set new password
+  ST[Student] -->|register with PPT| C
+  FC[Faculty or Admin] -->|screening + judging sync| C
+  CR[Innovation reminder cron] -->|status transitions + auto-submit| HE
+```
 
-### Student flow
-- /facility-booking
-  - if valid session exists, skips credential entry and opens booking step directly
-  - login/register/OTP handled in-page
-  - booking form includes room/equipment/date/slot/purpose
+### 4.6 Hackathon end-to-end sequence
 
-### Faculty flow
-- /faculty
-  - protected page (FACULTY or ADMIN)
-  - tabbed interface for GET/POST on:
-    - /api/news
-    - /api/events
-    - /api/grants
-    - /api/announcements
-  - automatic refresh-on-401 behavior via /api/auth/refresh
+```mermaid
+sequenceDiagram
+  participant S as Student Team
+  participant E as /api/innovation/events/:id/register
+  participant DB as Prisma DB
+  participant F as Faculty Workspace
+  participant SY as /api/innovation/faculty/claims/sync
+  participant M as Mailer
+  participant L as /api/innovation/events/:id/leaderboard
 
-### Admin flow
-- /admin
-  - protected page (ADMIN only)
-  - dashboard stats
-  - pending bookings queue
-  - upcoming confirmed bookings (prep view)
-  - pending faculty approvals
-  - user listing/filtering
+  S->>E: Register team + upload PPT
+  E->>DB: Create claim + upload file + set status SUBMITTED
 
-## 7) API Contract
+  F->>SY: Stage=SCREENING (SHORTLISTED or REJECTED)
+  SY->>DB: Update claim status
+  SY->>M: Send screening result email
 
-All primary APIs use a response envelope pattern:
-- success: boolean
-- message: string
-- data: payload or null
-- errors: array (for error responses)
+  F->>DB: Move event status to JUDGING
 
-### 7.1 Authentication APIs
+  F->>SY: Stage=JUDGING (ACCEPTED or REJECTED + rubrics)
+  SY->>DB: Persist rubrics + finalScore
+  SY->>M: Send final score email
 
-- POST /api/auth/register/student
-  - JSON: name, email, phone, password, uid
-  - creates STUDENT with isVerified=false and sends OTP
-- POST /api/auth/register/faculty
-  - JSON: name, email, phone, password
-  - creates FACULTY with status=PENDING and notifies admin
-- POST /api/auth/verify-otp
-  - JSON: email, otp
-  - validates 10-minute OTP and marks user verified
-- POST /api/auth/resend-otp
-  - JSON: email
-- POST /api/auth/login
-  - JSON: email, password
-  - sets accessToken + refreshToken cookies
-- POST /api/auth/refresh
-  - uses refreshToken cookie
-  - sets a fresh accessToken cookie
-- POST /api/auth/logout
-  - clears auth cookies
-- POST /api/auth/forgot-password
-  - JSON: email
-  - sends password-reset OTP (non-enumerating response)
-- POST /api/auth/reset-password
-  - JSON: email, otp, newPassword
-  - updates password hash and clears OTP
+  S->>L: View leaderboard (JUDGING or CLOSED)
+  L->>DB: Rank by finalScore then score
+```
+
+## 5) Data Model
+
+Primary entities:
+- `User` (role/status/verification)
+- `Otp` (verification/reset OTP)
+- `Booking`
+- `NewsPost`
+- `Grant`
+- `Event`
+- `Announcement`
+- `HeroSlide`
+- `HackathonEvent`
+- `Problem`
+- `Claim`
+- `ClaimMember`
+
+Key innovation enums and lifecycle:
+- `ProblemMode`: `OPEN`, `CLOSED`
+- `ProblemStatus`: `UNCLAIMED`, `CLAIMED`, `SOLVED`, `ARCHIVED`
+- `ClaimStatus`: `IN_PROGRESS`, `SUBMITTED`, `SHORTLISTED`, `ACCEPTED`, `REVISION_REQUESTED`, `REJECTED`
+- `EventStatus`: `UPCOMING`, `ACTIVE`, `JUDGING`, `CLOSED`
+
+Scoring fields persisted on `Claim` for hackathon judging:
+- `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
+- `finalScore` and `score`
+
+## 6) App Routes and UX Flows
+
+Public/common pages:
+- `/`
+- `/about`
+- `/laboratory`
+- `/innovation`
+- `/innovation/events/[id]`
+
+Auth pages:
+- `/login`
+- `/forgot-password`
+
+Protected pages:
+- `/facility-booking` (student)
+- `/faculty` (faculty/admin)
+- `/admin` (admin)
+- `/innovation/problems` (student/faculty/admin)
+- `/innovation/my-submissions` (student)
+- `/innovation/faculty` (faculty/admin)
+
+Navigation and access behavior:
+- Navbar is role-aware (faculty/admin links hidden from unauthorized users)
+- Login supports `next` redirect for student return flow
+- Admin/faculty pages hard-redirect unauthorized users
+
+### 6.1 Hackathon page-level flow
+
+```mermaid
+flowchart LR
+  IH[Innovation Landing Page] --> ED[Event Detail Page]
+  ED --> RF[Register Team form\nStudent only]
+  ED --> LB[Leaderboard\nvisible in JUDGING or CLOSED]
+  IF[Faculty Workspace] --> ET[Events tab]
+  IF --> ST[Submissions tab]
+  ET --> TM[Registered Teams view\nPending, Shortlisted, Approved, Rejected]
+  ST --> SC[Stage 1: PPT screening actions]
+  ST --> JG[Stage 2: final judging + rubric]
+```
+
+Route mapping for this flow:
+- Innovation landing page: `/innovation`
+- Event detail page: `/innovation/events/[id]`
+- Faculty workspace: `/innovation/faculty`
+
+## 7) API Reference
+
+Response envelope pattern:
+- `success: boolean`
+- `message: string`
+- `data: payload | null`
+- `errors: []` on failures
+
+### 7.1 Auth APIs
+
+- `POST /api/auth/register/student`
+- `POST /api/auth/register/faculty`
+- `POST /api/auth/verify-otp`
+- `POST /api/auth/resend-otp`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 
 ### 7.2 Booking APIs
 
-- POST /api/bookings
-  - STUDENT only
-  - JSON: purpose, date, timeSlot, facilities[], lab
-  - creates booking as PENDING
-- GET /api/bookings
-  - guidance response only (use /my or admin route)
-- GET /api/bookings/my
-  - authenticated user bookings (student-centric flow)
-- DELETE /api/bookings/[id]
-  - STUDENT only
-  - only own PENDING bookings can be cancelled
+- `POST /api/bookings` (student)
+- `GET /api/bookings` (guidance response)
+- `GET /api/bookings/my` (authenticated user)
+- `DELETE /api/bookings/[id]` (student own pending booking)
 
 ### 7.3 Admin APIs
 
-- GET /api/admin/stats
-  - ADMIN only
-- GET /api/admin/users
-  - ADMIN only
-  - optional filters: role, status
-- GET /api/admin/bookings
-  - ADMIN only
-  - optional filters: status, date
-- PATCH /api/admin/bookings/[id]/confirm
-  - ADMIN only
-  - PENDING -> CONFIRMED and sends confirmation mail
-- PATCH /api/admin/bookings/[id]/reject
-  - ADMIN only
-  - PENDING -> REJECTED with optional adminNote and sends rejection mail
-- PATCH /api/admin/faculty/[id]/approve
-  - ADMIN only
-  - PENDING faculty -> ACTIVE and sends approval mail
-- PATCH /api/admin/faculty/[id]/reject
-  - ADMIN only
-  - faculty -> REJECTED and sends rejection mail
+- `GET /api/admin/stats` (admin)
+- `GET /api/admin/users` (admin)
+- `GET /api/admin/bookings` (admin)
+- `PATCH /api/admin/bookings/[id]/confirm` (admin)
+- `PATCH /api/admin/bookings/[id]/reject` (admin)
+- `PATCH /api/admin/faculty/[id]/approve` (admin)
+- `PATCH /api/admin/faculty/[id]/reject` (admin)
 
 ### 7.4 Content APIs
 
 News:
-- GET /api/news (public)
-- POST /api/news (FACULTY/ADMIN, multipart with image)
-- PATCH /api/news/[id] (FACULTY/ADMIN)
-- DELETE /api/news/[id] (ADMIN only)
+- `GET /api/news` (public)
+- `POST /api/news` (faculty/admin)
+- `PATCH /api/news/[id]` (faculty/admin)
+- `DELETE /api/news/[id]` (admin)
 
 Events:
-- GET /api/events (public)
-- POST /api/events (FACULTY/ADMIN, multipart with optional poster)
-- PATCH /api/events/[id] (FACULTY/ADMIN)
-- DELETE /api/events/[id] (FACULTY/ADMIN)
+- `GET /api/events` (public)
+- `POST /api/events` (faculty/admin)
+- `PATCH /api/events/[id]` (faculty/admin)
+- `DELETE /api/events/[id]` (faculty/admin)
 
 Grants:
-- GET /api/grants (public)
-- POST /api/grants (FACULTY/ADMIN, multipart with optional PDF)
-- PATCH /api/grants/[id] (FACULTY/ADMIN)
-- DELETE /api/grants/[id] (ADMIN only)
+- `GET /api/grants` (public)
+- `POST /api/grants` (faculty/admin)
+- `PATCH /api/grants/[id]` (faculty/admin)
+- `DELETE /api/grants/[id]` (admin)
 
 Announcements:
-- GET /api/announcements (public, non-expired)
-- POST /api/announcements (FACULTY/ADMIN)
-- DELETE /api/announcements/[id] (FACULTY/ADMIN)
+- `GET /api/announcements` (public, non-expired)
+- `POST /api/announcements` (faculty/admin)
+- `DELETE /api/announcements/[id]` (faculty/admin)
 
-### 7.5 Utility APIs
+Hero slides:
+- `GET /api/hero-slides` (public)
+- `POST /api/hero-slides` (admin, multipart image)
 
-- GET /api/health
-- POST /api/seed
-- GET /api/cron/reminder
-- GET /api/storage/[...path] (MinIO proxy stream)
+### 7.5 Innovation APIs
 
-## 8) Environment and Configuration
+Problems:
+- `GET /api/innovation/problems`
+  - Public users can access open track (`track=open`)
+  - Hackathon/all tracks require faculty/admin
+- `POST /api/innovation/problems` (faculty/admin)
+- `PATCH /api/innovation/problems/[id]` (owner faculty or admin)
+- `DELETE /api/innovation/problems/[id]` (admin)
 
-Required environment variables:
+Claims:
+- `POST /api/innovation/claims` (student)
+- `GET /api/innovation/claims/my` (student)
+- `PATCH /api/innovation/claims/[id]/submit` (student team member)
+- `PATCH /api/innovation/faculty/claims/[id]/review` (owner faculty or admin)
 
-```env
-DATABASE_URL="mysql://root:password@localhost:3306/coe_db"
-JWT_ACCESS_SECRET="change-me"
-JWT_REFRESH_SECRET="change-me"
+Hackathon events:
+- `GET /api/innovation/events` (public)
+- `POST /api/innovation/events` (faculty/admin)
+- `PATCH /api/innovation/events/[id]` (creator faculty or admin)
+- `POST /api/innovation/events/[id]/register` (student)
+- `GET /api/innovation/events/[id]/leaderboard` (event must be `JUDGING` or `CLOSED`)
+
+Event stage controls and review:
+- `PATCH /api/innovation/admin/events/[id]/status` (admin, or creator faculty)
+- `GET /api/innovation/admin/submissions` (admin)
+- `GET /api/innovation/faculty/submissions` (faculty/admin)
+- `PATCH /api/innovation/faculty/claims/sync` (faculty/admin)
+  - Stage-aware payload:
+    - `stage=SCREENING`: decision statuses `SHORTLISTED` or `REJECTED`
+    - `stage=JUDGING`: decision statuses `ACCEPTED` or `REJECTED`, rubrics required
+
+### 7.6 Utility and Ops APIs
+
+- `GET /api/storage/[...path]` (proxy stream for MinIO object access)
+- `GET /api/health`
+- `POST /api/seed`
+- `GET /api/cron/reminder`
+- `GET /api/cron/innovation-reminder`
+
+## 8) Environment Configuration
+
+Required variables:
+
+```bash
+DATABASE_URL="mysql://user:password@localhost:3306/coe_main"
+JWT_ACCESS_SECRET="change-me-access"
+JWT_REFRESH_SECRET="change-me-refresh"
 
 ADMIN_EMAIL="admin@tcetmumbai.in"
 ADMIN_PASSWORD="AdminPassword123"
@@ -366,12 +385,11 @@ MINIO_BUCKET="coe-assets"
 ```
 
 Optional variables:
-- NEXT_PUBLIC_APP_URL
-- MINIO_USE_PROXY=true|false
+- `NEXT_PUBLIC_APP_URL`
+- `FRONTEND_URL`
+- `MINIO_USE_PROXY=true|false`
 
 ## 9) Local Development
-
-Install and run:
 
 ```bash
 npm install
@@ -380,7 +398,7 @@ npx prisma generate
 npm run dev
 ```
 
-Build and verify:
+Validation:
 
 ```bash
 npm run lint
@@ -395,87 +413,79 @@ curl -X POST http://localhost:3000/api/seed
 
 ## 10) Deployment Notes
 
-### 10.1 MinIO on custom domain
+MinIO transport:
+- Supports host-style and URL-style endpoint values
+- For HTTPS app + HTTP MinIO, use storage proxy route (`/api/storage/[...path]`)
 
-The storage client supports:
-- host-style endpoint: MINIO_ENDPOINT=server.example.com
-- URL-style endpoint: MINIO_ENDPOINT=http://server.example.com or https://server.example.com
+Cookies:
+- `httpOnly=true`
+- `sameSite=lax`
+- `secure=true` in production
 
-For HTTPS app + HTTP MinIO:
-- keep MINIO_USE_SSL=false
-- use the storage proxy route (enabled automatically for non-SSL MinIO)
-- browser requests stay same-origin via /api/storage/[...path]
-
-### 10.2 Cookies
-
-Auth cookies use:
-- httpOnly=true
-- sameSite=lax
-- secure=true in production
-
-### 10.3 SMTP
-
-If using Gmail, configure app password and allow SMTP settings.
+SMTP:
+- For Gmail, use app password and SMTP-enabled account settings
 
 ## 11) Operational Runbook
 
-### Booking reminder job
+Booking reminder job:
+- Endpoint: `GET /api/cron/reminder`
+- Behavior:
+  - reminders for confirmed bookings starting in next 30 minutes
+  - marks `reminderSent=true`
+  - cleans expired OTP records
 
-Endpoint:
-- GET /api/cron/reminder
+Innovation reminder job:
+- Endpoint: `GET /api/cron/innovation-reminder`
+- Behavior:
+  - transitions `UPCOMING -> ACTIVE` when start time is reached
+  - transitions `ACTIVE -> JUDGING` when end time is reached
+  - auto-submits `IN_PROGRESS` event claims to `SUBMITTED`
+  - sends event ending reminders
+  - sends judging transition notifications
 
-Behavior:
-- finds CONFIRMED bookings starting in next 30 minutes with reminderSent=false
-- sends reminder email
-- marks reminderSent=true
-- cleans expired OTP records (>10 minutes)
-
-Trigger options:
-- external cron service
-- platform scheduler hitting the endpoint
-
-### Health check
-
-- GET /api/health for lightweight uptime probe
+Operational health:
+- `GET /api/health`
 
 ## 12) Security Model
 
-- Passwords are hashed with bcrypt.
-- Access and refresh token secrets come from environment.
-- API guards:
-  - authenticate() via Bearer token or accessToken cookie
-  - authorize() role checks per route
-- Forgot-password endpoint avoids account enumeration by returning uniform success messaging.
-- Password reset requires valid OTP and TTL window.
+- Passwords hashed with bcrypt
+- Access/refresh token secrets from environment
+- Route guards use centralized `authenticate()` + `authorize()`
+- Forgot-password flow uses non-enumerating response behavior
+- Password reset requires valid OTP within TTL window
+- Role-based page redirects reduce unauthorized surface area in UI
 
 ## 13) Troubleshooting
 
-### 401 on faculty content POST
-- Likely expired access token.
-- Client currently attempts /api/auth/refresh and retries once.
+`401` on protected actions:
+- Access token expired; refresh flow should issue a new access token
 
-### Browser hydration mismatch
-- Ensure no unstable dynamic text between server and client render.
-- Check recent changes in shared components rendered in RootLayout.
+Mixed-content or broken media URLs:
+- Use `/api/storage/[...path]` proxy for non-SSL MinIO setups
 
-### Mixed content for images
-- Happens when browser receives direct http object URL on https site.
-- Use /api/storage proxy route and confirm MinIO proxy path is returned.
+`/api/seed` returns `405`:
+- Use `POST`, not `GET`
 
-### /api/seed returns 405
-- Expected for GET. Use POST.
+Leaderboard endpoint failing:
+- Verify event status is `JUDGING` or `CLOSED`
 
-### /seed page returns 404
-- Expected. There is no page route at /seed.
+Final judging sync failing:
+- Ensure event status is `JUDGING`
+- Ensure only shortlisted claims are included
+- Ensure all rubric fields are present
 
 ## 14) Verification Checklist
 
-Before shipping:
-- npm run lint
-- npm run build
-- Verify login, forgot-password, and OTP flows
-- Verify faculty content create flows with uploads
-- Verify admin approval/rejection flows
-- Verify booking lifecycle from request to reminder
-- Verify image/file rendering in deployed environment
-- Ensure .env secrets are not committed
+Before release:
+- `npm run build`
+- Verify auth flows (register, OTP verify, login, forgot/reset password)
+- Verify student booking lifecycle and admin moderation
+- Verify faculty content create/update/delete flows with uploads
+- Verify innovation two-stage flow:
+  - registration/submission
+  - screening sync
+  - shortlist visibility
+  - judging sync with rubric scoring
+  - leaderboard output
+- Verify reminder cron endpoints
+- Ensure `.env` secrets are not committed

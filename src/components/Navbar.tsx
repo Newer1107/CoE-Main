@@ -3,22 +3,34 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
-export default function Navbar() {
+type NavbarProps = {
+  userRole: string | null;
+};
+
+export default function Navbar({ userRole }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const currentPathWithSearch = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const loginHref = `/login?next=${encodeURIComponent(currentPathWithSearch)}`;
+  const canSeeFacultyPortal = userRole === "FACULTY" || userRole === "ADMIN";
+  const canSeeAdminPanel = userRole === "ADMIN";
+  const isLoggedIn = !!userRole;
 
   const links = [
     { label: "Home", href: "/" },
     { label: "About", href: "/about" },
-    { label: "Research", href: "#" },
+    { label: "Innovation", href: "/innovation" },
     { label: "Laboratory", href: "/laboratory" },
-    { label: "Faculty Portal", href: "/faculty" },
-    { label: "Events", href: "#" },
-    { label: "Grants", href: "#" },
-    { label: "News", href: "#" },
-    { label: "Login", href: "/login" },
+    ...(canSeeFacultyPortal ? [{ label: "Faculty Portal", href: "/faculty" }] : []),
+    ...(canSeeAdminPanel ? [{ label: "Admin", href: "/admin" }] : []),
+    { label: "Events", href: "/#events" },
+    { label: "Grants", href: "/#grants" },
+    { label: "News", href: "/#news" },
+    ...(!isLoggedIn ? [{ label: "Login", href: loginHref }] : []),
   ];
 
   return (

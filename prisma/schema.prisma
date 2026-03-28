@@ -39,6 +39,34 @@ enum EventMode {
   HYBRID
 }
 
+enum ProblemMode {
+  OPEN
+  CLOSED
+}
+
+enum ProblemStatus {
+  UNCLAIMED
+  CLAIMED
+  SOLVED
+  ARCHIVED
+}
+
+enum ClaimStatus {
+  IN_PROGRESS
+  SUBMITTED
+  SHORTLISTED
+  ACCEPTED
+  REVISION_REQUESTED
+  REJECTED
+}
+
+enum EventStatus {
+  UPCOMING
+  ACTIVE
+  JUDGING
+  CLOSED
+}
+
 model User {
   id         Int        @id @default(autoincrement())
   name       String
@@ -52,13 +80,104 @@ model User {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  bookings      Booking[]
-  newsPosts     NewsPost[]
-  grants        Grant[]
-  events        Event[]
-  announcements Announcement[]
+  bookings          Booking[]
+  newsPosts         NewsPost[]
+  grants            Grant[]
+  events            Event[]
+  announcements     Announcement[]
+  problemsCreated   ClaimMember[]
+  hackathonsCreated HackathonEvent[] @relation("HackathonCreator")
+  problemsAuthored  Problem[]        @relation("ProblemAuthor")
 
   @@map("users")
+}
+
+model Problem {
+  id          Int             @id @default(autoincrement())
+  title       String
+  description String          @db.Text
+  tags        String?
+  mode        ProblemMode     @default(OPEN)
+  status      ProblemStatus   @default(UNCLAIMED)
+  createdById Int
+  createdBy   User            @relation("ProblemAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  eventId     Int?
+  event       HackathonEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  claims      Claim[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([createdById])
+  @@index([eventId])
+  @@index([status])
+  @@index([mode])
+  @@map("problems")
+}
+
+model Claim {
+  id                Int           @id @default(autoincrement())
+  problemId         Int
+  problem           Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  teamName          String?
+  members           ClaimMember[]
+  status            ClaimStatus   @default(IN_PROGRESS)
+  submissionUrl     String?
+  submissionFileKey String?
+  innovationScore   Int?
+  technicalScore    Int?
+  impactScore       Int?
+  uxScore           Int?
+  executionScore    Int?
+  presentationScore Int?
+  feasibilityScore  Int?
+  finalScore        Int?
+  score             Int?
+  feedback          String?       @db.Text
+  badges            String?
+  reminderSent      Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([problemId])
+  @@index([status])
+  @@index([updatedAt])
+  @@map("claims")
+}
+
+model ClaimMember {
+  id      Int    @id @default(autoincrement())
+  claimId Int
+  claim   Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  userId  Int
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    String @default("MEMBER")
+
+  @@unique([claimId, userId])
+  @@index([claimId])
+  @@index([userId])
+  @@map("claim_members")
+}
+
+model HackathonEvent {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?     @db.Text
+  startTime   DateTime
+  endTime     DateTime
+  registrationOpen Boolean @default(true)
+  status      EventStatus @default(UPCOMING)
+  createdById Int
+  createdBy   User        @relation("HackathonCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  problems    Problem[]
+  pptFileKey  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([createdById])
+  @@map("hackathon_events")
 }
 
 model Otp {

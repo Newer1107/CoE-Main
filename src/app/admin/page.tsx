@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import AdminPanelClient from "./AdminPanelClient";
 import { verifyAccessToken } from "@/lib/jwt";
 
@@ -61,16 +62,51 @@ type HeroSlide = {
   updatedAt: string;
 };
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+type InnovationSubmission = {
+  id: number;
+  teamName: string | null;
+  status: string;
+  updatedAt: string;
+  problem: {
+    id: number;
+    title: string;
+    event: { id: number; title: string; status: string } | null;
+  };
+};
 
-async function fetchAdmin<T>(path: string, token: string): Promise<T> {
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
+type InnovationEvent = {
+  id: number;
+  title: string;
+  status: 'UPCOMING' | 'ACTIVE' | 'JUDGING' | 'CLOSED';
+  startTime: string;
+  endTime: string;
+};
+
+function getRequestBaseUrl(headerStore: Headers): string {
+  const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") || "http";
+
+  if (host) {
+    return `${proto}://${host}`;
+  }
+
+  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+}
+
+async function fetchAdmin<T>(baseUrl: string, path: string, token: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Network request failed";
+    throw new Error(`Request to ${path} failed: ${reason}`);
+  }
 
   const payload = (await res.json()) as AdminApiResponse<T>;
   if (!res.ok || !payload?.success) {
@@ -101,62 +137,46 @@ function AdminMessage({ title, body, actionLabel, actionHref }: { title: string;
 
 export default async function AdminPage() {
   const cookieStore = await cookies();
+  const headerStore = await headers();
+  const baseUrl = getRequestBaseUrl(headerStore);
   const token = cookieStore.get("accessToken")?.value;
 
   if (!token) {
-    return (
-      <AdminMessage
-        title="Admin Access Required"
-        body="Please login with an admin account to continue."
-        actionLabel="Go to Login"
-        actionHref="/login"
-      />
-    );
+    redirect("/login?next=%2Fadmin");
   }
 
+  let payload;
   try {
-    const payload = verifyAccessToken(token);
-    if (payload.role !== "ADMIN") {
-      return (
-        <AdminMessage
-          title="Insufficient Permissions"
-          body="Your account does not have admin access."
-          actionLabel="Go to Login"
-          actionHref="/login"
-        />
-      );
-    }
+    payload = verifyAccessToken(token);
   } catch {
-    return (
-      <AdminMessage
-        title="Session Expired"
-        body="Your session has expired. Please login again."
-        actionLabel="Go to Login"
-        actionHref="/login"
-      />
-    );
+    redirect("/login?next=%2Fadmin");
   }
 
-  try {
-    const [stats, pendingBookings, upcomingConfirmedBookings, pendingFaculty, users, heroSlides] = await Promise.all([
-      fetchAdmin<Stats>("/api/admin/stats", token),
-      fetchAdmin<Booking[]>("/api/admin/bookings?status=PENDING", token),
-      fetchAdmin<Booking[]>("/api/admin/bookings?status=CONFIRMED", token),
-      fetchAdmin<AdminUser[]>("/api/admin/users?role=FACULTY&status=PENDING", token),
-      fetchAdmin<AdminUser[]>("/api/admin/users", token),
-      fetchAdmin<HeroSlide[]>("/api/hero-slides", token),
-    ]);
+  if (payload.role !== "ADMIN") {
+    if (payload.role === "FACULTY") redirect("/faculty");
+    redirect("/facility-booking");
+  }
 
-    return (
-      <AdminPanelClient
-        stats={stats}
-        pendingBookings={pendingBookings}
-        upcomingConfirmedBookings={upcomingConfirmedBookings}
-        pendingFaculty={pendingFaculty}
-        users={users}
-        heroSlides={heroSlides}
-      />
-    );
+  let stats: Stats;
+  let pendingBookings: Booking[];
+  let upcomingConfirmedBookings: Booking[];
+  let pendingFaculty: AdminUser[];
+  let users: AdminUser[];
+  let heroSlides: HeroSlide[];
+  let innovationSubmissions: InnovationSubmission[];
+  let innovationEvents: InnovationEvent[];
+
+  try {
+    [stats, pendingBookings, upcomingConfirmedBookings, pendingFaculty, users, heroSlides, innovationSubmissions, innovationEvents] = await Promise.all([
+      fetchAdmin<Stats>(baseUrl, "/api/admin/stats", token),
+      fetchAdmin<Booking[]>(baseUrl, "/api/admin/bookings?status=PENDING", token),
+      fetchAdmin<Booking[]>(baseUrl, "/api/admin/bookings?status=CONFIRMED", token),
+      fetchAdmin<AdminUser[]>(baseUrl, "/api/admin/users?role=FACULTY&status=PENDING", token),
+      fetchAdmin<AdminUser[]>(baseUrl, "/api/admin/users", token),
+      fetchAdmin<HeroSlide[]>(baseUrl, "/api/hero-slides", token),
+      fetchAdmin<InnovationSubmission[]>(baseUrl, "/api/innovation/admin/submissions", token),
+      fetchAdmin<InnovationEvent[]>(baseUrl, "/api/innovation/events", token),
+    ]);
   } catch (err) {
     return (
       <main className="max-w-3xl mx-auto px-4 md:px-8 pt-[120px] pb-12 min-h-screen">
@@ -169,4 +189,17 @@ export default async function AdminPage() {
       </main>
     );
   }
+
+  return (
+    <AdminPanelClient
+      stats={stats}
+      pendingBookings={pendingBookings}
+      upcomingConfirmedBookings={upcomingConfirmedBookings}
+      pendingFaculty={pendingFaculty}
+      users={users}
+      heroSlides={heroSlides}
+      innovationSubmissions={innovationSubmissions}
+      innovationEvents={innovationEvents}
+    />
+  );
 }

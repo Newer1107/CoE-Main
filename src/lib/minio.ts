@@ -62,6 +62,16 @@ export const uploadFile = async (folder: string, file: { buffer: Buffer; origina
   return objectKey;
 };
 
+export const uploadFileWithObjectKey = async (
+  objectKey: string,
+  file: { buffer: Buffer; mimetype: string; size: number }
+) => {
+  await minioClient.putObject(BUCKET, objectKey, file.buffer, file.size, {
+    'Content-Type': file.mimetype,
+  });
+  return objectKey;
+};
+
 export const getSignedUrl = async (objectKey: string, expiry = 3600) => {
   // When MinIO is HTTP-only, proxy through the app so browsers never request insecure URLs directly.
   if (!useSSL || process.env.MINIO_USE_PROXY === 'true') {

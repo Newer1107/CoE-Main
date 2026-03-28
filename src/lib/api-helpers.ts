@@ -6,7 +6,7 @@ export const successRes = (data: unknown = null, message = 'Success', status = 2
 };
 
 export const errorRes = (message = 'Something went wrong', errors: unknown[] = [], status = 500) => {
-  return NextResponse.json({ success: false, message, errors }, { status });
+  return NextResponse.json({ success: false, message, data: null, errors }, { status });
 };
 
 /**
