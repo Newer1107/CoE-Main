@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 export default function FacilityBookingPage() {
+  const { pushToast } = useToast();
+  const bookingAuthHref = "/login?next=%2Ffacility-booking&reason=booking-auth-required";
   const [step, setStep] = useState(1);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   
   // Auth Form
@@ -75,9 +79,14 @@ export default function FacilityBookingPage() {
         if (res.ok) {
           setStep(3);
           setAuthSuccess("Active session found. You can continue booking.");
+          return;
         }
+
+        setRedirectingToLogin(true);
+        window.location.replace(bookingAuthHref);
       } catch {
-        // Ignore network/session check failures and keep login step.
+        setRedirectingToLogin(true);
+        window.location.replace(bookingAuthHref);
       } finally {
         setCheckingSession(false);
       }
@@ -92,24 +101,18 @@ export default function FacilityBookingPage() {
         method: "POST",
         credentials: "include",
       });
-    } catch {
-      // Even if logout request fails, reset local UI state.
+    } finally {
+      window.location.assign("/login");
     }
-
-    setStep(1);
-    setAuthSuccess("Logged out successfully.");
-    setAuthError("");
-    setEmail("");
-    setLoginIdentifier("");
-    setVerificationEmail("");
-    setPassword("");
   };
 
-  if (checkingSession) {
+  if (checkingSession || redirectingToLogin) {
     return (
       <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-12 min-h-screen">
         <div className="border border-[#c4c6d3] bg-white p-6 md:p-8">
-          <p className="text-sm text-[#434651]">Checking your session...</p>
+          <p className="text-sm text-[#434651]">
+            {redirectingToLogin ? "Redirecting to login..." : "Checking your session..."}
+          </p>
         </div>
       </main>
     );
@@ -155,8 +158,10 @@ export default function FacilityBookingPage() {
 
       // Successfully logged in (Cookie is set), skip to booking
       setStep(3);
+      pushToast("Login successful.", "success");
     } catch (err: any) {
       setAuthError(err.message);
+      pushToast(err.message || "Login failed", "error");
     } finally {
       setLoading(false);
     }
@@ -178,6 +183,7 @@ export default function FacilityBookingPage() {
         if (!res.ok) throw new Error(data.message || "Registration failed");
         setOtpSent(true);
         setAuthSuccess("OTP sent to your email!");
+        pushToast("Registration successful. OTP sent to your email.", "success");
       } else {
         const res = await fetch("/api/auth/register/faculty", {
           method: "POST",
@@ -187,11 +193,13 @@ export default function FacilityBookingPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Registration failed");
         setAuthSuccess("Registration successful! Your account is pending admin approval.");
+        pushToast("Faculty registration submitted. Await admin approval.", "success");
         setEmail(""); setPassword(""); setName(""); setPhone("");
         setTimeout(() => setIsLogin(true), 3000);
       }
     } catch (err: any) {
       setAuthError(err.message);
+      pushToast(err.message || "Registration failed", "error");
     } finally {
       setLoading(false);
     }
@@ -215,10 +223,12 @@ export default function FacilityBookingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "OTP Verification failed");
       setAuthSuccess("Email verified! You can now log in.");
+      pushToast("Email verified successfully.", "success");
       setOtpSent(false);
       setIsLogin(true);
     } catch (err: any) {
       setAuthError(err.message);
+      pushToast(err.message || "OTP verification failed", "error");
     } finally {
       setLoading(false);
     }
@@ -243,14 +253,21 @@ export default function FacilityBookingPage() {
           facilities: equipment
         })
       });
+
+      if (res.status === 401 || res.status === 403) {
+        window.location.replace(bookingAuthHref);
+        return;
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Booking failed");
       
       setBookingRef(`COE-2024-${data.data.id}-B`);
       setStep(4);
+      pushToast("Booking submitted successfully.", "success");
     } catch (err: any) {
       setAuthError(err.message);
-      alert("Booking Error: " + err.message);
+      pushToast(`Booking error: ${err.message || "Please try again."}`, "error");
     } finally {
       setLoading(false);
     }

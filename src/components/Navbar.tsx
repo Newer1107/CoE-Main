@@ -6,19 +6,39 @@ import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 type NavbarProps = {
-  userRole: string | null;
+  user: {
+    name: string;
+    email: string;
+    role: string;
+    uid?: string;
+  } | null;
 };
 
-export default function Navbar({ userRole }: NavbarProps) {
+export default function Navbar({ user }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const currentPathWithSearch = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const loginHref = `/login?next=${encodeURIComponent(currentPathWithSearch)}`;
+  const bookingLoginHref = `/login?next=${encodeURIComponent("/facility-booking")}&reason=booking-auth-required`;
+  const userRole = user?.role || null;
   const canSeeFacultyPortal = userRole === "FACULTY" || userRole === "ADMIN";
   const canSeeAdminPanel = userRole === "ADMIN";
-  const isLoggedIn = !!userRole;
+  const isLoggedIn = !!user;
+  const bookFacilityHref = isLoggedIn ? "/facility-booking" : bookingLoginHref;
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      window.location.href = "/login";
+    }
+  };
 
   const links = [
     { label: "Home", href: "/" },
@@ -99,7 +119,7 @@ export default function Navbar({ userRole }: NavbarProps) {
               </Link>
             ))}
             <Link
-              href="/facility-booking"
+              href={bookFacilityHref}
               className={`${
                 pathname === "/facility-booking"
                   ? "bg-[#f98e14]"
@@ -108,6 +128,53 @@ export default function Navbar({ userRole }: NavbarProps) {
             >
               Book Facility
             </Link>
+            {isLoggedIn ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 border border-white/30 px-2 py-1 text-white hover:bg-white/10"
+                >
+                  <span className="material-symbols-outlined text-lg">account_circle</span>
+                  <span className="max-w-[120px] truncate text-[10px] font-bold uppercase tracking-wider">
+                    {user?.name || "Account"}
+                  </span>
+                </button>
+                {isUserMenuOpen ? (
+                  <div className="absolute right-0 top-[110%] w-[300px] border border-[#c4c6d3] bg-white p-3 shadow-lg">
+                    <p className="text-[10px] uppercase tracking-widest text-[#747782]">Signed In</p>
+                    <p className="mt-1 text-sm font-bold text-[#002155]">{user?.name}</p>
+                    <p className="mt-1 text-xs text-[#434651]">{user?.email}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Role: {user?.role}</p>
+                    {user?.uid ? <p className="mt-1 text-xs text-[#434651]">UID: {user.uid}</p> : null}
+
+                    <div className="mt-3 grid grid-cols-1 gap-2">
+                      <Link
+                        href="/innovation/my-submissions"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155]"
+                      >
+                        My Submissions
+                      </Link>
+                      <Link
+                        href="/facility-booking"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="border border-[#8c4f00] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]"
+                      >
+                        My Booking Area
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void handleLogout()}
+                        className="bg-[#002155] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {/* EXTREME RIGHT: TCET Logo */}
@@ -142,6 +209,15 @@ export default function Navbar({ userRole }: NavbarProps) {
         <div className="relative mb-8 w-full block md:hidden"></div>
 
         <div className="flex flex-col gap-6 w-full h-full overflow-y-auto pb-8 custom-scrollbar">
+          {isLoggedIn ? (
+            <div className="border border-white/25 bg-white/10 p-4 text-white">
+              <p className="text-[10px] uppercase tracking-widest text-white/70">Signed In</p>
+              <p className="mt-1 text-sm font-bold">{user?.name}</p>
+              <p className="mt-1 text-xs text-white/80">{user?.email}</p>
+              <p className="mt-1 text-xs text-white/80">Role: {user?.role}</p>
+              {user?.uid ? <p className="mt-1 text-xs text-white/80">UID: {user.uid}</p> : null}
+            </div>
+          ) : null}
           {links.map((link) => (
             <Link
               key={link.label}
@@ -158,12 +234,30 @@ export default function Navbar({ userRole }: NavbarProps) {
           ))}
           <div className="mt-4 pt-4 border-t border-white/20">
             <Link
-              href="/facility-booking"
+              href={bookFacilityHref}
               onClick={() => setIsMobileMenuOpen(false)}
               className="inline-block w-full text-center bg-[#fd9923] hover:bg-[#8c4f00] py-4 text-[#002155] hover:text-white font-bold text-sm font-['Inter'] uppercase tracking-widest transition-colors"
             >
               Book Facility Form
             </Link>
+            {isLoggedIn ? (
+              <>
+                <Link
+                  href="/innovation/my-submissions"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="mt-3 inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-white"
+                >
+                  My Submissions
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="mt-3 inline-block w-full bg-[#0b2f66] py-3 text-center text-xs font-bold uppercase tracking-wider text-white"
+                >
+                  Logout
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { verifyAccessToken } from "@/lib/jwt";
+import { ToastProvider } from "@/components/ToastProvider";
 
 export const metadata: Metadata = {
   title: "TCET Center of Excellence | Official Portal",
@@ -19,12 +20,18 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const token = cookieStore.get("accessToken")?.value;
 
-  let userRole: string | null = null;
+  let user: { name: string; email: string; role: string; uid?: string } | null = null;
   if (token) {
     try {
-      userRole = verifyAccessToken(token).role;
+      const payload = verifyAccessToken(token);
+      user = {
+        name: payload.name,
+        email: payload.email,
+        role: payload.role,
+        uid: payload.uid,
+      };
     } catch {
-      userRole = null;
+      user = null;
     }
   }
 
@@ -41,9 +48,11 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-surface font-body text-on-surface">
-        <Navbar userRole={userRole} />
-        {children}
-        <Footer />
+        <ToastProvider>
+          <Navbar user={user} />
+          {children}
+          <Footer />
+        </ToastProvider>
       </body>
     </html>
   );

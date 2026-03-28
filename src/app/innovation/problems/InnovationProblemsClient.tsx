@@ -405,13 +405,15 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
               onChange={(e) => setNewDescription(e.target.value)}
               required
             />
-            <div className="md:col-span-2 border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
-              <p className="text-xs text-[#434651] mb-2">Optional support document (PDF only) for this open problem statement.</p>
+            <div className="md:col-span-2 border-2 border-dashed border-[#8c4f00] bg-[#fff8ee] p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] mb-1">Upload Zone: Support Document</p>
+              <p className="text-xs text-[#434651] mb-2">Optional support document for this open problem statement (PDF only).</p>
               <input
                 type="file"
                 accept=".pdf,application/pdf"
                 onChange={(e) => setNewSupportDocument(e.target.files?.[0] ?? null)}
               />
+              <p className="mt-2 text-[11px] text-[#434651]">{newSupportDocument ? `Selected: ${newSupportDocument.name}` : 'No file selected yet.'}</p>
             </div>
             <button type="submit" className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit" disabled={loading}>
               Create Problem
@@ -563,8 +565,9 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
                           </ul>
                         </div>
                       ) : null}
-                      <div className="md:col-span-2 border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
-                        <p className="text-xs text-[#434651] mb-2">Upload Technical Document (PDF/DOC/DOCX) - Compulsory</p>
+                      <div className="md:col-span-2 border-2 border-dashed border-[#0b6b2e] bg-[#f2fbf4] p-4">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#0b6b2e] mb-1">Required Upload: Technical Document</p>
+                        <p className="text-xs text-[#434651] mb-2">Accepted formats: PDF, DOC, DOCX.</p>
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -576,9 +579,11 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
                           }
                           required
                         />
+                        <p className="mt-2 text-[11px] text-[#434651]">{form.technicalDocument ? `Selected: ${form.technicalDocument.name}` : 'No file selected yet.'}</p>
                       </div>
-                      <div className="md:col-span-2 border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
-                        <p className="text-xs text-[#434651] mb-2">Upload PPT (PPT/PPTX) - Compulsory</p>
+                      <div className="md:col-span-2 border-2 border-dashed border-[#0b6b2e] bg-[#f2fbf4] p-4">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#0b6b2e] mb-1">Required Upload: Presentation Deck</p>
+                        <p className="text-xs text-[#434651] mb-2">Accepted formats: PPT, PPTX.</p>
                         <input
                           type="file"
                           accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
@@ -590,6 +595,7 @@ export default function InnovationProblemsClient({ role, userId }: InnovationPro
                           }
                           required
                         />
+                        <p className="mt-2 text-[11px] text-[#434651]">{form.pptFile ? `Selected: ${form.pptFile.name}` : 'No file selected yet.'}</p>
                       </div>
                       <button type="submit" className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider md:w-fit" disabled={loading}>
                         {form.submitLoading ? 'Submitting...' : 'Register for Open Statement'}

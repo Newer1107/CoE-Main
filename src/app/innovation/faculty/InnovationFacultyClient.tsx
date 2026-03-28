@@ -1190,13 +1190,15 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
               ) : null}
               <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Description" value={newProblemDescription} onChange={(e) => setNewProblemDescription(e.target.value)} required />
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Tags (comma-separated)" value={newProblemTags} onChange={(e) => setNewProblemTags(e.target.value)} />
-              <div className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
-                <p className="text-xs text-[#434651] mb-2">Optional support document (PDF only).</p>
+              <div className="border-2 border-dashed border-[#8c4f00] bg-[#fff8ee] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] mb-1">Upload Zone: Support Document</p>
+                <p className="text-xs text-[#434651] mb-2">Optional PDF that students can open with the statement.</p>
                 <input
                   type="file"
                   accept=".pdf,application/pdf"
                   onChange={(e) => setNewProblemSupportDocument(e.target.files?.[0] ?? null)}
                 />
+                <p className="mt-2 text-[11px] text-[#434651]">{newProblemSupportDocument ? `Selected: ${newProblemSupportDocument.name}` : 'No file selected yet.'}</p>
               </div>
               <p className="text-xs text-[#434651]">This section is for OPEN innovation problems only. New statements are created OPENED by default; close them from Maintenance once reviews are complete to publish results.</p>
               <button type="submit" disabled={loading} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider">Create Problem</button>
@@ -1729,9 +1731,11 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                   ))}
                 </div>
 
-                <div className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
-                  <p className="text-xs text-[#434651] mb-2">Optional event brief (PPT/PDF) shown to participants.</p>
+                <div className="border-2 border-dashed border-[#8c4f00] bg-[#fff8ee] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] mb-1">Upload Zone: Event Brief</p>
+                  <p className="text-xs text-[#434651] mb-2">Optional PPT/PPTX/PDF visible to participants as briefing material.</p>
                   <input type="file" accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf" onChange={(e) => setEventPpt(e.target.files?.[0] ?? null)} />
+                  <p className="mt-2 text-[11px] text-[#434651]">{eventPpt ? `Selected: ${eventPpt.name}` : 'No file selected yet.'}</p>
                 </div>
                 <button type="submit" disabled={loading} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider">Create Event</button>
               </form>

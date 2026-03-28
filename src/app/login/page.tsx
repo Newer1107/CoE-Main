@@ -1,21 +1,42 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ToastProvider";
 
 export default function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const { pushToast } = useToast();
+  const hasShownBookingRequiredToast = useRef(false);
+  const [activeAuthMode, setActiveAuthMode] = useState<"login" | "register-student" | "register-faculty">("login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPhone, setRegisterPhone] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerUid, setRegisterUid] = useState("");
   const [verificationEmail, setVerificationEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
   const [needsOtp, setNeedsOtp] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    if (hasShownBookingRequiredToast.current) return;
+
+    const reason = searchParams.get("reason");
+    if (reason === "booking-auth-required") {
+      hasShownBookingRequiredToast.current = true;
+      const message = "You must be logged in to book a facility.";
+      setStatus(message);
+      pushToast(message, "info");
+    }
+  }, [pushToast, searchParams]);
 
   const getSafeNextPath = () => {
     const next = searchParams.get("next") || "";
@@ -45,6 +66,7 @@ export default function LoginPage() {
           setVerificationEmail(data?.email || "");
           setNeedsOtp(true);
           setStatus("Verify your email with the OTP we just sent.");
+          pushToast("Verify your email with OTP to continue.", "info");
           return;
         }
         throw new Error(data?.message || "Login failed.");
@@ -52,15 +74,19 @@ export default function LoginPage() {
 
       const role = data?.data?.user?.role;
       const safeNext = getSafeNextPath();
-      if (role === "ADMIN") {
-        router.push("/admin");
-      } else if (role === "FACULTY") {
-        router.push("/faculty");
-      } else {
-        router.push(safeNext || "/facility-booking");
-      }
+      const destination = role === "ADMIN"
+        ? "/admin"
+        : role === "FACULTY"
+          ? "/faculty"
+          : safeNext || "/facility-booking";
+
+      // Force a full navigation so server-rendered navbar auth state updates immediately.
+      window.location.assign(destination);
+      return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed.");
+      const message = err instanceof Error ? err.message : "Login failed.";
+      setError(message);
+      pushToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -84,8 +110,11 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to resend OTP.");
       setStatus("OTP resent. Please check your inbox.");
+      pushToast("OTP resent. Please check your inbox.", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resend OTP.");
+      const message = err instanceof Error ? err.message : "Failed to resend OTP.";
+      setError(message);
+      pushToast(message, "error");
     } finally {
       setOtpLoading(false);
     }
@@ -112,10 +141,75 @@ export default function LoginPage() {
       setNeedsOtp(false);
       setOtp("");
       setStatus("Email verified. Please login again.");
+      pushToast("Email verified. You can login now.", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "OTP verification failed.");
+      const message = err instanceof Error ? err.message : "OTP verification failed.";
+      setError(message);
+      pushToast(message, "error");
     } finally {
       setOtpLoading(false);
+    }
+  };
+
+  const handleRegister = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setStatus("");
+    setRegisterLoading(true);
+
+    try {
+      if (activeAuthMode === "register-student") {
+        const res = await fetch("/api/auth/register/student", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: registerName,
+            email: registerEmail,
+            phone: registerPhone,
+            password: registerPassword,
+            uid: registerUid,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Student registration failed.");
+
+        setVerificationEmail(registerEmail.trim().toLowerCase());
+        setNeedsOtp(true);
+        setStatus("Student registration successful. Verify your email with OTP.");
+        pushToast("Registration successful. OTP sent to your email.", "success");
+        setActiveAuthMode("login");
+      } else {
+        const res = await fetch("/api/auth/register/faculty", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: registerName,
+            email: registerEmail,
+            phone: registerPhone,
+            password: registerPassword,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Faculty registration failed.");
+
+        setStatus("Faculty registration submitted. Await admin approval.");
+        pushToast("Faculty registration submitted successfully.", "success");
+        setActiveAuthMode("login");
+      }
+
+      setRegisterName("");
+      setRegisterEmail("");
+      setRegisterPhone("");
+      setRegisterPassword("");
+      setRegisterUid("");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Registration failed.";
+      setError(message);
+      pushToast(message, "error");
+    } finally {
+      setRegisterLoading(false);
     }
   };
 
@@ -131,8 +225,7 @@ export default function LoginPage() {
               <span className="block text-[#fd9923]">Center of Excellence</span>
             </h1>
             <p className="text-sm text-white/80 font-body leading-relaxed">
-              Use your institutional account to manage bookings, faculty workflows, and admin approvals.
-              Admin users will be routed straight to the control room after login.
+              Established with a vision to bridge the gap between academic theory and industrial application, the TCET Center of Excellence (CoE) stands as a testament to institutional persistence.
             </p>
             <div className="border-t border-white/20 pt-6">
               <p className="text-xs uppercase tracking-[0.3em] text-white/70">Need an account?</p>
@@ -149,45 +242,149 @@ export default function LoginPage() {
             Sign in with your @tcetmumbai.in email address or your UID. UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28).
           </p>
 
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveAuthMode("login")}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                activeAuthMode === "login" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+              }`}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveAuthMode("register-student")}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                activeAuthMode === "register-student" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+              }`}
+            >
+              Register Student
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveAuthMode("register-faculty")}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                activeAuthMode === "register-faculty" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+              }`}
+            >
+              Register Faculty
+            </button>
+          </div>
+
           {error ? <p className="mt-4 border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">{error}</p> : null}
           {status ? <p className="mt-4 border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm">{status}</p> : null}
 
-          <form className="mt-6 space-y-5" onSubmit={handleLogin}>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Email or UID</label>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
-                placeholder="name@tcetmumbai.in or 24-COMPD13-28"
-                className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
-              />
-              <p className="text-[11px] text-[#434651]">UID format example: 24-COMPD13-28</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
-              />
-              <div className="pt-1 text-right">
-                <Link href="/forgot-password" className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]">
-                  Forgot Password?
-                </Link>
+          {activeAuthMode === "login" ? (
+            <form className="mt-6 space-y-5" onSubmit={handleLogin}>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Email or UID</label>
+                <input
+                  type="text"
+                  required
+                  value={identifier}
+                  onChange={(event) => setIdentifier(event.target.value)}
+                  placeholder="name@tcetmumbai.in or 24-COMPD13-28"
+                  className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                />
+                <p className="text-[11px] text-[#434651]">UID format example: 24-COMPD13-28</p>
               </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70"
-            >
-              {loading ? "Signing in..." : "Login"}
-            </button>
-          </form>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                />
+                <div className="pt-1 text-right">
+                  <Link href="/forgot-password" className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]">
+                    Forgot Password?
+                  </Link>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70"
+              >
+                {loading ? "Signing in..." : "Login"}
+              </button>
+            </form>
+          ) : (
+            <form className="mt-6 space-y-5" onSubmit={handleRegister}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={registerName}
+                    onChange={(event) => setRegisterName(event.target.value)}
+                    className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Institutional Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={registerEmail}
+                    onChange={(event) => setRegisterEmail(event.target.value)}
+                    placeholder="name@tcetmumbai.in"
+                    className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={registerPhone}
+                    onChange={(event) => setRegisterPhone(event.target.value)}
+                    className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                  />
+                </div>
+                {activeAuthMode === "register-student" ? (
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Student UID</label>
+                    <input
+                      type="text"
+                      required
+                      value={registerUid}
+                      onChange={(event) => setRegisterUid(event.target.value)}
+                      placeholder="24-COMPD13-28"
+                      className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                    />
+                    <p className="text-[11px] text-[#434651]">UID format: XX-BRANCHYY-ZZ</p>
+                  </div>
+                ) : null}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={registerPassword}
+                    onChange={(event) => setRegisterPassword(event.target.value)}
+                    className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={registerLoading}
+                className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70"
+              >
+                {registerLoading
+                  ? "Submitting..."
+                  : activeAuthMode === "register-student"
+                    ? "Register Student"
+                    : "Register Faculty"}
+              </button>
+            </form>
+          )}
 
           {needsOtp ? (
             <div className="mt-8 border-t border-[#e3e2df] pt-6">

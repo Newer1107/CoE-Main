@@ -1,7 +1,23 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { verifyAccessToken } from '@/lib/jwt';
 
 export default async function InnovationLandingPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('accessToken')?.value;
+
+  let role: string | null = null;
+  if (token) {
+    try {
+      role = verifyAccessToken(token).role;
+    } catch {
+      role = null;
+    }
+  }
+
+  const canSeeFacultyWorkspace = role === 'FACULTY';
+
   const events = await prisma.hackathonEvent.findMany({
     where: { status: { in: ['ACTIVE', 'UPCOMING'] } },
     include: {
@@ -33,7 +49,7 @@ export default async function InnovationLandingPage() {
 
       <section className="mb-8 flex flex-wrap gap-3">
         <Link
-          href="/innovation"
+          href="/innovation/events"
           className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider"
         >
           Hackathon Events
@@ -50,12 +66,14 @@ export default async function InnovationLandingPage() {
         >
           My Submissions
         </Link>
-        <Link
-          href="/innovation/faculty"
-          className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider"
-        >
-          Faculty Workspace
-        </Link>
+        {canSeeFacultyWorkspace ? (
+          <Link
+            href="/innovation/faculty"
+            className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+          >
+            Faculty Workspace
+          </Link>
+        ) : null}
       </section>
 
       <section className="mb-10">

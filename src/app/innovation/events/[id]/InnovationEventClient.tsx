@@ -430,9 +430,9 @@ export default function InnovationEventClient({
                 </ul>
               </div>
             ) : null}
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#434651] mb-2">Choose File (PPT/PPTX/PDF)</label>
-              <p className="mb-2 text-xs text-[#8c4f00]">PPT is compulsory to upload.</p>
+            <div className="md:col-span-2 border-2 border-dashed border-[#0b6b2e] bg-[#f2fbf4] p-4">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#0b6b2e] mb-1">Required Upload: Team Presentation</label>
+              <p className="mb-2 text-xs text-[#434651]">Upload PPT/PPTX (or PDF if your deck is exported).</p>
               <input
                 type="file"
                 accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
@@ -440,6 +440,7 @@ export default function InnovationEventClient({
                 className="w-full"
                 required
               />
+              <p className="mt-2 text-[11px] text-[#434651]">{pptFile ? `Selected: ${pptFile.name}` : 'No file selected yet.'}</p>
             </div>
             <button type="submit" disabled={busy || uidLookupBusy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-70">
               {busy ? 'Submitting...' : 'Register Team'}
