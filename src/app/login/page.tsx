@@ -229,9 +229,18 @@ export default function LoginPage() {
             </p>
             <div className="border-t border-white/20 pt-6">
               <p className="text-xs uppercase tracking-[0.3em] text-white/70">Need an account?</p>
-              <Link href="/facility-booking" className="mt-3 inline-flex text-sm uppercase tracking-[0.2em] text-[#fd9923] hover:text-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAuthMode("register-student");
+                  setNeedsOtp(false);
+                  setError("");
+                  setStatus("");
+                }}
+                className="mt-3 inline-flex text-sm uppercase tracking-[0.2em] text-[#fd9923] hover:text-white"
+              >
                 Register for Access →
-              </Link>
+              </button>
             </div>
           </div>
         </div>

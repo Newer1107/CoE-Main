@@ -123,22 +123,51 @@ flowchart LR
   CONF --> REM[GET /api/cron/reminder]
 ```
 
-### 4.4 Hackathon evaluation lifecycle
+### 4.4 Hackathon full workflow (conduct flow)
 
 ```mermaid
-flowchart LR
-  REG[Team registers with PPT] --> SUB[SUBMITTED or REVISION_REQUESTED]
-  SUB --> SCR[Stage 1 sync: SCREENING]
-  SCR --> SHORT[SHORTLISTED]
-  SCR --> R1[REJECTED]
-  SHORT --> ATT[Attendance mark: Present or Absent]
-  ATT --> ABS[Absent tracked]
-  ATT --> FIN[Stage 2 sync: JUDGING + rubric while event ACTIVE]
-  FIN --> ACC[ACCEPTED + scored]
-  FIN --> R2[REJECTED + scored]
-  ACC --> CLS[Event CLOSED]
-  R2 --> CLS
-  CLS --> LB[Leaderboard + result emails]
+flowchart TD
+  subgraph FAC[Faculty or Admin]
+    HC1[Create hackathon event + timeline + problems]
+    HC2[Move event status to ACTIVE]
+    HC3[Registered Teams queue in Faculty Workspace - Events tab]
+    HC4[Stage 1 sync: SCREENING]
+    HC5[Mark attendance for shortlisted teams]
+    HC6[Stage 2 sync: JUDGING with rubric]
+    HC7[Move event status to CLOSED]
+  end
+
+  subgraph STU[Student Team]
+    HS1[Open event page]
+    HS2[Register team with UID verification + PPT or PDF]
+  end
+
+  subgraph SYS[System]
+    HY1[Claim created with status SUBMITTED]
+    HY2[Claim status becomes SHORTLISTED or REJECTED]
+    HY3[Absent teams excluded from judging]
+    HY4[Final decision ACCEPTED or REJECTED + scores persisted]
+    HY5[Leaderboard available on event page]
+    HY6[Notification emails sent at stage transitions]
+  end
+
+  HC1 --> HC2
+  HS1 --> HS2
+  HS2 --> HY1
+  HC2 --> HC3
+  HY1 --> HC3
+  HC3 --> HC4
+  HC4 --> HY2
+  HY2 --> HC5
+  HC5 --> HY3
+  HY3 --> HC6
+  HC6 --> HY4
+  HY4 --> HC7
+  HC7 --> HY5
+  HC2 --> HY6
+  HC4 --> HY6
+  HC6 --> HY6
+  HC7 --> HY6
 ```
 
 ### 4.5 Hackathon event structure (domain view)
@@ -191,18 +220,74 @@ sequenceDiagram
   L->>DB: Rank by finalScore then score
 ```
 
-### 4.7 Open-statement lifecycle (separated from hackathon)
+### 4.7 Open problem statement full workflow (conduct flow)
 
 ```mermaid
-flowchart LR
-  FP[Faculty creates OPEN problem] --> OP[Problem status = OPENED]
-  OP --> REG[Students register team with UID validation]
-  REG --> SUB[OpenSubmission created with mandatory technical doc and PPT]
-  SUB --> RV[Faculty open-submission review with rubric]
-  RV --> HOLD[Results remain hidden to students]
-  HOLD --> CL[Faculty closes statement via problem status = CLOSED]
-  CL --> PUB[ResultPublishedAt set + result emails dispatched]
-  PUB --> ST[Students can see status, score, feedback, badges]
+flowchart TD
+  subgraph FAC[Faculty or Admin]
+    OP1[Create open problem statement]
+    OP2[Problem status defaults to OPENED]
+    OP3[Review in Faculty Workspace - Submissions tab]
+    OP4[Save decision and rubric ACCEPTED or REVISION_REQUESTED or REJECTED]
+    OP5[Close statement in Faculty Workspace - Problems tab]
+  end
+
+  subgraph STU[Student Team]
+    OS1[Open problem board]
+    OS2[Register with team UIDs]
+    OS3[Upload technical doc + PPT]
+  end
+
+  subgraph SYS[System]
+    OY1[UID lookup eligibility check]
+    OY2[OpenSubmission created]
+    OY3[Review saved but result hidden while statement is OPENED]
+    OY4[On CLOSE: publish results + set resultPublishedAt]
+    OY5[Students can view score, feedback, badges]
+    OY6[Result release emails sent]
+  end
+
+  OP1 --> OP2
+  OS1 --> OS2
+  OS2 --> OY1
+  OY1 --> OS3
+  OS3 --> OY2
+  OY2 --> OP3
+  OP3 --> OP4
+  OP4 --> OY3
+  OY3 --> OP5
+  OP5 --> OY4
+  OY4 --> OY5
+  OY4 --> OY6
+```
+
+### 4.8 Open statement end-to-end sequence
+
+```mermaid
+sequenceDiagram
+  participant F as Faculty or Admin
+  participant S as Student Team
+  participant U as /api/innovation/users/lookup
+  participant O as /api/innovation/open-submissions
+  participant R as /api/innovation/faculty/open-submissions/:id/review
+  participant P as /api/innovation/problems/:id
+  participant DB as Prisma DB
+  participant M as Mailer
+
+  F->>DB: Create OPEN statement (status OPENED)
+  S->>U: Validate team UIDs for problem
+  U->>S: Eligible UID results
+  S->>O: Submit registration + technical doc + PPT
+  O->>DB: Create OpenSubmission
+
+  F->>R: Save review decision + rubric
+  R->>DB: Persist review and scores
+  Note over DB,S: Result hidden until statement is CLOSED
+
+  F->>P: Update problem status CLOSED
+  P->>DB: Set resultPublishedAt on related open submissions
+  P->>M: Send release emails
+  S->>DB: View published scores and feedback
 ```
 
 ## 5) Data Model
@@ -275,16 +360,32 @@ flowchart LR
   ED --> RF[Register Team form\nStudent only]
   ED --> LB[Leaderboard\nvisible in CLOSED only]
   IF[Faculty Workspace] --> ET[Events tab]
-  IF --> ST[Submissions tab]
-  ET --> TM[Registered Teams view\nPending, Shortlisted, Absent, Rejected]
-  ST --> SC[Stage 1: PPT screening actions]
-  ST --> JG[Stage 2: final judging + rubric during ACTIVE]
+  ET --> TM[Registered Teams queue\nPending, Shortlisted, Absent, Rejected]
+  TM --> SC[Stage 1: PPT screening sync]
+  TM --> JG[Stage 2: final judging sync + rubric during ACTIVE]
 ```
 
 Route mapping for this flow:
 - Innovation landing page: `/innovation`
 - Event detail page: `/innovation/events/[id]`
 - Faculty workspace: `/innovation/faculty`
+
+### 6.2 Open statement page-level flow
+
+```mermaid
+flowchart LR
+  IP[Innovation Problems page] --> OR[Student registration form]
+  OR --> UV[Fetch UID details]
+  UV --> US[Submit open statement files]
+  FW[Faculty Workspace] --> PS[Problems tab\nCreate and close statements]
+  FW --> SS[Submissions tab\nOpen Statement submissions only]
+  SS --> SR[Save rubric + decision]
+  PS --> RP[Close statement and publish results]
+```
+
+Current UX notes:
+- On `/innovation`, `Open Problem Statements` is hidden for `FACULTY` users.
+- In Faculty Workspace, the `Submissions` section is dedicated to open statements; hackathon team review runs in `Events -> Registered Teams`.
 
 ## 7) API Reference
 
