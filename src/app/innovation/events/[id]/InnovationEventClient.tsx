@@ -24,6 +24,8 @@ type UidLookupRow = {
   uid: string;
   found: boolean;
   eligible: boolean;
+  alreadyParticipated: boolean;
+  reason: string;
   name: string | null;
   email: string | null;
   role: string | null;
@@ -110,7 +112,7 @@ export default function InnovationEventClient({
     setVerifiedUidSnapshot('');
     setUidLookupRows([]);
     setUidLookupMessage('');
-  }, [teamLeadUid, memberUids, teamSize]);
+  }, [teamLeadUid, memberUids, teamSize, problemId]);
 
   const getNormalizedUidInputs = () => {
     const cleanedLeadUid = teamLeadUid.trim().toUpperCase();
@@ -160,10 +162,13 @@ export default function InnovationEventClient({
 
     setUidLookupBusy(true);
     try {
-      const res = await fetch(`/api/innovation/users/lookup?uids=${encodeURIComponent(JSON.stringify(requestedUids))}`, {
+      const res = await fetch(
+        `/api/innovation/users/lookup?uids=${encodeURIComponent(JSON.stringify(requestedUids))}&eventId=${eventId}&problemId=${problemId}`,
+        {
         method: 'GET',
         credentials: 'include',
-      });
+        }
+      );
 
       const payload = (await res.json()) as {
         success: boolean;
@@ -180,7 +185,7 @@ export default function InnovationEventClient({
       const hasIneligible = payload.data.some((row) => !row.eligible);
       if (hasIneligible) {
         setVerifiedUidSnapshot('');
-        setUidLookupMessage('Some UIDs are not eligible. Check the status below and update before submitting.');
+        setUidLookupMessage('Some UIDs are non-eligible. Check the detailed reason below and update before submitting.');
         return;
       }
 
@@ -405,8 +410,10 @@ export default function InnovationEventClient({
                       {row.found ? ` | ${row.role} | ${row.status} | ${row.isVerified ? 'Verified' : 'Not verified'}` : ''}
                       {' | '}
                       <span className={row.eligible ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}>
-                        {row.eligible ? 'Eligible' : 'Not eligible'}
+                        {row.eligible ? 'Eligible' : 'Non-eligible'}
                       </span>
+                      {` | ${row.reason}`}
+                      {row.alreadyParticipated ? ' | This user has already participated in this hackathon in this problem statement.' : ''}
                     </li>
                   ))}
                 </ul>
