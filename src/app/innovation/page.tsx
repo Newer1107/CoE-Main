@@ -14,6 +14,15 @@ export default async function InnovationLandingPage() {
     take: 8,
   });
 
+  const archivedEvents = await prisma.hackathonEvent.findMany({
+    where: { status: 'CLOSED' },
+    include: {
+      _count: { select: { problems: true } },
+    },
+    orderBy: [{ endTime: 'desc' }],
+    take: 8,
+  });
+
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
@@ -88,6 +97,36 @@ export default async function InnovationLandingPage() {
                   className="inline-flex mt-2 ml-2 border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"
                 >
                   Register
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-headline text-2xl text-[#002155]">Archived Hackathon Events</h2>
+          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">{archivedEvents.length} events</span>
+        </div>
+
+        {archivedEvents.length === 0 ? (
+          <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No archived events yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {archivedEvents.map((event) => (
+              <article key={event.id} className="border border-[#c4c6d3] bg-[#f5f4f0] p-5">
+                <p className="text-xs uppercase tracking-widest text-[#747782]">ARCHIVED</p>
+                <h3 className="mt-1 text-lg font-bold text-[#002155]">{event.title}</h3>
+                {event.description ? <p className="mt-2 text-sm text-[#434651] line-clamp-3">{event.description}</p> : null}
+                <p className="mt-2 text-xs text-[#434651]">Problems: {event._count.problems}</p>
+                <p className="mt-1 text-xs text-[#434651]">Started: {event.startTime.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-[#434651]">Closed: {event.endTime.toLocaleString()}</p>
+                <Link
+                  href={`/innovation/events/${event.id}`}
+                  className="inline-flex mt-4 border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+                >
+                  View Event Details
                 </Link>
               </article>
             ))}
