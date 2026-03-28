@@ -152,6 +152,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   const [eventDescription, setEventDescription] = useState('');
   const [eventStartTime, setEventStartTime] = useState('');
   const [eventEndTime, setEventEndTime] = useState('');
+  const [eventSubmissionLockAt, setEventSubmissionLockAt] = useState('');
   const [eventProblems, setEventProblems] = useState<EventProblemDraft[]>([
     { title: '', description: '', isIndustryProblem: false, industryName: '' },
   ]);
@@ -161,6 +162,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   const [selectedRegistrationEventId, setSelectedRegistrationEventId] = useState<number | null>(null);
   const [selectedRegistrationProblemId, setSelectedRegistrationProblemId] = useState<number | 'ALL'>('ALL');
   const [selectedSubmissionEventId, setSelectedSubmissionEventId] = useState<number | null>(null);
+  const [selectedOpenProblemId, setSelectedOpenProblemId] = useState<number | 'ALL'>('ALL');
   const [reviewForms, setReviewForms] = useState<Record<number, { status: 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED'; score: string; feedback: string; badges: string }>>({});
   const [openReviewForms, setOpenReviewForms] = useState<Record<number, OpenReviewForm>>({});
   const [stagedDecisions, setStagedDecisions] = useState<Record<number, StagedDecisionStatus>>({});
@@ -294,6 +296,22 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     [submissions, selectedSubmissionEventId]
   );
 
+  const openReviewProblems = useMemo(() => {
+    const problemMap = new Map<number, string>();
+    openSubmissions.forEach((submission) => {
+      problemMap.set(submission.problem.id, submission.problem.title);
+    });
+
+    return Array.from(problemMap.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [openSubmissions]);
+
+  const filteredOpenSubmissions = useMemo(() => {
+    if (selectedOpenProblemId === 'ALL') return openSubmissions;
+    return openSubmissions.filter((submission) => submission.problem.id === selectedOpenProblemId);
+  }, [openSubmissions, selectedOpenProblemId]);
+
   const selectedEventRegistrations = useMemo(() => {
     if (selectedRegistrationEventId === null) return [] as SubmissionRow[];
     return registrationsByEvent[selectedRegistrationEventId] || [];
@@ -371,6 +389,12 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   useEffect(() => {
     setSelectedRegistrationProblemId('ALL');
   }, [selectedRegistrationEventId]);
+
+  useEffect(() => {
+    if (selectedOpenProblemId === 'ALL') return;
+    if (openReviewProblems.some((problem) => problem.id === selectedOpenProblemId)) return;
+    setSelectedOpenProblemId('ALL');
+  }, [openReviewProblems, selectedOpenProblemId]);
 
   useEffect(() => {
     if (hackathonReviewEvents.length === 0) {
@@ -791,6 +815,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       formData.set('description', eventDescription);
       formData.set('startTime', eventStartTime);
       formData.set('endTime', eventEndTime);
+      formData.set('submissionLockAt', eventSubmissionLockAt);
       formData.set('problems', JSON.stringify(cleanedProblems));
       if (eventPpt) formData.set('pptFile', eventPpt);
 
@@ -803,6 +828,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       setEventDescription('');
       setEventStartTime('');
       setEventEndTime('');
+      setEventSubmissionLockAt('');
       setEventProblems([{ title: '', description: '', isIndustryProblem: false, industryName: '' }]);
       setEventPpt(null);
     }, 'Hackathon event created successfully.');
@@ -1262,103 +1288,131 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-[#434651]">Reviews are saved immediately, but student-facing results are released only when the statement is moved to CLOSED.</p>
+                <div className="mt-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#434651] mb-1">Problem Statement Filter</label>
+                  <select
+                    className="border border-[#747782] p-2 text-xs bg-white md:w-[420px]"
+                    value={selectedOpenProblemId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedOpenProblemId(value === 'ALL' ? 'ALL' : Number(value));
+                    }}
+                  >
+                    <option value="ALL">All Open Problem Statements</option>
+                    {openReviewProblems.map((problem) => (
+                      <option key={problem.id} value={problem.id}>
+                        {problem.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {openSubmissions.length === 0 ? (
-                <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No open statement submissions found for your authored problems.</p>
+              {filteredOpenSubmissions.length === 0 ? (
+                <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No open statement submissions found for this problem statement filter.</p>
               ) : (
-                openSubmissions.map((submission) => {
+                filteredOpenSubmissions.map((submission) => {
                   const form = openReviewForms[submission.id] || getDefaultOpenReviewForm(submission);
                   const previewScore = calculateWeightedHackathonScore(form.rubrics);
 
                   return (
-                    <article key={submission.id} className="border border-[#c4c6d3] bg-white p-4 md:p-5">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c4f00]">OPEN STATEMENT • {submission.status}</p>
-                      <h3 className="mt-1 text-base font-bold text-[#002155]">{submission.problem.title}</h3>
-                      <p className="mt-1 text-xs text-[#434651]">Team: {submission.teamName || `Team-${submission.id}`} • Size: {submission.teamSize}</p>
-                      <p className="mt-1 text-xs text-[#434651]">Lead UID: {submission.teamLeadUid}</p>
-                      <p className="mt-1 text-xs text-[#434651]">Members: {submission.members.map((member) => `${member.user.name}${member.user.uid ? ` (${member.user.uid})` : ''}`).join(', ')}</p>
-                      <p className="mt-1 text-xs text-[#434651]">Score: {submission.finalScore ?? submission.score ?? 'Pending'}</p>
-                      <p className="mt-1 text-xs text-[#434651]">Result release: {submission.resultPublishedAt ? `Published on ${new Date(submission.resultPublishedAt).toLocaleString()}` : 'Pending statement closure'}</p>
+                    <details key={submission.id} className="group border border-[#c4c6d3] bg-white">
+                      <summary className="list-none cursor-pointer p-4 md:p-5">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c4f00]">OPEN STATEMENT • {submission.status}</p>
+                            <h3 className="mt-1 text-base font-bold text-[#002155]">{submission.problem.title}</h3>
+                            <p className="mt-1 text-xs text-[#434651]">Team: {submission.teamName || `Team-${submission.id}`} • Size: {submission.teamSize}</p>
+                          </div>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-[#747782]">Expand to review</p>
+                        </div>
+                      </summary>
 
-                      <div className="mt-3 flex flex-wrap gap-3">
-                        {submission.technicalDocumentUrl ? (
-                          <a href={submission.technicalDocumentUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                            Open Technical Document
-                          </a>
-                        ) : null}
-                        {submission.pptFileUrl ? (
-                          <a href={submission.pptFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                            Open PPT
-                          </a>
-                        ) : null}
+                      <div className="border-t border-[#e3e2df] p-4 md:p-5">
+                        <p className="mt-1 text-xs text-[#434651]">Lead UID: {submission.teamLeadUid}</p>
+                        <p className="mt-1 text-xs text-[#434651]">Members: {submission.members.map((member) => `${member.user.name}${member.user.uid ? ` (${member.user.uid})` : ''}`).join(', ')}</p>
+                        <p className="mt-1 text-xs text-[#434651]">Score: {submission.finalScore ?? submission.score ?? 'Pending'}</p>
+                        <p className="mt-1 text-xs text-[#434651]">Result release: {submission.resultPublishedAt ? `Published on ${new Date(submission.resultPublishedAt).toLocaleString()}` : 'Pending statement closure'}</p>
+
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {submission.technicalDocumentUrl ? (
+                            <a href={submission.technicalDocumentUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                              Open Technical Document
+                            </a>
+                          ) : null}
+                          {submission.pptFileUrl ? (
+                            <a href={submission.pptFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                              Open PPT
+                            </a>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <select
+                            className="border border-[#747782] p-2 text-xs"
+                            value={form.status}
+                            onChange={(e) =>
+                              setOpenReviewForms((prev) => ({
+                                ...prev,
+                                [submission.id]: { ...form, status: e.target.value as 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED' },
+                              }))
+                            }
+                          >
+                            <option value="ACCEPTED">ACCEPTED</option>
+                            <option value="REVISION_REQUESTED">REVISION_REQUESTED</option>
+                            <option value="REJECTED">REJECTED</option>
+                          </select>
+
+                          <p className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-xs text-[#434651]">Final score preview: <span className="font-bold text-[#002155]">{previewScore}/100</span></p>
+
+                          {HACKATHON_RUBRIC_ORDER.map((field) => (
+                            <label key={field} className="text-xs text-[#434651]">
+                              {HACKATHON_RUBRIC_LABELS[field]} ({HACKATHON_RUBRIC_WEIGHTS[field]}%)
+                              <input
+                                type="number"
+                                min={0}
+                                max={10}
+                                step={1}
+                                className="mt-1 w-full border border-[#747782] p-2 text-xs"
+                                value={form.rubrics[field]}
+                                onChange={(e) => setOpenReviewRubricScore(submission.id, field, Number(e.target.value))}
+                                disabled={loading}
+                              />
+                            </label>
+                          ))}
+
+                          <input
+                            className="border border-[#747782] p-2 text-xs"
+                            placeholder="Badges"
+                            value={form.badges}
+                            onChange={(e) =>
+                              setOpenReviewForms((prev) => ({
+                                ...prev,
+                                [submission.id]: { ...form, badges: e.target.value },
+                              }))
+                            }
+                          />
+                          <input
+                            className="border border-[#747782] p-2 text-xs"
+                            placeholder="Feedback"
+                            value={form.feedback}
+                            onChange={(e) =>
+                              setOpenReviewForms((prev) => ({
+                                ...prev,
+                                [submission.id]: { ...form, feedback: e.target.value },
+                              }))
+                            }
+                          />
+                          <button
+                            onClick={() => void submitOpenReview(submission.id)}
+                            className="md:col-span-2 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit"
+                            disabled={loading}
+                          >
+                            Save Open Review
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <select
-                          className="border border-[#747782] p-2 text-xs"
-                          value={form.status}
-                          onChange={(e) =>
-                            setOpenReviewForms((prev) => ({
-                              ...prev,
-                              [submission.id]: { ...form, status: e.target.value as 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED' },
-                            }))
-                          }
-                        >
-                          <option value="ACCEPTED">ACCEPTED</option>
-                          <option value="REVISION_REQUESTED">REVISION_REQUESTED</option>
-                          <option value="REJECTED">REJECTED</option>
-                        </select>
-
-                        <p className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-xs text-[#434651]">Final score preview: <span className="font-bold text-[#002155]">{previewScore}/100</span></p>
-
-                        {HACKATHON_RUBRIC_ORDER.map((field) => (
-                          <label key={field} className="text-xs text-[#434651]">
-                            {HACKATHON_RUBRIC_LABELS[field]} ({HACKATHON_RUBRIC_WEIGHTS[field]}%)
-                            <input
-                              type="number"
-                              min={0}
-                              max={10}
-                              step={1}
-                              className="mt-1 w-full border border-[#747782] p-2 text-xs"
-                              value={form.rubrics[field]}
-                              onChange={(e) => setOpenReviewRubricScore(submission.id, field, Number(e.target.value))}
-                              disabled={loading}
-                            />
-                          </label>
-                        ))}
-
-                        <input
-                          className="border border-[#747782] p-2 text-xs"
-                          placeholder="Badges"
-                          value={form.badges}
-                          onChange={(e) =>
-                            setOpenReviewForms((prev) => ({
-                              ...prev,
-                              [submission.id]: { ...form, badges: e.target.value },
-                            }))
-                          }
-                        />
-                        <input
-                          className="border border-[#747782] p-2 text-xs"
-                          placeholder="Feedback"
-                          value={form.feedback}
-                          onChange={(e) =>
-                            setOpenReviewForms((prev) => ({
-                              ...prev,
-                              [submission.id]: { ...form, feedback: e.target.value },
-                            }))
-                          }
-                        />
-                        <button
-                          onClick={() => void submitOpenReview(submission.id)}
-                          className="md:col-span-2 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit"
-                          disabled={loading}
-                        >
-                          Save Open Review
-                        </button>
-                      </div>
-                    </article>
+                    </details>
                   );
                 })
               )}
@@ -1412,7 +1466,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
             </div>
           </div>
 
-          <details className="border border-[#c4c6d3] bg-[#f5f4f0] p-4" open>
+          <details className="border border-[#c4c6d3] bg-[#f5f4f0] p-4">
             <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#002155]">Final Judging Rubric Guide</summary>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[#434651]">
               {HACKATHON_RUBRIC_ORDER.map((field) => (
@@ -1576,9 +1630,16 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
               <form className="space-y-4" onSubmit={createEvent}>
                 <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Title" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} required />
                 <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Description" value={eventDescription} onChange={(e) => setEventDescription(e.target.value)} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventStartTime} onChange={(e) => setEventStartTime(e.target.value)} required />
                   <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventEndTime} onChange={(e) => setEventEndTime(e.target.value)} required />
+                  <input
+                    type="datetime-local"
+                    className="w-full border border-[#747782] p-3 text-sm"
+                    value={eventSubmissionLockAt}
+                    onChange={(e) => setEventSubmissionLockAt(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <div className="space-y-3">

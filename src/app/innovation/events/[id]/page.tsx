@@ -67,6 +67,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
         registrationOpen={event.registrationOpen}
         startTimeISO={event.startTime.toISOString()}
         endTimeISO={event.endTime.toISOString()}
+        submissionLockISO={event.submissionLockAt ? event.submissionLockAt.toISOString() : null}
         registrationCloseISO={event.endTime.toISOString()}
         eventBriefUrl={eventBriefUrl}
         problems={event.problems}

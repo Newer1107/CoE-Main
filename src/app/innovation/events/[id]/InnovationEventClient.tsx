@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import CountdownTimer from '@/components/CountdownTimer';
 
 type ProblemLite = {
   id: number;
@@ -43,6 +42,7 @@ type InnovationEventClientProps = {
   registrationOpen: boolean;
   startTimeISO: string;
   endTimeISO: string;
+  submissionLockISO: string | null;
   registrationCloseISO: string;
   eventBriefUrl: string | null;
   problems: ProblemLite[];
@@ -57,6 +57,7 @@ export default function InnovationEventClient({
   registrationOpen,
   startTimeISO,
   endTimeISO,
+  submissionLockISO,
   registrationCloseISO,
   eventBriefUrl,
   problems,
@@ -277,6 +278,9 @@ export default function InnovationEventClient({
         <Link href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
           Innovation Home
         </Link>
+        <Link href="/innovation/problems" className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+          Open Problem Statements
+        </Link>
         <Link href="/innovation/my-submissions" className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider">
           My Submissions
         </Link>
@@ -288,15 +292,15 @@ export default function InnovationEventClient({
         {description ? <p className="mt-2 text-sm text-[#434651]">{description}</p> : null}
         <p className="mt-2 text-xs text-[#434651]">Starts: {new Date(startTimeISO).toLocaleString()}</p>
         <p className="mt-1 text-xs text-[#434651]">Ends: {new Date(endTimeISO).toLocaleString()}</p>
+        <p className="mt-1 text-xs text-[#434651]">
+          Submission lock: {submissionLockISO ? new Date(submissionLockISO).toLocaleString() : 'Not set'}
+        </p>
         <p className="mt-1 text-xs text-[#434651]">Registration closes: {new Date(registrationCloseISO).toLocaleString()}</p>
         <p className="mt-1 text-xs text-[#434651]">Registration status: {registrationOpen ? 'OPEN' : 'CLOSED'}</p>
         {eventBriefUrl ? (
           <a href={eventBriefUrl} target="_blank" rel="noreferrer" className="inline-flex mt-3 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
             Open Event Brief (PPT/PDF)
           </a>
-        ) : null}
-        {status === 'ACTIVE' ? (
-          <CountdownTimer targetISO={endTimeISO} prefix="Submission lock" className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]" />
         ) : null}
       </section>
 
@@ -318,7 +322,7 @@ export default function InnovationEventClient({
                 <p className="mt-1 text-xs text-[#434651]">
                   Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
                 </p>
-                <p className="mt-2 text-xs text-[#434651]">Status: {problem.status}</p>
+                <p className="mt-2 text-xs text-[#434651]">{problem.status}</p>
                 <p className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]">Click to view details</p>
               </button>
             ))}

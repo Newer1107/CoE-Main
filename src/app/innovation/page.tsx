@@ -1,10 +1,7 @@
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
-import CountdownTimer from '@/components/CountdownTimer';
 
 export default async function InnovationLandingPage() {
-  const now = new Date();
-
   const events = await prisma.hackathonEvent.findMany({
     where: { status: { in: ['ACTIVE', 'UPCOMING'] } },
     include: {
@@ -42,6 +39,12 @@ export default async function InnovationLandingPage() {
           Hackathon Events
         </Link>
         <Link
+          href="/innovation/problems"
+          className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+        >
+          Open Problem Statements
+        </Link>
+        <Link
           href="/innovation/my-submissions"
           className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"
         >
@@ -73,19 +76,9 @@ export default async function InnovationLandingPage() {
                 <p className="mt-2 text-xs text-[#434651]">Problems: {event._count.problems}</p>
                 <p className="mt-1 text-xs text-[#434651]">Starts: {event.startTime.toLocaleString()}</p>
                 <p className="mt-1 text-xs text-[#434651]">Ends: {event.endTime.toLocaleString()}</p>
-                {event.status === 'ACTIVE' ? (
-                  <CountdownTimer
-                    targetISO={event.endTime.toISOString()}
-                    className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]"
-                    prefix="Submission lock"
-                  />
-                ) : event.status === 'UPCOMING' && event.startTime > now ? (
-                  <CountdownTimer
-                    targetISO={event.startTime.toISOString()}
-                    className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]"
-                    prefix="Starts in"
-                  />
-                ) : null}
+                <p className="mt-1 text-xs text-[#434651]">
+                  Submission lock: {event.submissionLockAt ? event.submissionLockAt.toLocaleString() : 'Not set'}
+                </p>
                 <Link
                   href={`/innovation/events/${event.id}`}
                   className="inline-flex mt-4 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider"
@@ -122,6 +115,9 @@ export default async function InnovationLandingPage() {
                 <p className="mt-2 text-xs text-[#434651]">Problems: {event._count.problems}</p>
                 <p className="mt-1 text-xs text-[#434651]">Started: {event.startTime.toLocaleString()}</p>
                 <p className="mt-1 text-xs text-[#434651]">Closed: {event.endTime.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-[#434651]">
+                  Submission lock: {event.submissionLockAt ? event.submissionLockAt.toLocaleString() : 'Not set'}
+                </p>
                 <Link
                   href={`/innovation/events/${event.id}`}
                   className="inline-flex mt-4 border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"

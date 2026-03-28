@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     const description = ((formData.get('description') as string) || '').trim();
     const startTime = (formData.get('startTime') as string) || '';
     const endTime = (formData.get('endTime') as string) || '';
+    const submissionLockAt = (formData.get('submissionLockAt') as string) || '';
     const rawProblems = (formData.get('problems') as string) || '[]';
     const pptFile = formData.get('pptFile') as File | null;
 
@@ -79,13 +80,18 @@ export async function POST(req: NextRequest) {
       description,
       startTime,
       endTime,
+      submissionLockAt,
       problems,
     });
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
 
     const start = new Date(parsed.data.startTime);
     const end = new Date(parsed.data.endTime);
+    const submissionLockDate = new Date(parsed.data.submissionLockAt);
     if (end <= start) return errorRes('Invalid event timing', ['endTime must be after startTime'], 400);
+    if (submissionLockDate < start || submissionLockDate > end) {
+      return errorRes('Invalid submission lock time', ['submissionLockAt must be between startTime and endTime'], 400);
+    }
 
     const event = await prisma.$transaction(async (tx) => {
       const createdEvent = await tx.hackathonEvent.create({
@@ -94,6 +100,7 @@ export async function POST(req: NextRequest) {
           description: parsed.data.description || null,
           startTime: start,
           endTime: end,
+          submissionLockAt: submissionLockDate,
           createdById: user.id,
         },
       });

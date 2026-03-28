@@ -245,6 +245,7 @@ export const innovationEventCreateSchema = z.object({
   description: z.string().optional().or(z.literal('')),
   startTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid startTime'),
   endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime'),
+  submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt'),
   problems: z
     .array(
       z.object({
@@ -279,6 +280,7 @@ export const innovationEventUpdateSchema = z.object({
   description: z.string().optional().or(z.literal('')),
   startTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid startTime').optional(),
   endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime').optional(),
+  submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt').optional(),
   registrationOpen: z.boolean().optional(),
   status: z.enum(['UPCOMING', 'ACTIVE', 'JUDGING', 'CLOSED']).optional(),
 });

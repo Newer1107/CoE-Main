@@ -215,6 +215,7 @@ model HackathonEvent {
   description String?     @db.Text
   startTime   DateTime
   endTime     DateTime
+  submissionLockAt DateTime?
   registrationOpen Boolean @default(true)
   status      EventStatus @default(UPCOMING)
   createdById Int
