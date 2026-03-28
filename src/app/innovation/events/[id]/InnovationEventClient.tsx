@@ -413,7 +413,6 @@ export default function InnovationEventClient({
                         {row.eligible ? 'Eligible' : 'Non-eligible'}
                       </span>
                       {` | ${row.reason}`}
-                      {row.alreadyParticipated ? ' | This user has already participated in this hackathon in this problem statement.' : ''}
                     </li>
                   ))}
                 </ul>
