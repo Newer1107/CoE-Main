@@ -128,6 +128,24 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return payload.data;
 }
 
+type PreviewFileType = 'pdf' | 'ppt' | 'pptx' | 'other';
+
+function getPreviewFileType(url: string): PreviewFileType {
+  try {
+    const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const pathname = new URL(url, baseOrigin).pathname;
+    const fileName = decodeURIComponent(pathname.split('/').pop() || '');
+    const extension = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
+
+    if (extension === 'pdf') return 'pdf';
+    if (extension === 'ppt') return 'ppt';
+    if (extension === 'pptx') return 'pptx';
+    return 'other';
+  } catch {
+    return 'other';
+  }
+}
+
 export default function InnovationFacultyClient({ role, userId }: InnovationFacultyClientProps) {
   const [activeTab, setActiveTab] = useState<'problems' | 'submissions' | 'events'>('problems');
   const [submissionsSubTab, setSubmissionsSubTab] = useState<'open' | 'hackathon'>('open');
@@ -956,7 +974,10 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     );
   };
 
-  const renderRegistrationCard = (registration: SubmissionRow) => (
+  const renderRegistrationCard = (registration: SubmissionRow) => {
+    const previewType = registration.submissionFileUrl ? getPreviewFileType(registration.submissionFileUrl) : 'other';
+
+    return (
     <div key={registration.id} className="border border-[#d8dae6] bg-white p-3 md:p-4">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
@@ -1045,12 +1066,20 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       ) : null}
       {registration.submissionFileUrl ? (
         <details className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-3">
-          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#002155]">View Uploaded PPT/PDF</summary>
-          <iframe
-            src={registration.submissionFileUrl}
-            title={`Registration file ${registration.id}`}
-            className="mt-3 w-full h-64 border border-[#c4c6d3] bg-white"
-          />
+          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#002155]">
+            {previewType === 'pdf' ? 'Preview Uploaded PDF' : 'Uploaded PPT/PPTX'}
+          </summary>
+          {previewType === 'pdf' ? (
+            <iframe
+              src={registration.submissionFileUrl}
+              title={`Registration file ${registration.id}`}
+              className="mt-3 w-full h-64 border border-[#c4c6d3] bg-white"
+            />
+          ) : (
+            <p className="mt-3 text-xs text-[#434651]">
+              Inline preview is available for PDF files only. Use the button below to open this presentation file.
+            </p>
+          )}
           <a href={registration.submissionFileUrl} target="_blank" rel="noreferrer" className="inline-flex mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
             Open File in New Tab
           </a>
@@ -1059,7 +1088,8 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         <p className="mt-2 text-xs text-[#434651]">No PPT uploaded.</p>
       )}
     </div>
-  );
+    );
+  };
 
   const workspaceStats = useMemo(
     () => ({
@@ -1633,15 +1663,39 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                 <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Title" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} required />
                 <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Description" value={eventDescription} onChange={(e) => setEventDescription(e.target.value)} />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventStartTime} onChange={(e) => setEventStartTime(e.target.value)} required />
-                  <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={eventEndTime} onChange={(e) => setEventEndTime(e.target.value)} required />
-                  <input
-                    type="datetime-local"
-                    className="w-full border border-[#747782] p-3 text-sm"
-                    value={eventSubmissionLockAt}
-                    onChange={(e) => setEventSubmissionLockAt(e.target.value)}
-                    required
-                  />
+                  <label className="space-y-1">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#434651]">Event Start Date &amp; Time</span>
+                    <input
+                      type="datetime-local"
+                      title="Event start date and time"
+                      className="w-full border border-[#747782] p-3 text-sm"
+                      value={eventStartTime}
+                      onChange={(e) => setEventStartTime(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#434651]">Event End Date &amp; Time</span>
+                    <input
+                      type="datetime-local"
+                      title="Event end date and time"
+                      className="w-full border border-[#747782] p-3 text-sm"
+                      value={eventEndTime}
+                      onChange={(e) => setEventEndTime(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-[#434651]">Submission Lock Date &amp; Time</span>
+                    <input
+                      type="datetime-local"
+                      title="Submission lock date and time"
+                      className="w-full border border-[#747782] p-3 text-sm"
+                      value={eventSubmissionLockAt}
+                      onChange={(e) => setEventSubmissionLockAt(e.target.value)}
+                      required
+                    />
+                  </label>
                 </div>
 
                 <div className="space-y-3">
