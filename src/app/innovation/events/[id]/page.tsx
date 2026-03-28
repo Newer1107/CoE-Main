@@ -19,6 +19,8 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
           id: true,
           title: true,
           description: true,
+          isIndustryProblem: true,
+          industryName: true,
           mode: true,
           status: true,
         },

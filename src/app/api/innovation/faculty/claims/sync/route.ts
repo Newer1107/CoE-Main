@@ -144,7 +144,7 @@ export async function PATCH(req: NextRequest) {
         if (stage === 'JUDGING' && decision.status === 'ACCEPTED' && claim.problem.mode === 'CLOSED') {
           await tx.problem.update({
             where: { id: claim.problemId },
-            data: { status: 'SOLVED' },
+            data: { status: 'CLOSED' },
           });
         }
       }

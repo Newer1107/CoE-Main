@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate:status": "node scripts/prisma-safe-migrate.mjs status",
+    "db:migrate:create": "node scripts/prisma-safe-migrate.mjs create",
+    "db:migrate:apply": "node scripts/prisma-safe-migrate.mjs apply",
+    "db:migrate": "node scripts/prisma-safe-migrate.mjs apply",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

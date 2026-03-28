@@ -8,6 +8,8 @@ type ProblemLite = {
   id: number;
   title: string;
   description: string;
+  isIndustryProblem: boolean;
+  industryName: string | null;
   mode: string;
   status: string;
 };
@@ -313,6 +315,9 @@ export default function InnovationEventClient({
               >
                 <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{problem.mode}</p>
                 <p className="mt-1 text-sm font-bold text-[#002155]">{problem.title}</p>
+                <p className="mt-1 text-xs text-[#434651]">
+                  Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
+                </p>
                 <p className="mt-2 text-xs text-[#434651]">Status: {problem.status}</p>
                 <p className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]">Click to view details</p>
               </button>
@@ -329,6 +334,9 @@ export default function InnovationEventClient({
                 <p className="text-xs uppercase tracking-widest text-[#8c4f00]">Problem Statement</p>
                 <h4 className="mt-1 text-xl font-bold text-[#002155]">{selectedProblem.title}</h4>
                 <p className="mt-1 text-xs text-[#434651]">{selectedProblem.mode} • {selectedProblem.status}</p>
+                <p className="mt-1 text-xs text-[#434651]">
+                  Type: {selectedProblem.isIndustryProblem ? `Industry${selectedProblem.industryName ? ` (${selectedProblem.industryName})` : ''}` : 'Normal'}
+                </p>
               </div>
               <button
                 type="button"

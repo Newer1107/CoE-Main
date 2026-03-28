@@ -4,8 +4,10 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - role-based authentication and access control
 - student facility booking and admin moderation
 - faculty/admin content publishing (news, events, grants, announcements)
-- innovation platform (open problems + hackathon events)
+- innovation platform with separated open-statement and hackathon tracks
+- open-statement lifecycle controls (`OPENED` / `CLOSED`) with faculty result release control
 - two-stage hackathon evaluation (PPT screening -> final judging)
+- rubric-based scoring for both hackathon judging and open-statement reviews
 - email notifications and cron-driven reminders
 - MinIO-backed object storage with browser-safe proxying
 
@@ -38,7 +40,8 @@ Major capability groups:
 - Public content feed: news, grants, events, announcements, hero slides
 - Facility booking: student request lifecycle with admin confirm/reject and reminders
 - Innovation platform:
-  - Open track: students claim and submit innovation problems
+  - Open statements: students register teams with UID verification and mandatory technical doc + PPT
+  - Open statement results: faculty can review early but release results only after statement closure
   - Hackathon track: event registration, problem statements, staged faculty judging, leaderboard
 
 ## 2) Feature Matrix by Role
@@ -55,12 +58,13 @@ Major capability groups:
 | Create news/events/grants/announcements | No | No | Yes | Yes |
 | Manage hero slides | No | No | No | Yes |
 | View innovation landing and event pages | Yes | Yes | Yes | Yes |
-| Claim open innovation problems | No | Yes | No | No |
-| Submit claim URL/file | No | Yes | No | No |
+| Register for open statements | No | Yes | No | No |
+| Upload open submission docs (technical + PPT) | No | Yes | No | No |
 | Register team for hackathon event | No | Yes | No | No |
-| Review innovation submissions | No | No | Yes | Yes |
+| Review open/hackathon innovation submissions | No | No | Yes | Yes |
 | Create hackathon events and problem sets | No | No | Yes | Yes |
 | Change hackathon stage status | No | No | Yes (own events) | Yes |
+| Open/close open statements and publish results | No | No | Yes (own statements) | Yes |
 | Moderate faculty users | No | No | No | Yes |
 | Moderate bookings and view admin stats | No | No | No | Yes |
 
@@ -187,6 +191,20 @@ sequenceDiagram
   L->>DB: Rank by finalScore then score
 ```
 
+### 4.7 Open-statement lifecycle (separated from hackathon)
+
+```mermaid
+flowchart LR
+  FP[Faculty creates OPEN problem] --> OP[Problem status = OPENED]
+  OP --> REG[Students register team with UID validation]
+  REG --> SUB[OpenSubmission created with mandatory technical doc and PPT]
+  SUB --> RV[Faculty open-submission review with rubric]
+  RV --> HOLD[Results remain hidden to students]
+  HOLD --> CL[Faculty closes statement via problem status = CLOSED]
+  CL --> PUB[ResultPublishedAt set + result emails dispatched]
+  PUB --> ST[Students can see status, score, feedback, badges]
+```
+
 ## 5) Data Model
 
 Primary entities:
@@ -202,10 +220,12 @@ Primary entities:
 - `Problem`
 - `Claim`
 - `ClaimMember`
+- `OpenSubmission`
+- `OpenSubmissionMember`
 
 Key innovation enums and lifecycle:
 - `ProblemMode`: `OPEN`, `CLOSED`
-- `ProblemStatus`: `UNCLAIMED`, `CLAIMED`, `SOLVED`, `ARCHIVED`
+- `ProblemStatus`: `OPENED`, `CLOSED`, `ARCHIVED`
 - `ClaimStatus`: `IN_PROGRESS`, `SUBMITTED`, `SHORTLISTED`, `ACCEPTED`, `REVISION_REQUESTED`, `REJECTED`
 - `EventStatus`: `UPCOMING`, `ACTIVE`, `JUDGING`, `CLOSED`
   - operational transition flow currently used: `UPCOMING -> ACTIVE -> CLOSED`
@@ -215,6 +235,11 @@ Scoring fields persisted on `Claim` for hackathon judging:
 - `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
 - `finalScore` and `score`
 - `isAbsent` tracks judging-round attendance for shortlisted teams
+
+Scoring and release fields persisted on `OpenSubmission`:
+- rubric scores: `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
+- `finalScore` and `score`
+- `resultPublishedAt` controls student-side result visibility
 
 ## 6) App Routes and UX Flows
 
@@ -334,14 +359,24 @@ Problems:
   - Public users can access open track (`track=open`)
   - Hackathon/all tracks require faculty/admin
 - `POST /api/innovation/problems` (faculty/admin)
+  - Open statements are created with `status=OPENED` by default
 - `PATCH /api/innovation/problems/[id]` (owner faculty or admin)
+  - For open statements: changing status to `CLOSED` publishes pending results
 - `DELETE /api/innovation/problems/[id]` (admin)
 
 Claims:
 - `POST /api/innovation/claims` (student)
+  - Open-track claim creation is deprecated and returns migration guidance
 - `GET /api/innovation/claims/my` (student)
 - `PATCH /api/innovation/claims/[id]/submit` (student team member)
 - `PATCH /api/innovation/faculty/claims/[id]/review` (owner faculty or admin)
+
+Open submissions:
+- `POST /api/innovation/open-submissions` (student)
+- `GET /api/innovation/faculty/open-submissions` (faculty/admin)
+- `PATCH /api/innovation/faculty/open-submissions/[id]/review` (owner faculty or admin)
+  - Accept/reject decisions require rubric payload
+  - Save is immediate, student results remain hidden until statement closure
 
 Hackathon events:
 - `GET /api/innovation/events` (public)
@@ -404,10 +439,27 @@ Optional variables:
 
 ```bash
 npm install
-npx prisma migrate dev
-npx prisma generate
+npm run db:migrate:status
+npm run db:migrate
 npm run dev
 ```
+
+No-reset migration workflow (recommended):
+
+```bash
+# 1) change prisma/schema.prisma
+
+# 2) create migration SQL from current DB -> schema (no reset)
+npm run db:migrate:create -- --name describe_change
+
+# 3) apply pending migrations without reset
+npm run db:migrate
+```
+
+Important:
+- Do not run `npx prisma migrate dev` for routine apply operations in this repository.
+- Use `npm run db:migrate` (`prisma migrate deploy`) to apply safely without reset prompts.
+- Create forward-only migrations; do not edit already-applied migration files.
 
 Validation:
 
@@ -485,6 +537,19 @@ Final judging sync failing:
 - If a shortlisted team was marked absent, mark it present first
 - Ensure all rubric fields are present
 
+Open statement result not visible to students:
+- Ensure the statement was moved to `CLOSED`
+- Confirm `resultPublishedAt` is set on related `open_submissions`
+
+Prisma migrate drift warning after editing historical migrations:
+- Prisma may require a dev database reset to reconcile history
+- Prefer creating a new forward migration instead of editing an already-applied migration file
+
+Avoiding "All data will be lost" reset prompts:
+- Use `npm run db:migrate:create -- --name <change_name>` for new migration files
+- Use `npm run db:migrate` to apply pending migrations safely
+- Avoid `npx prisma migrate dev` unless you intentionally accept reset behavior in throwaway environments
+
 ## 14) Verification Checklist
 
 Before release:
@@ -498,5 +563,11 @@ Before release:
   - shortlist and absent-team visibility
   - judging sync with rubric scoring for present teams
   - leaderboard output
+- Verify open-statement separated flow:
+  - statement creation defaults to `OPENED`
+  - student open registration with UID verification + mandatory technical doc + PPT
+  - faculty rubric review in open-submissions lane
+  - result remains hidden in student view until statement is moved to `CLOSED`
+  - closure publishes results and triggers release emails
 - Verify reminder cron endpoints
 - Ensure `.env` secrets are not committed

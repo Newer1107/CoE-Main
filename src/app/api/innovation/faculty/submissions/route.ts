@@ -12,10 +12,13 @@ export async function GET(req: NextRequest) {
 
     const where: Record<string, unknown> = {
       status: { in: ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED', 'ACCEPTED', 'REJECTED'] },
+      problem: {
+        eventId: { not: null },
+      },
     };
 
     if (!authorize(user, 'ADMIN')) {
-      where.problem = { createdById: user.id };
+      where.problem = { eventId: { not: null }, createdById: user.id };
     }
 
     const claims = await prisma.claim.findMany({
@@ -38,6 +41,7 @@ export async function GET(req: NextRequest) {
     const payload = await Promise.all(
       claims.map(async (claim) => ({
         ...claim,
+        submissionType: 'HACKATHON' as const,
         submissionFileUrl: claim.submissionFileKey ? await getSignedUrl(claim.submissionFileKey).catch(() => null) : null,
       }))
     );

@@ -45,9 +45,8 @@ enum ProblemMode {
 }
 
 enum ProblemStatus {
-  UNCLAIMED
-  CLAIMED
-  SOLVED
+  OPENED
+  CLOSED
   ARCHIVED
 }
 
@@ -86,6 +85,7 @@ model User {
   events            Event[]
   announcements     Announcement[]
   problemsCreated   ClaimMember[]
+  openSubmissionMembers OpenSubmissionMember[]
   hackathonsCreated HackathonEvent[] @relation("HackathonCreator")
   problemsAuthored  Problem[]        @relation("ProblemAuthor")
 
@@ -97,13 +97,17 @@ model Problem {
   title       String
   description String          @db.Text
   tags        String?
+  isIndustryProblem Boolean   @default(false)
+  industryName String?
   mode        ProblemMode     @default(OPEN)
-  status      ProblemStatus   @default(UNCLAIMED)
+  status      ProblemStatus   @default(CLOSED)
   createdById Int
   createdBy   User            @relation("ProblemAuthor", fields: [createdById], references: [id], onDelete: Cascade)
   eventId     Int?
   event       HackathonEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
   claims      Claim[]
+  supportDocumentKey String?
+  openSubmissions OpenSubmission[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -157,6 +161,52 @@ model ClaimMember {
   @@index([claimId])
   @@index([userId])
   @@map("claim_members")
+}
+
+model OpenSubmission {
+  id                  Int                    @id @default(autoincrement())
+  problemId           Int
+  problem             Problem                @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  teamName            String?
+  teamSize            Int
+  teamLeadUid         String
+  members             OpenSubmissionMember[]
+  technicalDocumentKey String
+  pptFileKey          String
+  status              ClaimStatus            @default(SUBMITTED)
+  innovationScore     Int?
+  technicalScore      Int?
+  impactScore         Int?
+  uxScore             Int?
+  executionScore      Int?
+  presentationScore   Int?
+  feasibilityScore    Int?
+  finalScore          Int?
+  score               Int?
+  feedback            String?                @db.Text
+  badges              String?
+  resultPublishedAt   DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  @@index([problemId])
+  @@index([status])
+  @@index([updatedAt])
+  @@map("open_submissions")
+}
+
+model OpenSubmissionMember {
+  id               Int            @id @default(autoincrement())
+  openSubmissionId Int
+  openSubmission   OpenSubmission @relation(fields: [openSubmissionId], references: [id], onDelete: Cascade)
+  userId           Int
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             String         @default("MEMBER")
+
+  @@unique([openSubmissionId, userId])
+  @@index([openSubmissionId])
+  @@index([userId])
+  @@map("open_submission_members")
 }
 
 model HackathonEvent {

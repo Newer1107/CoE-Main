@@ -21,11 +21,14 @@ type ProblemRow = {
   title: string;
   description: string;
   tags: string | null;
+  isIndustryProblem: boolean;
+  industryName: string | null;
+  supportDocumentUrl?: string | null;
   mode: 'OPEN' | 'CLOSED';
-  status: 'UNCLAIMED' | 'CLAIMED' | 'SOLVED' | 'ARCHIVED';
+  status: 'OPENED' | 'CLOSED' | 'ARCHIVED';
   createdById: number;
   event?: { id: number; title: string; status: 'UPCOMING' | 'ACTIVE' | 'JUDGING' | 'CLOSED' } | null;
-  _count: { claims: number };
+  _count: { claims: number; openSubmissions: number };
 };
 
 type SubmissionRow = {
@@ -51,6 +54,38 @@ type SubmissionRow = {
   members: { user: { id: number; name: string; email: string; uid: string | null }; role: string }[];
 };
 
+type OpenSubmissionRow = {
+  id: number;
+  teamName: string | null;
+  teamSize: number;
+  teamLeadUid: string;
+  status: string;
+  finalScore: number | null;
+  innovationScore: number | null;
+  technicalScore: number | null;
+  impactScore: number | null;
+  uxScore: number | null;
+  executionScore: number | null;
+  presentationScore: number | null;
+  feasibilityScore: number | null;
+  score: number | null;
+  feedback: string | null;
+  badges: string | null;
+  resultPublishedAt: string | null;
+  technicalDocumentUrl: string | null;
+  pptFileUrl: string | null;
+  updatedAt: string;
+  problem: { id: number; title: string; mode: 'OPEN'; createdById: number };
+  members: { user: { id: number; name: string; email: string; uid: string | null }; role: string }[];
+};
+
+type OpenReviewForm = {
+  status: 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED';
+  feedback: string;
+  badges: string;
+  rubrics: HackathonRubricScores;
+};
+
 type EventRow = {
   id: number;
   title: string;
@@ -66,6 +101,13 @@ type EventRow = {
 type InnovationFacultyClientProps = {
   role: 'FACULTY' | 'ADMIN';
   userId: number;
+};
+
+type EventProblemDraft = {
+  title: string;
+  description: string;
+  isIndustryProblem: boolean;
+  industryName: string;
 };
 
 type ScreeningDecisionStatus = 'SHORTLISTED' | 'REJECTED';
@@ -88,6 +130,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export default function InnovationFacultyClient({ role, userId }: InnovationFacultyClientProps) {
   const [activeTab, setActiveTab] = useState<'problems' | 'submissions' | 'events'>('problems');
+  const [submissionsSubTab, setSubmissionsSubTab] = useState<'open' | 'hackathon'>('open');
   const [eventsSubTab, setEventsSubTab] = useState<'create' | 'manage' | 'teams'>('create');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -95,26 +138,31 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
 
   const [problems, setProblems] = useState<ProblemRow[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  const [openSubmissions, setOpenSubmissions] = useState<OpenSubmissionRow[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
 
   const [newProblemTitle, setNewProblemTitle] = useState('');
   const [newProblemDescription, setNewProblemDescription] = useState('');
   const [newProblemTags, setNewProblemTags] = useState('');
+  const [newProblemIsIndustryProblem, setNewProblemIsIndustryProblem] = useState(false);
+  const [newProblemIndustryName, setNewProblemIndustryName] = useState('');
+  const [newProblemSupportDocument, setNewProblemSupportDocument] = useState<File | null>(null);
 
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [eventStartTime, setEventStartTime] = useState('');
   const [eventEndTime, setEventEndTime] = useState('');
-  const [eventProblems, setEventProblems] = useState<Array<{ title: string; description: string }>>([
-    { title: '', description: '' },
+  const [eventProblems, setEventProblems] = useState<EventProblemDraft[]>([
+    { title: '', description: '', isIndustryProblem: false, industryName: '' },
   ]);
   const [eventPpt, setEventPpt] = useState<File | null>(null);
-  const [eventProblemForms, setEventProblemForms] = useState<Record<number, { title: string; description: string }>>({});
-  const [eventNewProblemForms, setEventNewProblemForms] = useState<Record<number, { title: string; description: string }>>({});
+  const [eventProblemForms, setEventProblemForms] = useState<Record<number, EventProblemDraft>>({});
+  const [eventNewProblemForms, setEventNewProblemForms] = useState<Record<number, EventProblemDraft>>({});
   const [selectedRegistrationEventId, setSelectedRegistrationEventId] = useState<number | null>(null);
   const [selectedRegistrationProblemId, setSelectedRegistrationProblemId] = useState<number | 'ALL'>('ALL');
   const [selectedSubmissionEventId, setSelectedSubmissionEventId] = useState<number | null>(null);
   const [reviewForms, setReviewForms] = useState<Record<number, { status: 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED'; score: string; feedback: string; badges: string }>>({});
+  const [openReviewForms, setOpenReviewForms] = useState<Record<number, OpenReviewForm>>({});
   const [stagedDecisions, setStagedDecisions] = useState<Record<number, StagedDecisionStatus>>({});
   const [stagedRubrics, setStagedRubrics] = useState<Record<number, HackathonRubricScores>>({});
 
@@ -122,15 +170,17 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     setLoading(true);
     setErrorMessage('');
     try {
-      const [openProblemData, hackathonProblemData, submissionData, eventData] = await Promise.all([
+      const [openProblemData, hackathonProblemData, submissionData, openSubmissionData, eventData] = await Promise.all([
         fetchJson<ProblemRow[]>('/api/innovation/problems?track=open'),
         fetchJson<ProblemRow[]>('/api/innovation/problems?track=hackathon'),
         fetchJson<SubmissionRow[]>('/api/innovation/faculty/submissions'),
+        fetchJson<OpenSubmissionRow[]>('/api/innovation/faculty/open-submissions'),
         fetchJson<EventRow[]>('/api/innovation/events'),
       ]);
 
       setProblems([...openProblemData, ...hackathonProblemData]);
       setSubmissions(submissionData);
+      setOpenSubmissions(openSubmissionData);
       setEvents(eventData);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Could not load innovation data');
@@ -216,6 +266,23 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     execution: submission.executionScore ?? 0,
     presentation: submission.presentationScore ?? 0,
     feasibility: submission.feasibilityScore ?? 0,
+  });
+
+  const getRubricsFromOpenSubmission = (submission: OpenSubmissionRow): HackathonRubricScores => ({
+    innovation: submission.innovationScore ?? 0,
+    technical: submission.technicalScore ?? 0,
+    impact: submission.impactScore ?? 0,
+    ux: submission.uxScore ?? 0,
+    execution: submission.executionScore ?? 0,
+    presentation: submission.presentationScore ?? 0,
+    feasibility: submission.feasibilityScore ?? 0,
+  });
+
+  const getDefaultOpenReviewForm = (submission: OpenSubmissionRow): OpenReviewForm => ({
+    status: 'REVISION_REQUESTED',
+    feedback: '',
+    badges: '',
+    rubrics: getRubricsFromOpenSubmission(submission),
   });
 
   const submissionsForDisplay = useMemo(
@@ -362,19 +429,26 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   const createProblem = async (event: React.FormEvent) => {
     event.preventDefault();
     await runAction(async () => {
+      const formData = new FormData();
+      formData.set('title', newProblemTitle);
+      formData.set('description', newProblemDescription);
+      formData.set('tags', newProblemTags);
+      formData.set('mode', 'OPEN');
+      formData.set('isIndustryProblem', String(newProblemIsIndustryProblem));
+      if (newProblemIsIndustryProblem) formData.set('industryName', newProblemIndustryName);
+      if (newProblemSupportDocument) formData.set('supportDocument', newProblemSupportDocument);
+
       await fetchJson('/api/innovation/problems', {
         method: 'POST',
-        body: JSON.stringify({
-          title: newProblemTitle,
-          description: newProblemDescription,
-          tags: newProblemTags,
-          mode: 'OPEN',
-        }),
+        body: formData,
       });
 
       setNewProblemTitle('');
       setNewProblemDescription('');
       setNewProblemTags('');
+      setNewProblemIsIndustryProblem(false);
+      setNewProblemIndustryName('');
+      setNewProblemSupportDocument(null);
     }, 'Problem created successfully.');
   };
 
@@ -385,6 +459,15 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         body: JSON.stringify({ status: 'ARCHIVED' }),
       });
     }, 'Problem archived.');
+  };
+
+  const setOpenProblemStatus = async (problemId: number, status: 'OPENED' | 'CLOSED') => {
+    await runAction(async () => {
+      await fetchJson(`/api/innovation/problems/${problemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    }, status === 'OPENED' ? 'Open statement registrations opened.' : 'Open statement registrations closed and results published.');
   };
 
   const stageDecision = (claimId: number, status: StagedDecisionStatus) => {
@@ -417,6 +500,38 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     });
   };
 
+  const setOpenReviewRubricScore = (submissionId: number, field: keyof HackathonRubricScores, value: number) => {
+    const bounded = Number.isFinite(value) ? Math.max(0, Math.min(10, Math.round(value))) : 0;
+    setOpenReviewForms((prev) => {
+      const submission = openSubmissions.find((row) => row.id === submissionId);
+      const base = prev[submissionId] || (submission ? getDefaultOpenReviewForm(submission) : {
+        status: 'REVISION_REQUESTED' as const,
+        feedback: '',
+        badges: '',
+        rubrics: {
+          innovation: 0,
+          technical: 0,
+          impact: 0,
+          ux: 0,
+          execution: 0,
+          presentation: 0,
+          feasibility: 0,
+        },
+      });
+
+      return {
+        ...prev,
+        [submissionId]: {
+          ...base,
+          rubrics: {
+            ...base.rubrics,
+            [field]: bounded,
+          },
+        },
+      };
+    });
+  };
+
   const isRubricComplete = (scores?: HackathonRubricScores) => {
     if (!scores) return false;
     return HACKATHON_RUBRIC_ORDER.every((field) => Number.isInteger(scores[field]) && scores[field] >= 0 && scores[field] <= 10);
@@ -441,6 +556,38 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         [claimId]: { status: 'REVISION_REQUESTED', score: '', feedback: '', badges: '' },
       }));
     }, 'Submission review saved.');
+  };
+
+  const submitOpenReview = async (submissionId: number) => {
+    const submission = openSubmissions.find((row) => row.id === submissionId);
+    if (!submission) {
+      setErrorMessage('Open statement submission not found. Please refresh and retry.');
+      return;
+    }
+
+    const form = openReviewForms[submissionId] || getDefaultOpenReviewForm(submission);
+
+    if ((form.status === 'ACCEPTED' || form.status === 'REJECTED') && !isRubricComplete(form.rubrics)) {
+      setErrorMessage('Rubric scores (0-10) are required for final open statement decisions.');
+      return;
+    }
+
+    await runAction(async () => {
+      await fetchJson(`/api/innovation/faculty/open-submissions/${submissionId}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: form.status,
+          rubrics: form.status === 'ACCEPTED' || form.status === 'REJECTED' ? form.rubrics : undefined,
+          feedback: form.feedback,
+          badges: form.badges,
+        }),
+      });
+
+      setOpenReviewForms((prev) => ({
+        ...prev,
+        [submissionId]: getDefaultOpenReviewForm(submission),
+      }));
+    }, 'Open statement review saved. Result will be released when statement is CLOSED.');
   };
 
   const syncScreeningForEvent = async (eventId: number) => {
@@ -620,11 +767,21 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     event.preventDefault();
 
     const cleanedProblems = eventProblems
-      .map((problem) => ({ title: problem.title.trim(), description: problem.description.trim() }))
+      .map((problem) => ({
+        title: problem.title.trim(),
+        description: problem.description.trim(),
+        isIndustryProblem: problem.isIndustryProblem,
+        industryName: problem.industryName.trim(),
+      }))
       .filter((problem) => problem.title.length > 0 || problem.description.length > 0);
 
     if (cleanedProblems.length === 0 || cleanedProblems.some((problem) => problem.title.length < 2 || problem.description.length < 5)) {
       setErrorMessage('Add at least one valid hackathon problem with title and description.');
+      return;
+    }
+
+    if (cleanedProblems.some((problem) => problem.isIndustryProblem && problem.industryName.length < 2)) {
+      setErrorMessage('Industry name is required for each industry problem statement.');
       return;
     }
 
@@ -646,7 +803,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
       setEventDescription('');
       setEventStartTime('');
       setEventEndTime('');
-      setEventProblems([{ title: '', description: '' }]);
+      setEventProblems([{ title: '', description: '', isIndustryProblem: false, industryName: '' }]);
       setEventPpt(null);
     }, 'Hackathon event created successfully.');
   };
@@ -670,30 +827,57 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   };
 
   const saveEventProblem = async (problem: ProblemRow) => {
-    const form = eventProblemForms[problem.id] || { title: problem.title, description: problem.description };
+    const form = eventProblemForms[problem.id] || {
+      title: problem.title,
+      description: problem.description,
+      isIndustryProblem: problem.isIndustryProblem,
+      industryName: problem.industryName || '',
+    };
     const title = form.title.trim();
     const description = form.description.trim();
+    const industryName = form.industryName.trim();
 
     if (title.length < 2 || description.length < 5) {
       setErrorMessage('Problem title and description are required to update event statements.');
       return;
     }
 
+    if (form.isIndustryProblem && industryName.length < 2) {
+      setErrorMessage('Industry name is required for industry problem statements.');
+      return;
+    }
+
     await runAction(async () => {
       await fetchJson(`/api/innovation/problems/${problem.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ title, description }),
+        body: JSON.stringify({
+          title,
+          description,
+          isIndustryProblem: form.isIndustryProblem,
+          industryName: form.isIndustryProblem ? industryName : '',
+        }),
       });
     }, 'Event problem statement updated.');
   };
 
   const addEventProblem = async (eventId: number) => {
-    const form = eventNewProblemForms[eventId] || { title: '', description: '' };
+    const form = eventNewProblemForms[eventId] || {
+      title: '',
+      description: '',
+      isIndustryProblem: false,
+      industryName: '',
+    };
     const title = form.title.trim();
     const description = form.description.trim();
+    const industryName = form.industryName.trim();
 
     if (title.length < 2 || description.length < 5) {
       setErrorMessage('New problem title and description are required.');
+      return;
+    }
+
+    if (form.isIndustryProblem && industryName.length < 2) {
+      setErrorMessage('Industry name is required for industry problem statements.');
       return;
     }
 
@@ -703,6 +887,8 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         body: JSON.stringify({
           title,
           description,
+          isIndustryProblem: form.isIndustryProblem,
+          industryName: form.isIndustryProblem ? industryName : '',
           mode: 'CLOSED',
           eventId,
         }),
@@ -710,7 +896,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
 
       setEventNewProblemForms((prev) => ({
         ...prev,
-        [eventId]: { title: '', description: '' },
+        [eventId]: { title: '', description: '', isIndustryProblem: false, industryName: '' },
       }));
     }, 'New problem statement added to event.');
   };
@@ -852,11 +1038,21 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
   const workspaceStats = useMemo(
     () => ({
       ownOpenProblems: ownProblems.length,
-      reviewQueue: screeningHackathonSubmissions.length + judgingHackathonSubmissions.length,
+      reviewQueue:
+        openSubmissions.filter((submission) => ['SUBMITTED', 'REVISION_REQUESTED'].includes(submission.status)).length +
+        screeningHackathonSubmissions.length +
+        judgingHackathonSubmissions.length,
       managedEvents: manageableEvents.length,
       eventTeams: filteredSelectedEventRegistrations.length,
     }),
-    [ownProblems.length, screeningHackathonSubmissions.length, judgingHackathonSubmissions.length, manageableEvents.length, filteredSelectedEventRegistrations.length]
+    [
+      ownProblems.length,
+      openSubmissions,
+      screeningHackathonSubmissions.length,
+      judgingHackathonSubmissions.length,
+      manageableEvents.length,
+      filteredSelectedEventRegistrations.length,
+    ]
   );
 
   const activeTabDescription =
@@ -945,9 +1141,38 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
             <h2 className="font-headline text-2xl text-[#002155] mt-2 mb-4">Create Open Problem</h2>
             <form className="space-y-4" onSubmit={createProblem}>
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Title" value={newProblemTitle} onChange={(e) => setNewProblemTitle(e.target.value)} required />
+              <select
+                className="w-full border border-[#747782] p-3 text-sm"
+                value={newProblemIsIndustryProblem ? 'industry' : 'normal'}
+                onChange={(e) => {
+                  const isIndustry = e.target.value === 'industry';
+                  setNewProblemIsIndustryProblem(isIndustry);
+                  if (!isIndustry) setNewProblemIndustryName('');
+                }}
+              >
+                <option value="normal">Problem Type: Normal</option>
+                <option value="industry">Problem Type: Industry</option>
+              </select>
+              {newProblemIsIndustryProblem ? (
+                <input
+                  className="w-full border border-[#747782] p-3 text-sm"
+                  placeholder="Industry name"
+                  value={newProblemIndustryName}
+                  onChange={(e) => setNewProblemIndustryName(e.target.value)}
+                  required
+                />
+              ) : null}
               <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Description" value={newProblemDescription} onChange={(e) => setNewProblemDescription(e.target.value)} required />
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Tags (comma-separated)" value={newProblemTags} onChange={(e) => setNewProblemTags(e.target.value)} />
-              <p className="text-xs text-[#434651]">This section is for OPEN innovation problems only. Hackathon problem statements are managed in the Hackathon Events tab.</p>
+              <div className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3">
+                <p className="text-xs text-[#434651] mb-2">Optional support document (PDF only).</p>
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={(e) => setNewProblemSupportDocument(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <p className="text-xs text-[#434651]">This section is for OPEN innovation problems only. New statements are created OPENED by default; close them from Maintenance once reviews are complete to publish results.</p>
               <button type="submit" disabled={loading} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider">Create Problem</button>
             </form>
           </div>
@@ -962,11 +1187,36 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                 {ownProblems.map((problem) => (
                   <article key={problem.id} className="border border-[#e3e2df] bg-white p-4">
                     <p className="text-sm font-bold text-[#002155]">{problem.title}</p>
-                    <p className="mt-1 text-xs text-[#434651]">{problem.mode} • {problem.status} • Claims: {problem._count.claims}</p>
+                    <p className="mt-1 text-xs text-[#434651]">{problem.mode} • {problem.status} • Registrations: {problem._count.openSubmissions}</p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
+                    </p>
+                    {problem.supportDocumentUrl ? (
+                      <a href={problem.supportDocumentUrl} target="_blank" rel="noreferrer" className="inline-flex mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                        Open Support PDF
+                      </a>
+                    ) : null}
                     {problem.status !== 'ARCHIVED' ? (
-                      <button onClick={() => void archiveProblem(problem.id)} className="mt-3 border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider">
-                        Archive
-                      </button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {problem.status === 'CLOSED' ? (
+                          <button
+                            onClick={() => void setOpenProblemStatus(problem.id, 'OPENED')}
+                            className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                          >
+                            Open Registrations
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => void setOpenProblemStatus(problem.id, 'CLOSED')}
+                            className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                          >
+                            Close and Publish Results
+                          </button>
+                        )}
+                        <button onClick={() => void archiveProblem(problem.id)} className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider">
+                          Archive
+                        </button>
+                      </div>
                     ) : null}
                   </article>
                 ))}
@@ -978,6 +1228,145 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
 
       {activeTab === 'submissions' ? (
         <section className="space-y-5">
+          <div className="border border-[#c4c6d3] bg-white p-4 md:p-5 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Submission Review Lanes</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => setSubmissionsSubTab('open')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  submissionsSubTab === 'open' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
+                }`}
+              >
+                Open Statement Submissions
+              </button>
+              <button
+                onClick={() => setSubmissionsSubTab('hackathon')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  submissionsSubTab === 'hackathon' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
+                }`}
+              >
+                Hackathon Submissions
+              </button>
+            </div>
+          </div>
+
+          {submissionsSubTab === 'open' ? (
+            <div className="space-y-3">
+              <div className="border border-[#c4c6d3] bg-[#f5f4f0] p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Open Statement Rubric Guide</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[#434651]">
+                  {HACKATHON_RUBRIC_ORDER.map((field) => (
+                    <p key={field}>
+                      {HACKATHON_RUBRIC_LABELS[field]}: 0-10 ({HACKATHON_RUBRIC_WEIGHTS[field]}%)
+                    </p>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-[#434651]">Reviews are saved immediately, but student-facing results are released only when the statement is moved to CLOSED.</p>
+              </div>
+
+              {openSubmissions.length === 0 ? (
+                <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No open statement submissions found for your authored problems.</p>
+              ) : (
+                openSubmissions.map((submission) => {
+                  const form = openReviewForms[submission.id] || getDefaultOpenReviewForm(submission);
+                  const previewScore = calculateWeightedHackathonScore(form.rubrics);
+
+                  return (
+                    <article key={submission.id} className="border border-[#c4c6d3] bg-white p-4 md:p-5">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c4f00]">OPEN STATEMENT • {submission.status}</p>
+                      <h3 className="mt-1 text-base font-bold text-[#002155]">{submission.problem.title}</h3>
+                      <p className="mt-1 text-xs text-[#434651]">Team: {submission.teamName || `Team-${submission.id}`} • Size: {submission.teamSize}</p>
+                      <p className="mt-1 text-xs text-[#434651]">Lead UID: {submission.teamLeadUid}</p>
+                      <p className="mt-1 text-xs text-[#434651]">Members: {submission.members.map((member) => `${member.user.name}${member.user.uid ? ` (${member.user.uid})` : ''}`).join(', ')}</p>
+                      <p className="mt-1 text-xs text-[#434651]">Score: {submission.finalScore ?? submission.score ?? 'Pending'}</p>
+                      <p className="mt-1 text-xs text-[#434651]">Result release: {submission.resultPublishedAt ? `Published on ${new Date(submission.resultPublishedAt).toLocaleString()}` : 'Pending statement closure'}</p>
+
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        {submission.technicalDocumentUrl ? (
+                          <a href={submission.technicalDocumentUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                            Open Technical Document
+                          </a>
+                        ) : null}
+                        {submission.pptFileUrl ? (
+                          <a href={submission.pptFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                            Open PPT
+                          </a>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <select
+                          className="border border-[#747782] p-2 text-xs"
+                          value={form.status}
+                          onChange={(e) =>
+                            setOpenReviewForms((prev) => ({
+                              ...prev,
+                              [submission.id]: { ...form, status: e.target.value as 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED' },
+                            }))
+                          }
+                        >
+                          <option value="ACCEPTED">ACCEPTED</option>
+                          <option value="REVISION_REQUESTED">REVISION_REQUESTED</option>
+                          <option value="REJECTED">REJECTED</option>
+                        </select>
+
+                        <p className="border border-[#d8dae6] bg-[#faf9f5] p-2 text-xs text-[#434651]">Final score preview: <span className="font-bold text-[#002155]">{previewScore}/100</span></p>
+
+                        {HACKATHON_RUBRIC_ORDER.map((field) => (
+                          <label key={field} className="text-xs text-[#434651]">
+                            {HACKATHON_RUBRIC_LABELS[field]} ({HACKATHON_RUBRIC_WEIGHTS[field]}%)
+                            <input
+                              type="number"
+                              min={0}
+                              max={10}
+                              step={1}
+                              className="mt-1 w-full border border-[#747782] p-2 text-xs"
+                              value={form.rubrics[field]}
+                              onChange={(e) => setOpenReviewRubricScore(submission.id, field, Number(e.target.value))}
+                              disabled={loading}
+                            />
+                          </label>
+                        ))}
+
+                        <input
+                          className="border border-[#747782] p-2 text-xs"
+                          placeholder="Badges"
+                          value={form.badges}
+                          onChange={(e) =>
+                            setOpenReviewForms((prev) => ({
+                              ...prev,
+                              [submission.id]: { ...form, badges: e.target.value },
+                            }))
+                          }
+                        />
+                        <input
+                          className="border border-[#747782] p-2 text-xs"
+                          placeholder="Feedback"
+                          value={form.feedback}
+                          onChange={(e) =>
+                            setOpenReviewForms((prev) => ({
+                              ...prev,
+                              [submission.id]: { ...form, feedback: e.target.value },
+                            }))
+                          }
+                        />
+                        <button
+                          onClick={() => void submitOpenReview(submission.id)}
+                          className="md:col-span-2 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit"
+                          disabled={loading}
+                        >
+                          Save Open Review
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+          ) : null}
+
+          {submissionsSubTab === 'hackathon' ? (
+            <>
           <div className="border border-[#c4c6d3] bg-white p-4 md:p-5 shadow-[0_20px_32px_-30px_rgba(0,33,85,0.55)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Review Controls</p>
             <div className="mt-3 grid grid-cols-1 xl:grid-cols-[1fr_auto] gap-4 items-start">
@@ -1164,6 +1553,8 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
               })}
             </div>
           )}
+            </>
+          ) : null}
         </section>
       ) : null}
 
@@ -1195,7 +1586,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                     <p className="text-xs uppercase tracking-widest text-[#434651] font-bold">Hackathon Problem Statements</p>
                     <button
                       type="button"
-                      onClick={() => setEventProblems((prev) => [...prev, { title: '', description: '' }])}
+                      onClick={() => setEventProblems((prev) => [...prev, { title: '', description: '', isIndustryProblem: false, industryName: '' }])}
                       className="border border-[#002155] text-[#002155] px-3 py-2 text-[10px] font-bold uppercase tracking-wider"
                     >
                       Add Problem
@@ -1230,6 +1621,40 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                         }
                         required
                       />
+                      <select
+                        className="w-full border border-[#747782] p-3 text-sm"
+                        value={problem.isIndustryProblem ? 'industry' : 'normal'}
+                        onChange={(e) =>
+                          setEventProblems((prev) => {
+                            const next = [...prev];
+                            const isIndustryProblem = e.target.value === 'industry';
+                            next[index] = {
+                              ...next[index],
+                              isIndustryProblem,
+                              industryName: isIndustryProblem ? next[index].industryName : '',
+                            };
+                            return next;
+                          })
+                        }
+                      >
+                        <option value="normal">Problem Type: Normal</option>
+                        <option value="industry">Problem Type: Industry</option>
+                      </select>
+                      {problem.isIndustryProblem ? (
+                        <input
+                          className="w-full border border-[#747782] p-3 text-sm"
+                          placeholder="Industry name"
+                          value={problem.industryName}
+                          onChange={(e) =>
+                            setEventProblems((prev) => {
+                              const next = [...prev];
+                              next[index] = { ...next[index], industryName: e.target.value };
+                              return next;
+                            })
+                          }
+                          required
+                        />
+                      ) : null}
                       {eventProblems.length > 1 ? (
                         <button
                           type="button"
@@ -1309,7 +1734,12 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                         ) : (
                           <div className="space-y-3">
                             {(problemsByEvent[event.id] || []).map((problem) => {
-                              const form = eventProblemForms[problem.id] || { title: problem.title, description: problem.description };
+                              const form = eventProblemForms[problem.id] || {
+                                title: problem.title,
+                                description: problem.description,
+                                isIndustryProblem: problem.isIndustryProblem,
+                                industryName: problem.industryName || '',
+                              };
                               return (
                                 <div key={problem.id} className="border border-[#d8dae6] bg-white p-3 space-y-2">
                                   <p className="text-[10px] uppercase tracking-widest text-[#8c4f00]">Problem #{problem.id}</p>
@@ -1333,6 +1763,39 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                                       }))
                                     }
                                   />
+                                  <select
+                                    className="w-full border border-[#747782] p-2 text-xs"
+                                    value={form.isIndustryProblem ? 'industry' : 'normal'}
+                                    onChange={(e) =>
+                                      setEventProblemForms((prev) => ({
+                                        ...prev,
+                                        [problem.id]: {
+                                          ...form,
+                                          isIndustryProblem: e.target.value === 'industry',
+                                          industryName: e.target.value === 'industry' ? form.industryName : '',
+                                        },
+                                      }))
+                                    }
+                                  >
+                                    <option value="normal">Problem Type: Normal</option>
+                                    <option value="industry">Problem Type: Industry</option>
+                                  </select>
+                                  {form.isIndustryProblem ? (
+                                    <input
+                                      className="w-full border border-[#747782] p-2 text-xs"
+                                      placeholder="Industry name"
+                                      value={form.industryName}
+                                      onChange={(e) =>
+                                        setEventProblemForms((prev) => ({
+                                          ...prev,
+                                          [problem.id]: {
+                                            ...form,
+                                            industryName: e.target.value,
+                                          },
+                                        }))
+                                      }
+                                    />
+                                  ) : null}
                                   <button
                                     onClick={() => void saveEventProblem(problem)}
                                     className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider"
@@ -1351,13 +1814,15 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                           <input
                             className="w-full border border-[#747782] p-2 text-xs bg-white"
                             placeholder="New problem title"
-                            value={(eventNewProblemForms[event.id]?.title || '')}
+                            value={eventNewProblemForms[event.id]?.title || ''}
                             onChange={(e) =>
                               setEventNewProblemForms((prev) => ({
                                 ...prev,
                                 [event.id]: {
                                   title: e.target.value,
                                   description: prev[event.id]?.description || '',
+                                  isIndustryProblem: prev[event.id]?.isIndustryProblem || false,
+                                  industryName: prev[event.id]?.industryName || '',
                                 },
                               }))
                             }
@@ -1365,17 +1830,55 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                           <textarea
                             className="w-full border border-[#747782] p-2 text-xs min-h-[80px] bg-white"
                             placeholder="New problem description"
-                            value={(eventNewProblemForms[event.id]?.description || '')}
+                            value={eventNewProblemForms[event.id]?.description || ''}
                             onChange={(e) =>
                               setEventNewProblemForms((prev) => ({
                                 ...prev,
                                 [event.id]: {
                                   title: prev[event.id]?.title || '',
                                   description: e.target.value,
+                                  isIndustryProblem: prev[event.id]?.isIndustryProblem || false,
+                                  industryName: prev[event.id]?.industryName || '',
                                 },
                               }))
                             }
                           />
+                          <select
+                            className="w-full border border-[#747782] p-2 text-xs bg-white"
+                            value={eventNewProblemForms[event.id]?.isIndustryProblem ? 'industry' : 'normal'}
+                            onChange={(e) =>
+                              setEventNewProblemForms((prev) => ({
+                                ...prev,
+                                [event.id]: {
+                                  title: prev[event.id]?.title || '',
+                                  description: prev[event.id]?.description || '',
+                                  isIndustryProblem: e.target.value === 'industry',
+                                  industryName: e.target.value === 'industry' ? prev[event.id]?.industryName || '' : '',
+                                },
+                              }))
+                            }
+                          >
+                            <option value="normal">Problem Type: Normal</option>
+                            <option value="industry">Problem Type: Industry</option>
+                          </select>
+                          {eventNewProblemForms[event.id]?.isIndustryProblem ? (
+                            <input
+                              className="w-full border border-[#747782] p-2 text-xs bg-white"
+                              placeholder="Industry name"
+                              value={eventNewProblemForms[event.id]?.industryName || ''}
+                              onChange={(e) =>
+                                setEventNewProblemForms((prev) => ({
+                                  ...prev,
+                                  [event.id]: {
+                                    title: prev[event.id]?.title || '',
+                                    description: prev[event.id]?.description || '',
+                                    isIndustryProblem: true,
+                                    industryName: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          ) : null}
                           <button
                             onClick={() => void addEventProblem(event.id)}
                             className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider bg-white"

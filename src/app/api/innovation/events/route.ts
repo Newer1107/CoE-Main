@@ -5,6 +5,15 @@ import { innovationEventCreateSchema } from '@/lib/validators';
 import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
 import { sanitizeFilename } from '@/lib/innovation';
 
+const parseBooleanLike = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['true', '1', 'yes', 'on'].includes(normalized);
+  }
+  return false;
+};
+
 // GET /api/innovation/events
 export async function GET() {
   try {
@@ -45,16 +54,18 @@ export async function POST(req: NextRequest) {
     const rawProblems = (formData.get('problems') as string) || '[]';
     const pptFile = formData.get('pptFile') as File | null;
 
-    let problems: { title: string; description: string }[] = [];
+    let problems: { title: string; description: string; isIndustryProblem: boolean; industryName: string }[] = [];
     try {
       const parsedProblems = JSON.parse(rawProblems) as unknown;
       if (Array.isArray(parsedProblems)) {
         problems = parsedProblems
           .map((item) => {
-            const row = item as { title?: unknown; description?: unknown };
+            const row = item as { title?: unknown; description?: unknown; isIndustryProblem?: unknown; industryName?: unknown };
             return {
               title: String(row.title || '').trim(),
               description: String(row.description || '').trim(),
+              isIndustryProblem: parseBooleanLike(row.isIndustryProblem),
+              industryName: String(row.industryName || '').trim(),
             };
           })
           .filter((item) => item.title.length > 0 || item.description.length > 0);
@@ -91,6 +102,8 @@ export async function POST(req: NextRequest) {
         data: parsed.data.problems.map((problem) => ({
           title: problem.title,
           description: problem.description,
+          isIndustryProblem: problem.isIndustryProblem,
+          industryName: problem.isIndustryProblem ? problem.industryName : null,
           mode: 'CLOSED',
           createdById: user.id,
           eventId: createdEvent.id,

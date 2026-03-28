@@ -6,6 +6,22 @@ const tcetUidSchema = z
   .toUpperCase()
   .regex(/^\d{2}-[A-Z]+[A-Z]\d{2,3}-\d{2}$/, 'Invalid UID format. Expected e.g. 24-COMPD13-28');
 
+const booleanLikeSchema = z.preprocess((value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
+  }
+  return value;
+}, z.boolean());
+
+const industryNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Industry name must be at least 2 characters')
+  .max(120, 'Industry name must be at most 120 characters');
+
 // ─── Auth Validators ───
 
 export const studentRegisterSchema = z.object({
@@ -128,6 +144,25 @@ export const innovationProblemCreateSchema = z.object({
   tags: z.string().optional().or(z.literal('')),
   mode: z.enum(['OPEN', 'CLOSED']),
   eventId: z.coerce.number().int().positive().optional(),
+  isIndustryProblem: booleanLikeSchema.optional().default(false),
+  industryName: industryNameSchema.optional().or(z.literal('')),
+}).superRefine((value, ctx) => {
+  const normalizedIndustryName = typeof value.industryName === 'string' ? value.industryName.trim() : '';
+  if (value.isIndustryProblem && normalizedIndustryName.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['industryName'],
+      message: 'Industry name is required for industry problems',
+    });
+  }
+
+  if (!value.isIndustryProblem && normalizedIndustryName.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['industryName'],
+      message: 'Industry name is only allowed when the problem type is industry',
+    });
+  }
 });
 
 export const innovationProblemUpdateSchema = z.object({
@@ -135,7 +170,18 @@ export const innovationProblemUpdateSchema = z.object({
   description: z.string().min(5).optional(),
   tags: z.string().optional().or(z.literal('')),
   mode: z.enum(['OPEN', 'CLOSED']).optional(),
-  status: z.enum(['UNCLAIMED', 'CLAIMED', 'SOLVED', 'ARCHIVED']).optional(),
+  status: z.enum(['OPENED', 'CLOSED', 'ARCHIVED']).optional(),
+  isIndustryProblem: booleanLikeSchema.optional(),
+  industryName: industryNameSchema.optional().or(z.literal('')),
+}).superRefine((value, ctx) => {
+  const hasIndustryName = typeof value.industryName === 'string' && value.industryName.trim().length > 0;
+  if (value.isIndustryProblem === false && hasIndustryName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['industryName'],
+      message: 'Industry name is only allowed when the problem type is industry',
+    });
+  }
 });
 
 export const innovationClaimCreateSchema = z.object({
@@ -155,11 +201,15 @@ export const innovationClaimReviewSchema = z.object({
   badges: z.string().optional().or(z.literal('')),
 });
 
-export const innovationClaimAttendanceSchema = z.object({
-  isAbsent: z.boolean(),
+export const innovationOpenSubmissionRegisterSchema = z.object({
+  problemId: z.coerce.number().int().positive(),
+  teamName: z.string().min(2),
+  teamSize: z.coerce.number().int().min(1).max(10),
+  teamLeadUid: tcetUidSchema,
+  memberUids: z.array(tcetUidSchema),
 });
 
-export const innovationHackathonRubricSchema = z.object({
+const innovationRubricSchema = z.object({
   innovation: z.coerce.number().int().min(0).max(10),
   technical: z.coerce.number().int().min(0).max(10),
   impact: z.coerce.number().int().min(0).max(10),
@@ -168,6 +218,27 @@ export const innovationHackathonRubricSchema = z.object({
   presentation: z.coerce.number().int().min(0).max(10),
   feasibility: z.coerce.number().int().min(0).max(10),
 });
+
+export const innovationOpenSubmissionReviewSchema = z.object({
+  status: z.enum(['ACCEPTED', 'REVISION_REQUESTED', 'REJECTED']),
+  rubrics: innovationRubricSchema.optional(),
+  feedback: z.string().min(2).optional().or(z.literal('')),
+  badges: z.string().optional().or(z.literal('')),
+}).superRefine((value, ctx) => {
+  if ((value.status === 'ACCEPTED' || value.status === 'REJECTED') && !value.rubrics) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['rubrics'],
+      message: 'Rubric scores are required when saving final open statement decisions',
+    });
+  }
+});
+
+export const innovationClaimAttendanceSchema = z.object({
+  isAbsent: z.boolean(),
+});
+
+export const innovationHackathonRubricSchema = innovationRubricSchema;
 
 export const innovationEventCreateSchema = z.object({
   title: z.string().min(2),
@@ -179,6 +250,25 @@ export const innovationEventCreateSchema = z.object({
       z.object({
         title: z.string().min(2),
         description: z.string().min(5),
+        isIndustryProblem: booleanLikeSchema.optional().default(false),
+        industryName: industryNameSchema.optional().or(z.literal('')),
+      }).superRefine((value, ctx) => {
+        const normalizedIndustryName = typeof value.industryName === 'string' ? value.industryName.trim() : '';
+        if (value.isIndustryProblem && normalizedIndustryName.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['industryName'],
+            message: 'Industry name is required for industry problems',
+          });
+        }
+
+        if (!value.isIndustryProblem && normalizedIndustryName.length > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['industryName'],
+            message: 'Industry name is only allowed when the problem type is industry',
+          });
+        }
       })
     )
     .min(1, 'At least one hackathon problem statement is required'),

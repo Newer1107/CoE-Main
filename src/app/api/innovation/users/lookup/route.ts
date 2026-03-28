@@ -10,12 +10,17 @@ export async function GET(req: NextRequest) {
     if (!user) return errorRes('Unauthorized', [], 401);
     if (!authorize(user, 'STUDENT')) return errorRes('Forbidden', ['Student access required'], 403);
 
+    const registrationTypeRaw = (req.nextUrl.searchParams.get('registrationType') || 'hackathon').toLowerCase();
     const rawUids = req.nextUrl.searchParams.get('uids');
     const eventId = Number(req.nextUrl.searchParams.get('eventId'));
     const problemId = Number(req.nextUrl.searchParams.get('problemId'));
     const normalizedUids = parseStringList(rawUids)
       .map((uid) => uid.trim().toUpperCase())
       .filter((uid) => uid.length > 0);
+
+    if (!['hackathon', 'open'].includes(registrationTypeRaw)) {
+      return errorRes('Validation failed', ['registrationType must be either hackathon or open'], 400);
+    }
 
     if (normalizedUids.length === 0) {
       return errorRes('Validation failed', ['At least one UID is required for lookup'], 400);
@@ -25,21 +30,28 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', ['You can verify up to 10 UIDs at once'], 400);
     }
 
-    if (!Number.isInteger(eventId) || eventId <= 0) {
-      return errorRes('Validation failed', ['A valid eventId is required for lookup'], 400);
-    }
-
     if (!Number.isInteger(problemId) || problemId <= 0) {
       return errorRes('Validation failed', ['A valid problemId is required for lookup'], 400);
     }
 
+    if (registrationTypeRaw === 'hackathon' && (!Number.isInteger(eventId) || eventId <= 0)) {
+      return errorRes('Validation failed', ['A valid eventId is required for hackathon lookup'], 400);
+    }
+
     const problem = await prisma.problem.findFirst({
-      where: { id: problemId, eventId },
+      where:
+        registrationTypeRaw === 'hackathon'
+          ? { id: problemId, eventId }
+          : { id: problemId, eventId: null, mode: 'OPEN', status: 'OPENED' },
       select: { id: true },
     });
 
     if (!problem) {
-      return errorRes('Invalid problem selection', ['Selected problem is not part of this event'], 400);
+      return errorRes(
+        'Invalid problem selection',
+        [registrationTypeRaw === 'hackathon' ? 'Selected problem is not part of this event' : 'Selected open problem statement is not valid'],
+        400
+      );
     }
 
     const users = await prisma.user.findMany({
@@ -57,8 +69,11 @@ export async function GET(req: NextRequest) {
 
     const userIds = users.map((entry) => entry.id);
 
-    const participationRows = userIds.length
-      ? await prisma.claimMember.findMany({
+    const participatedUserIds = new Set<number>();
+
+    if (userIds.length > 0) {
+      if (registrationTypeRaw === 'hackathon') {
+        const participationRows = await prisma.claimMember.findMany({
           where: {
             userId: { in: userIds },
             claim: {
@@ -67,10 +82,21 @@ export async function GET(req: NextRequest) {
             },
           },
           select: { userId: true },
-        })
-      : [];
+        });
 
-    const participatedUserIds = new Set(participationRows.map((entry) => entry.userId));
+        participationRows.forEach((entry) => participatedUserIds.add(entry.userId));
+      } else {
+        const participationRows = await prisma.openSubmissionMember.findMany({
+          where: {
+            userId: { in: userIds },
+            openSubmission: { problemId },
+          },
+          select: { userId: true },
+        });
+
+        participationRows.forEach((entry) => participatedUserIds.add(entry.userId));
+      }
+    }
 
     const userByUid = new Map(users.map((entry) => [entry.uid?.toUpperCase(), entry]));
 
@@ -96,7 +122,10 @@ export async function GET(req: NextRequest) {
       const isVerified = Boolean(found.isVerified);
       const alreadyParticipated = participatedUserIds.has(found.id);
 
-      let reason = 'Eligible for this hackathon problem statement.';
+      let reason =
+        registrationTypeRaw === 'hackathon'
+          ? 'Eligible for this hackathon problem statement.'
+          : 'Eligible for this open problem statement.';
       if (!isStudent) {
         reason = 'User is not a student account.';
       } else if (!isActive) {
@@ -104,7 +133,10 @@ export async function GET(req: NextRequest) {
       } else if (!isVerified) {
         reason = 'User account is not verified.';
       } else if (alreadyParticipated) {
-        reason = 'This user has already participated in this hackathon in this problem statement.';
+        reason =
+          registrationTypeRaw === 'hackathon'
+            ? 'This user has already participated in this hackathon in this problem statement.'
+            : 'This user has already participated in this open problem statement.';
       }
 
       const eligible = isStudent && isActive && isVerified && !alreadyParticipated;
