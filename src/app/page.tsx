@@ -1,9 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { getSignedUrl } from "@/lib/minio";
 import NewsCard from "@/components/NewsModal";
 import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
-
 
 type HomeNews = {
   id: number;
@@ -36,7 +36,7 @@ function formatDate(dateInput: Date | string) {
 export default async function HomePage() {
   const now = new Date();
 
-  const [heroSlidesRaw, newsRaw, events, grants, announcements, openHackathons] =
+  const [heroSlidesRaw, newsRaw, events, grants, announcements, openHackathons, openProblems] =
     await Promise.all([
       prisma.heroSlide.findMany({
         where: { isActive: true },
@@ -69,30 +69,22 @@ export default async function HomePage() {
         take: 5,
         select: { id: true, title: true, status: true, endTime: true },
       }),
+      prisma.problem.findMany({
+        where: {
+          status: "OPENED",
+          mode: "OPEN",
+          eventId: null,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          tags: true,
+          _count: { select: { openSubmissions: true } },
+        },
+      }),
     ]);
-
-  // Fetch open problems from the API endpoint (status=OPENED, mode=OPEN)
-  type OpenProblemRow = {
-    id: number;
-    title: string;
-    tags: string | null;
-    _count: { openSubmissions: number };
-  };
-
-  let openProblems: OpenProblemRow[] = [];
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/innovation/problems?status=OPENED`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const payload = await res.json();
-      const all: OpenProblemRow[] = payload.success ? payload.data : [];
-      openProblems = all.filter((p) => true).slice(0, 5); // already filtered by status=OPENED on server
-    }
-  } catch {
-    openProblems = [];
-  }
 
   const news: HomeNews[] = await Promise.all(
     newsRaw.map(async (item) => ({
@@ -249,9 +241,11 @@ export default async function HomePage() {
                 {verticals.map((item) => (
                   <Link key={item.title} href={item.href}>
                     <div className="relative h-48 md:h-56 border border-[#c4c6d3] overflow-hidden group bg-[#efeeea] cursor-pointer">
-                      <img
+                      <Image
                         src={item.image}
                         alt={item.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent" />

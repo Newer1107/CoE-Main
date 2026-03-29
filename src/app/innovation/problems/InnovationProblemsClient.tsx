@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -106,6 +106,13 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   const [modalStatus, setModalStatus] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  const resetModalState = () => {
+    setModalProblem(null);
+    setModalForm(emptyRegistrationForm());
+    setModalError('');
+    setModalStatus('');
+  };
+
   const openModal = (problem: ProblemRow) => {
     setModalProblem(problem);
     setModalForm(emptyRegistrationForm());
@@ -115,15 +122,15 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   };
 
   const closeModal = () => {
-    dialogRef.current?.close();
-    setModalProblem(null);
-    setModalForm(emptyRegistrationForm());
-    setModalError('');
-    setModalStatus('');
+    if (dialogRef.current?.open) {
+      dialogRef.current.close();
+      return;
+    }
+    resetModalState();
   };
 
   // Close modal on backdrop click
-  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+  const handleDialogClick = (e: MouseEvent<HTMLDialogElement>) => {
     const rect = dialogRef.current?.getBoundingClientRect();
     if (rect && (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom)) {
       closeModal();
@@ -208,7 +215,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
     }
   };
 
-  const submitOpenRegistration = async (event: React.FormEvent) => {
+  const submitOpenRegistration = async (event: FormEvent) => {
     event.preventDefault();
     if (!modalProblem) return;
 
@@ -351,6 +358,11 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
       <dialog
         ref={dialogRef}
         onClick={handleDialogClick}
+        onClose={resetModalState}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeModal();
+        }}
         className="w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-[#c4c6d3] bg-white p-0 shadow-2xl backdrop:bg-black/50 open:flex open:flex-col"
         style={{ margin: 'auto' }}
       >
