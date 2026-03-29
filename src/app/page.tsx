@@ -302,7 +302,7 @@ export default async function HomePage() {
             <h2 className="text-2xl sm:text-3xl font-headline tracking-tight text-[#002155]">
               Current Grant Opportunities
             </h2>
-            <p className="text-sm text-[#747782] uppercase tracking-widest mt-1">
+            <p className="text-sm text-[#8c4f00] uppercase tracking-widest mt-1">
               Curated Grants & Funding Programs
             </p>
           </div>
@@ -367,7 +367,7 @@ export default async function HomePage() {
             <h2 className="text-2xl sm:text-3xl font-headline tracking-tight text-[#002155]">
               Upcoming Events
             </h2>
-            <p className="text-sm text-[#747782] uppercase tracking-widest mt-1">
+            <p className="text-sm text-[#8c4f00] uppercase tracking-widest mt-1">
               Events & Conferences
             </p>
           </div>
