@@ -474,7 +474,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                   }
                 />
                 <p className="md:col-span-2 text-[11px] text-[#434651]">
-                  UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28)
+                  UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28)
                 </p>
 
                 <button

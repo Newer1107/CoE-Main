@@ -282,7 +282,7 @@ export default async function HomePage() {
                 In the Press
               </h2>
               <p className="text-xs uppercase tracking-widest text-[#8c4f00] mt-1">
-                Live from GET /api/news
+                Latest Coverage & Announcements
               </p>
             </div>
           </div>
@@ -303,7 +303,7 @@ export default async function HomePage() {
               Current Grant Opportunities
             </h2>
             <p className="text-sm text-[#747782] uppercase tracking-widest mt-1">
-              Live from GET /api/grants
+              Curated Grants & Funding Programs
             </p>
           </div>
           <div className="overflow-x-auto border border-[#c4c6d3] bg-white">
@@ -368,7 +368,7 @@ export default async function HomePage() {
               Upcoming Events
             </h2>
             <p className="text-sm text-[#747782] uppercase tracking-widest mt-1">
-              Live from GET /api/events
+              Events & Conferences
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

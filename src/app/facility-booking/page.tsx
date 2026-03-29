@@ -338,7 +338,7 @@ export default function FacilityBookingPage() {
                       className="w-full bg-white border border-[#747782] focus:border-[#002155] focus:ring-1 p-3 text-sm outline-none placeholder:text-[#c4c6d3]"
                       placeholder="aditya.shah@tcetmumbai.in or 24-COMPD13-28" type="text" value={loginIdentifier} onChange={e => setLoginIdentifier(e.target.value)} required style={{ borderRadius: 0 }}
                     />
-                    <p className="text-[11px] text-[#434651]">UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28)</p>
+                    <p className="text-[11px] text-[#434651]">UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28)</p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">Password</label>
@@ -378,7 +378,7 @@ export default function FacilityBookingPage() {
                     </div>
                     {role === "STUDENT" && (
                       <div className="flex flex-col gap-2 md:col-span-2">
-                        <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">TCET UID (Format: XX-BRANCHYY-ZZ, e.g. 24-COMPD13-28)</label>
+                        <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">TCET UID (Format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR, e.g. 24-COMPD13-28)</label>
                         <input className="w-full bg-white border border-[#747782] p-3 text-sm outline-none" placeholder="e.g. 24-COMPD13-28" type="text" value={uid} onChange={e => setUid(e.target.value)} required style={{ borderRadius: 0 }} />
                       </div>
                     )}

@@ -262,7 +262,7 @@ export default function LoginPage() {
         <div className="lg:col-span-7 bg-white border border-[#c4c6d3] p-6 md:p-10">
           <h2 className="font-headline text-2xl md:text-3xl text-[#002155]">Account Login</h2>
           <p className="mt-2 text-sm text-[#434651] font-body">
-            Sign in with your @tcetmumbai.in email address or your UID. UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28).
+            Sign in with your @tcetmumbai.in email address or your UID. UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).
           </p>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -377,7 +377,7 @@ export default function LoginPage() {
                       placeholder="24-COMPD13-28"
                       className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
                     />
-                    <p className="text-[11px] text-[#434651]">UID format: XX-BRANCHYY-ZZ</p>
+                    <p className="text-[11px] text-[#434651]">UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR</p>
                   </div>
                 ) : null}
                 <div className="space-y-2 md:col-span-2">

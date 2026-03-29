@@ -361,7 +361,7 @@ export default function InnovationEventClient({
       {canShowRegistrationForm ? (
         <section id="register-team" className="mb-8 border border-[#c4c6d3] bg-white p-5">
           <h3 className="font-headline text-2xl text-[#002155] mb-4">Register Team</h3>
-          <p className="mb-3 text-xs text-[#434651]">UID format: XX-BRANCHYY-ZZ (example: 24-COMPD13-28). Enter valid UIDs for all team members. First fetch user details to verify the team, then submit registration.</p>
+          <p className="mb-3 text-xs text-[#434651]">UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28). Enter valid UIDs for all team members. First fetch user details to verify the team, then submit registration.</p>
           <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleRegister}>
             <input className="border border-[#747782] p-3 text-sm" placeholder="Team name" value={teamName} onChange={(e) => setTeamName(e.target.value)} required />
             <input
