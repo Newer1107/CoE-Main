@@ -342,10 +342,14 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                       <button
                         onClick={() => {
                           if (!role) {
-                            sessionStorage.setItem(
-                              'postLoginToast',
-                              'Please log in to register for this problem statement.'
-                            );
+                            const currentPath = typeof window !== 'undefined'
+                              ? window.location.pathname + window.location.search
+                              : '/innovation/problems';
+                            const searchParams = new URLSearchParams({
+                              next: currentPath,
+                              reason: 'problem-register-auth-required',
+                            });
+                            window.location.href = `/login?${searchParams.toString()}`;
                             return;
                           }
 
