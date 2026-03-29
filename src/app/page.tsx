@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { getSignedUrl } from "@/lib/minio";
 import NewsCard from "@/components/NewsModal";
@@ -27,7 +28,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   year: "numeric",
 });
 
-// formatDate is kept here as a shared helper for grants, events, and announcements (Expires)
 function formatDate(dateInput: Date | string) {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   return dateFormatter.format(date);
@@ -36,7 +36,7 @@ function formatDate(dateInput: Date | string) {
 export default async function HomePage() {
   const now = new Date();
 
-  const [heroSlidesRaw, newsRaw, events, grants, announcements] =
+  const [heroSlidesRaw, newsRaw, events, grants, announcements, openHackathons, openProblems] =
     await Promise.all([
       prisma.heroSlide.findMany({
         where: { isActive: true },
@@ -62,6 +62,27 @@ export default async function HomePage() {
         where: { expiresAt: { gt: now } },
         orderBy: { createdAt: "desc" },
         take: 8,
+      }),
+      prisma.hackathonEvent.findMany({
+        where: { status: { in: ["ACTIVE", "UPCOMING"] } },
+        orderBy: { startTime: "asc" },
+        take: 5,
+        select: { id: true, title: true, status: true, endTime: true },
+      }),
+      prisma.problem.findMany({
+        where: {
+          status: "OPENED",
+          mode: "OPEN",
+          eventId: null,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          tags: true,
+          _count: { select: { openSubmissions: true } },
+        },
       }),
     ]);
 
@@ -99,11 +120,13 @@ export default async function HomePage() {
 
   return (
     <main className="max-w-[1560px] mx-auto grid grid-cols-12 gap-0 min-h-screen pt-[100px] sm:pt-[108px] md:pt-[120px]">
-      <div className="hidden lg:flex col-span-1 border-r border-[#c4c6d3] items-start justify-center pt-24 bg-[#f5f4f0]">
-        <div className="rotate-180 [writing-mode:vertical-lr] flex items-center gap-6 text-[#002155] opacity-40 font-['Inter'] text-[10px] tracking-[0.3em] uppercase">
-          <span>ESTABLISHED 2001</span>
-          <span className="w-12 h-[1px] bg-[#002155]" />
-          <span>TCET COE DOMAIN</span>
+      <div className="hidden lg:block col-span-1 border-r border-[#c4c6d3] bg-[#f5f4f0]">
+        <div className="sticky top-12 flex justify-center pt-24">
+          <div className="rotate-180 [writing-mode:vertical-lr] flex items-center gap-6 text-[#002155] opacity-40 font-['Inter'] text-[10px] tracking-[0.3em] uppercase">
+            <span>ESTABLISHED 2001</span>
+            <span className="w-12 h-[1px] bg-[#002155]" />
+            <span>TCET COE DOMAIN</span>
+          </div>
         </div>
       </div>
 
@@ -160,7 +183,7 @@ export default async function HomePage() {
               {
                 title: "Facility Booking",
                 subtitle: "Reserve labs & resources",
-                href: "/#",
+                href: "/facility-booking",
                 image: "/Faculty Booking.png",
               },
               {
@@ -172,7 +195,7 @@ export default async function HomePage() {
               {
                 title: "Project Showcase",
                 subtitle: "Display innovations",
-                href: "#",
+                href: "https://dash.raunakcodes.me",
                 image: "/Project Showcase.png",
               },
               {
@@ -184,7 +207,7 @@ export default async function HomePage() {
               {
                 title: "Hackathon",
                 subtitle: "Build under pressure",
-                href: "#",
+                href: "/innovation",
                 image: "/Hackathon.jpeg",
               },
               {
@@ -196,7 +219,7 @@ export default async function HomePage() {
               {
                 title: "Problem Statements",
                 subtitle: "Solve real challenges",
-                href: "#",
+                href: "/innovation/problems",
                 image: "/Problem Statements.png",
               },
               {
@@ -217,19 +240,15 @@ export default async function HomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {verticals.map((item) => (
                   <Link key={item.title} href={item.href}>
-                  <div
-                      className="relative h-48 md:h-56 border border-[#c4c6d3] overflow-hidden group bg-[#efeeea] cursor-pointer"
-                    >
-
-                      <img
+                    <div className="relative h-48 md:h-56 border border-[#c4c6d3] overflow-hidden group bg-[#efeeea] cursor-pointer">
+                      <Image
                         src={item.image}
                         alt={item.title}
-                        className="w-full h-full object-cover 
-                        group-hover:scale-110 transition-transform duration-700 ease-out"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                       />
-
                       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent" />
-
                       <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
                         <div>
                           <h3 className="text-white text-sm md:text-base font-semibold uppercase tracking-wide leading-tight">
@@ -239,7 +258,6 @@ export default async function HomePage() {
                             {item.subtitle}
                           </p>
                         </div>
-
                         <span className="material-symbols-outlined text-white text-lg translate-x-0 group-hover:translate-x-1 transition-transform duration-300">
                           arrow_forward
                         </span>
@@ -389,36 +407,29 @@ export default async function HomePage() {
       </div>
 
       <aside className="col-span-12 md:col-span-3 lg:col-span-2 border-t md:border-t-0 md:border-l border-[#c4c6d3] bg-[#f5f4f0] min-h-full">
-        <div className="md:sticky md:top-[112px]">
-          <div className="p-6">
-            <div className="bg-[#002155] p-4 flex items-center gap-3">
-              <span className="material-symbols-outlined text-white">
-                campaign
-              </span>
-              <h3 className="text-white text-xs font-bold uppercase tracking-widest">
-                Latest Circulars
-              </h3>
+        <div className="md:sticky md:top-[112px] flex flex-col gap-0">
+
+          {/* Latest Circulars — halved height */}
+          <div className="p-4">
+            <div className="bg-[#002155] px-4 py-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-white text-[16px]">campaign</span>
+              <h3 className="text-white text-[10px] font-bold uppercase tracking-widest">Latest Circulars</h3>
             </div>
-            <div className="bg-white border-x border-b border-[#c4c6d3] h-[360px] md:h-[520px] overflow-y-auto custom-scrollbar">
+            <div className="bg-white border-x border-b border-[#c4c6d3] h-[220px] overflow-y-auto custom-scrollbar">
               {announcements.length === 0 ? (
-                <p className="p-5 text-sm text-[#434651]">
-                  No active announcements.
-                </p>
+                <p className="px-4 py-3 text-xs text-[#434651]">No active announcements.</p>
               ) : (
                 announcements.map((announcement) => (
-                  <article
-                    key={announcement.id}
-                    className="p-5 border-b border-[#c4c6d3] hover:bg-[#faf9f5] transition-colors"
-                  >
-                    <span className="text-[10px] font-bold text-[#747782] uppercase tracking-tighter">
+                  <article key={announcement.id} className="px-4 py-3 border-b border-[#c4c6d3] hover:bg-[#faf9f5] transition-colors">
+                    <span className="text-[9px] font-bold text-[#747782] uppercase tracking-tighter">
                       Expires {formatDate(announcement.expiresAt)}
                     </span>
-                    <h4 className="font-body font-semibold text-[#002155] text-sm mt-1 leading-tight">
+                    <h4 className="font-body font-semibold text-[#002155] text-xs mt-0.5 leading-snug">
                       {announcement.text}
                     </h4>
                     {announcement.link ? (
                       <a
-                        className="inline-flex items-center text-[10px] font-bold text-[#8c4f00] uppercase mt-2 tracking-widest"
+                        className="inline-flex items-center text-[9px] font-bold text-[#8c4f00] uppercase mt-1 tracking-widest"
                         href={announcement.link}
                         target="_blank"
                         rel="noreferrer"
@@ -432,56 +443,101 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="px-6 pb-6 space-y-3">
-            <Link
-              href="/facility-booking"
-              className="border-l-2 border-[#8c4f00] pl-4 py-2 bg-white border border-[#c4c6d3] flex items-center justify-between group"
-            >
-              <div>
-                <span className="text-[9px] font-bold text-[#747782] uppercase tracking-widest">
-                  Booking Portal
-                </span>
-                <h5 className="text-xs font-bold text-[#002155] uppercase">
-                  Lab Seat Reservation
-                </h5>
+          {/* Open Innovation */}
+          <div className="px-4 pb-4">
+            <div className="bg-[#0b6b2e] px-4 py-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-white text-[16px]">rocket_launch</span>
+              <h3 className="text-white text-[10px] font-bold uppercase tracking-widest">Open Innovation</h3>
+            </div>
+            <div className="bg-white border-x border-b border-[#c4c6d3]">
+
+              {/* Open Hackathons */}
+              <div className="border-b border-[#c4c6d3]">
+                <div className="px-4 py-2 bg-[#eef0f5] flex items-center justify-between">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#002155]">Hackathons</span>
+                  <Link href="/innovation/events" className="text-[9px] font-bold uppercase tracking-widest text-[#8c4f00] hover:underline">
+                    View all
+                  </Link>
+                </div>
+                {openHackathons.length === 0 ? (
+                  <p className="px-4 py-3 text-[11px] text-[#747782]">No active hackathons.</p>
+                ) : (
+                  openHackathons.map((hackathon) => (
+                    <Link key={hackathon.id} href={`/innovation/events/${hackathon.id}`}>
+                      <article className="px-4 py-2.5 border-b border-[#f0efe9] last:border-b-0 hover:bg-[#faf9f5] transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-[11px] font-semibold text-[#002155] leading-snug line-clamp-2 flex-1">
+                            {hackathon.title}
+                          </h4>
+                          <span className={`flex-shrink-0 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 mt-0.5 ${hackathon.status === 'ACTIVE' ? 'bg-[#e6f4ec] text-[#0b6b2e]' : 'bg-[#fff3e0] text-[#8c4f00]'}`}>
+                            {hackathon.status}
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-[#747782] mt-0.5">Ends {formatDate(hackathon.endTime)}</p>
+                      </article>
+                    </Link>
+                  ))
+                )}
               </div>
-              <span className="material-symbols-outlined text-[#8c4f00] mr-2 group-hover:translate-x-1 transition-transform">
-                arrow_forward
-              </span>
-            </Link>
-            <Link
-              href="/faculty"
-              className="border-l-2 border-[#8c4f00] pl-4 py-2 bg-white border border-[#c4c6d3] flex items-center justify-between group"
-            >
+
+              {/* Open Problem Statements */}
               <div>
-                <span className="text-[9px] font-bold text-[#747782] uppercase tracking-widest">
-                  Faculty Desk
-                </span>
-                <h5 className="text-xs font-bold text-[#002155] uppercase">
-                  Publish Content
-                </h5>
+                <div className="px-4 py-2 bg-[#eef0f5] flex items-center justify-between">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#002155]">Problem Statements</span>
+                  <Link href="/innovation/problems" className="text-[9px] font-bold uppercase tracking-widest text-[#8c4f00] hover:underline">
+                    View all
+                  </Link>
+                </div>
+                {openProblems.length === 0 ? (
+                  <p className="px-4 py-3 text-[11px] text-[#747782]">No open problem statements.</p>
+                ) : (
+                  openProblems.map((problem) => (
+                    <Link key={problem.id} href="/innovation/problems">
+                      <article className="px-4 py-2.5 border-b border-[#f0efe9] last:border-b-0 hover:bg-[#faf9f5] transition-colors">
+                        <h4 className="text-[11px] font-semibold text-[#002155] leading-snug line-clamp-2">
+                          {problem.title}
+                        </h4>
+                        <div className="flex items-center justify-between mt-0.5">
+                          {problem.tags ? (
+                            <span className="text-[9px] text-[#747782] truncate max-w-[65%]">
+                              {problem.tags.split(',')[0].trim()}
+                            </span>
+                          ) : <span />}
+                          <span className="text-[9px] font-bold text-[#0b6b2e]">
+                            {problem._count.openSubmissions} registered
+                          </span>
+                        </div>
+                      </article>
+                    </Link>
+                  ))
+                )}
               </div>
-              <span className="material-symbols-outlined text-[#8c4f00] mr-2 group-hover:translate-x-1 transition-transform">
-                arrow_forward
-              </span>
-            </Link>
-            <Link
-              href="/innovation"
-              className="border-l-2 border-[#8c4f00] pl-4 py-2 bg-white border border-[#c4c6d3] flex items-center justify-between group"
-            >
-              <div>
-                <span className="text-[9px] font-bold text-[#747782] uppercase tracking-widest">
-                  Innovation Hub
-                </span>
-                <h5 className="text-xs font-bold text-[#002155] uppercase">
-                  Problems & Hackathons
-                </h5>
-              </div>
-              <span className="material-symbols-outlined text-[#8c4f00] mr-2 group-hover:translate-x-1 transition-transform">
-                arrow_forward
-              </span>
-            </Link>
+            </div>
           </div>
+
+          {/* Quick Links */}
+          <div className="px-4 pb-4 space-y-2">
+            {[
+              { href: "/facility-booking", label: "Booking Portal", title: "Lab Seat Reservation" },
+              { href: "/faculty", label: "Faculty Desk", title: "Publish Content" },
+              { href: "/innovation", label: "Innovation Hub", title: "Problems & Hackathons" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="border-l-2 border-[#8c4f00] pl-3 py-2 bg-white border border-[#c4c6d3] flex items-center justify-between group"
+              >
+                <div>
+                  <span className="text-[8px] font-bold text-[#747782] uppercase tracking-widest">{link.label}</span>
+                  <h5 className="text-[10px] font-bold text-[#002155] uppercase leading-tight">{link.title}</h5>
+                </div>
+                <span className="material-symbols-outlined text-[#8c4f00] text-[16px] mr-1 group-hover:translate-x-1 transition-transform">
+                  arrow_forward
+                </span>
+              </Link>
+            ))}
+          </div>
+
         </div>
       </aside>
     </main>
