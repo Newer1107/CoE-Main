@@ -200,7 +200,7 @@ export default async function HomePage() {
               {
                 title: "Project Showcase",
                 subtitle: "Display innovations",
-                href: "https://dash.raunakcodes.me",
+                href: "https://dash.raunakcodes.me/showcase",
                 image: "/Project Showcase.png",
               },
               {
