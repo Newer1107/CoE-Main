@@ -18,7 +18,6 @@ export default async function InnovationLandingPage() {
 
   const canSeeFacultyWorkspace = role === 'FACULTY';
   const canSeeMySubmissions = role === 'STUDENT';
-  const canSeeOpenProblemStatements = role !== 'FACULTY';
 
   const events = await prisma.hackathonEvent.findMany({
     where: { status: { in: ['ACTIVE', 'UPCOMING'] } },
@@ -39,7 +38,7 @@ export default async function InnovationLandingPage() {
   });
 
   return (
-    <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
+    <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
           Continuous Innovation Platform
@@ -56,14 +55,12 @@ export default async function InnovationLandingPage() {
         >
           Hackathon Events
         </Link>
-        {canSeeOpenProblemStatements ? (
-          <Link
-            href="/innovation/problems"
-            className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider"
-          >
-            Open Problem Statements
-          </Link>
-        ) : null}
+        <Link
+          href="/innovation/problems"
+          className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+        >
+          Open Problem Statements
+        </Link>
         {canSeeMySubmissions ? (
           <Link
             href="/innovation/my-submissions"

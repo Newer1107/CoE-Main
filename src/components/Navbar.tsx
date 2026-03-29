@@ -96,7 +96,7 @@ export default function Navbar({ user }: NavbarProps) {
             className="text-lg md:text-xl font-bold text-white tracking-tighter uppercase flex flex-col leading-tight cursor-pointer"
           >
             <span className="font-multiple ">TCET CENTRE OF EXCELLENCE</span>
-            <span className="text-[10px] md:text-[11px] tracking-[0.2em] font-label opacity-90 hidden sm:block">
+            <span className="text-[8px] md:text-[10px] tracking-[0.2em] font-label opacity-90 hidden sm:block">
               For Research Culture & Development
             </span>
           </Link>
