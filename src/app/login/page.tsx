@@ -30,12 +30,26 @@ export default function LoginPage() {
     if (hasShownBookingRequiredToast.current) return;
 
     const reason = searchParams.get("reason");
-    if (reason === "booking-auth-required") {
-      hasShownBookingRequiredToast.current = true;
-      const message = "You must be logged in to book a facility.";
-      setStatus(message);
-      pushToast(message, "info");
+    if (!reason) return;
+
+    let message = "";
+
+    switch (reason) {
+      case "booking-auth-required":
+        message = "You must be logged in to book a facility.";
+        break;
+
+      case "problem-register-auth-required":
+        message = "Please log in to register for this problem statement.";
+        break;
+
+      default:
+        return;
     }
+
+    hasShownBookingRequiredToast.current = true;
+    setStatus(message);
+    pushToast(message, "info");
   }, [pushToast, searchParams]);
 
   const getSafeNextPath = () => {
@@ -255,27 +269,24 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setActiveAuthMode("login")}
-              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
-                activeAuthMode === "login" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
-              }`}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "login" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
             >
               Login
             </button>
             <button
               type="button"
               onClick={() => setActiveAuthMode("register-student")}
-              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
-                activeAuthMode === "register-student" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
-              }`}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "register-student" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
             >
               Register Student
             </button>
             <button
               type="button"
               onClick={() => setActiveAuthMode("register-faculty")}
-              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
-                activeAuthMode === "register-faculty" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
-              }`}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "register-faculty" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
             >
               Register Faculty
             </button>

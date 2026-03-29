@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { getSignedUrl } from "@/lib/minio";
 import NewsCard from "@/components/NewsModal";
 import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
+import NewOpportunitiesModal from "@/components/NewOpportunitiesModal";
 
 type HomeNews = {
   id: number;
@@ -120,6 +121,10 @@ export default async function HomePage() {
 
   return (
     <main className="max-w-[1560px] mx-auto grid grid-cols-12 gap-0 min-h-screen pt-[100px] sm:pt-[108px] md:pt-[120px]">
+      <NewOpportunitiesModal
+        hackathons={openHackathons}
+        problems={openProblems}
+      />
       <div className="hidden lg:block col-span-1 border-r border-[#c4c6d3] bg-[#f5f4f0]">
         <div className="sticky top-12 flex justify-center pt-24">
           <div className="rotate-180 [writing-mode:vertical-lr] flex items-center gap-6 text-[#002155] opacity-40 font-['Inter'] text-[10px] tracking-[0.3em] uppercase">
