@@ -311,7 +311,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {problems.map((problem) => {
-              const canRegister = role === 'STUDENT' && problem.status === 'OPENED' && problem.mode === 'OPEN';
+              const isOpen = problem.status === 'OPENED' && problem.mode === 'OPEN';
               return (
                 <article key={problem.id} className="border border-[#c4c6d3] bg-white p-5">
                   <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{problem.mode}</p>
@@ -337,10 +337,28 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                     </a>
                   ) : null}
 
-                  {canRegister ? (
+                  {isOpen ? (
                     <div className="mt-4">
                       <button
-                        onClick={() => openModal(problem)}
+                        onClick={() => {
+                          if (!role) {
+                            const currentPath = typeof window !== 'undefined'
+                              ? window.location.pathname + window.location.search
+                              : '/innovation/problems';
+                            const searchParams = new URLSearchParams({
+                              next: currentPath,
+                              reason: 'problem-register-auth-required',
+                            });
+                            window.location.href = `/login?${searchParams.toString()}`;
+                            return;
+                          }
+
+                          if (role !== 'STUDENT') {
+                            return; // optional: block faculty/admin silently
+                          }
+
+                          openModal(problem);
+                        }}
                         className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#003380] transition-colors"
                       >
                         Register for Open Statement

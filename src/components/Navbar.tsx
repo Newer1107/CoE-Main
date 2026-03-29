@@ -60,16 +60,10 @@ export default function Navbar({ user }: NavbarProps) {
       <div className="bg-[#705e49] flex items-center px-4 md:px-6 py-2 w-full z-[60] fixed top-0 border-none font-['Inter'] text-xs font-bold uppercase tracking-wider text-white marquee-scroll cursor-pointer">
         <span className="whitespace-nowrap flex items-center gap-2"></span>
         <div className="marquee-content ml-2 sm:ml-4">
-          <span>
-            Latest announcements and updates for TCET Center of Excellence —
-            Call for Research Proposals 2024 is now open.
-          </span>
-          <span>
-            Upcoming Workshop: Advanced Computing Architectures on Oct 25th.
-          </span>
-          <span>
-            New High-Performance Computing Lab inaugurated by Hon. Director.
-          </span>
+          <span>Solve real-world industry problems and gain recognition</span>
+          <span>Open Problem Statements available — Register your team now</span>
+          <span>Build your portfolio with live projects and hackathons</span>
+          <span>Explore grants, events & innovation opportunities</span>
         </div>
       </div>
 
@@ -110,22 +104,20 @@ export default function Navbar({ user }: NavbarProps) {
               <Link
                 key={link.label}
                 href={link.href}
-                className={`${
-                  pathname === link.href
-                    ? "text-[#fd9923] font-bold border-b-2 border-[#fd9923] pb-1"
-                    : "text-white opacity-80 hover:opacity-100 hover:text-[#fd9923]"
-                } transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]`}
+                className={`${pathname === link.href
+                  ? "text-[#fd9923] font-bold border-b-2 border-[#fd9923] pb-1"
+                  : "text-white opacity-80 hover:opacity-100 hover:text-[#fd9923]"
+                  } transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]`}
               >
                 {link.label}
               </Link>
             ))}
             <Link
               href={bookFacilityHref}
-              className={`${
-                pathname === "/facility-booking"
-                  ? "bg-[#f98e14]"
-                  : "bg-[#f98e14] hover:bg-[#6b3b00]"
-              } px-4 py-2 text-white font-bold text-[10px] sm:text-xs font-['Inter'] uppercase tracking-[0.05rem] transition-colors`}
+              className={`${pathname === "/facility-booking"
+                ? "bg-[#f98e14]"
+                : "bg-[#f98e14] hover:bg-[#6b3b00]"
+                } px-4 py-2 text-white font-bold text-[10px] sm:text-xs font-['Inter'] uppercase tracking-[0.05rem] transition-colors`}
             >
               Book Facility
             </Link>
@@ -205,9 +197,8 @@ export default function Navbar({ user }: NavbarProps) {
       </nav>
       {/* Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 bg-[#002155] z-40 lg:hidden flex flex-col pt-24 px-6 transition-transform duration-300 ease-in-out ${
-          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed inset-0 bg-[#002155] z-40 lg:hidden flex flex-col pt-24 px-6 transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <div className="relative mb-8 w-full block md:hidden"></div>
 
@@ -226,11 +217,10 @@ export default function Navbar({ user }: NavbarProps) {
               key={link.label}
               href={link.href}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`${
-                pathname === link.href
-                  ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
-                  : "text-white opacity-80 hover:opacity-100 pl-4"
-              } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
+              className={`${pathname === link.href
+                ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
+                : "text-white opacity-80 hover:opacity-100 pl-4"
+                } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
             >
               {link.label}
             </Link>
