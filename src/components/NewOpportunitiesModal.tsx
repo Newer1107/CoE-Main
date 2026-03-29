@@ -42,7 +42,8 @@ export default function NewOpportunitiesModal({
                     </h2>
                     <button
                         onClick={() => setOpen(false)}
-                        className="text-white text-lg"
+                        aria-label="Close"
+                        className="text-white text-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                     >
                         ✕
                     </button>
