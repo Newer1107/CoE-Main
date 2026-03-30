@@ -6,7 +6,24 @@ export const successRes = (data: unknown = null, message = 'Success', status = 2
 };
 
 export const errorRes = (message = 'Something went wrong', errors: unknown[] = [], status = 500) => {
-  return NextResponse.json({ success: false, message, data: null, errors }, { status });
+  const normalizedErrors = errors
+    .map((err) => {
+      if (typeof err === 'string') return err.trim();
+      if (err instanceof Error) return err.message.trim();
+      if (err == null) return '';
+      return String(err).trim();
+    })
+    .filter((err) => err.length > 0);
+
+  let resolvedMessage = message;
+  if (message === 'Validation failed' && normalizedErrors.length > 0) {
+    resolvedMessage = `Validation failed: ${normalizedErrors[0]}`;
+  }
+
+  return NextResponse.json(
+    { success: false, message: resolvedMessage, data: null, errors: normalizedErrors },
+    { status },
+  );
 };
 
 /**
