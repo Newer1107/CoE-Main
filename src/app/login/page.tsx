@@ -28,6 +28,21 @@ export default function LoginPage() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
+    if (!needsOtp) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [needsOtp]);
+
+  useEffect(() => {
+    if (!needsOtp || otpLoading) return;
+    if (!/^\d{6}$/.test(otp)) return;
+    void verifyOtp(otp);
+  }, [needsOtp, otp, otpLoading]);
+
+  useEffect(() => {
     if (hasShownBookingRequiredToast.current) return;
 
     const reason = searchParams.get("reason");
@@ -161,8 +176,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleVerifyOtp = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const verifyOtp = async (otpCode: string) => {
     setError("");
     setStatus("");
     setOtpLoading(true);
@@ -175,7 +189,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: targetEmail, otp }),
+        body: JSON.stringify({ email: targetEmail, otp: otpCode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "OTP verification failed.");
@@ -190,6 +204,17 @@ export default function LoginPage() {
     } finally {
       setOtpLoading(false);
     }
+  };
+
+  const handleVerifyOtp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await verifyOtp(otp);
+  };
+
+  const closeOtpModal = () => {
+    setNeedsOtp(false);
+    setOtp("");
+    setStatus("Verification pending. You can verify by logging in again.");
   };
 
   const handleRegister = async (event: React.FormEvent) => {
@@ -472,42 +497,68 @@ export default function LoginPage() {
             </form>
           )}
 
-          {needsOtp ? (
-            <div className="mt-8 border-t border-[#e3e2df] pt-6">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-[#002155]">Verify Email</h3>
-              <p className="mt-2 text-sm text-[#434651]">
-                Enter the OTP from your email to activate your account.
-              </p>
-              <form className="mt-4 space-y-4" onSubmit={handleVerifyOtp}>
-                <input
-                  type="text"
-                  maxLength={6}
-                  required
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value)}
-                  placeholder="6-digit OTP"
-                  className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
-                />
-                <button
-                  type="submit"
-                  disabled={otpLoading}
-                  className="w-full border border-[#002155] text-[#002155] py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#002155] hover:text-white disabled:opacity-70"
-                >
-                  {otpLoading ? "Verifying..." : "Verify OTP"}
-                </button>
-              </form>
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={otpLoading}
-                className="mt-4 text-xs font-bold uppercase tracking-widest text-[#8c4f00] hover:text-[#002155]"
-              >
-                Resend OTP
-              </button>
-            </div>
-          ) : null}
         </div>
       </section>
+
+      {needsOtp ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-[#00122f]/60" onClick={closeOtpModal} />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="OTP verification"
+            className="relative w-full max-w-md border border-[#c4c6d3] bg-white p-6 md:p-7 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">Action Required</p>
+                <h3 className="mt-1 font-headline text-2xl text-[#002155]">Verify Your Email</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeOtpModal}
+                className="border border-[#c4c6d3] px-2 py-1 text-xs font-bold uppercase tracking-wider text-[#434651] hover:border-[#002155] hover:text-[#002155]"
+              >
+                Close
+              </button>
+            </div>
+
+            <p className="mt-3 text-sm text-[#434651]">
+              Enter the 6-digit OTP sent to
+              <span className="font-bold text-[#002155]"> {verificationEmail || "your registered email"}</span>.
+            </p>
+
+            <form className="mt-5 space-y-4" onSubmit={handleVerifyOtp}>
+              <input
+                type="text"
+                maxLength={6}
+                required
+                value={otp}
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="6-digit OTP"
+                className="w-full border border-[#747782] p-3 text-center text-lg tracking-[0.35em] font-bold outline-none focus:border-[#002155]"
+              />
+
+              <button
+                type="submit"
+                disabled={otpLoading}
+                className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70"
+              >
+                {otpLoading ? "Verifying..." : "Verify OTP"}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={otpLoading}
+              className="mt-4 text-xs font-bold uppercase tracking-widest text-[#8c4f00] hover:text-[#002155]"
+            >
+              Resend OTP
+            </button>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
