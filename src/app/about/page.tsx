@@ -70,7 +70,7 @@ export default function AboutPage() {
                     email: "tcet.vice-principal@thakureducation.org",
                   },
                   {
-                    role: "R &amp; D Dean",
+                    role: "Research & Development Dean",
                     name: "Dr. Vinit Kumar Dongre",
                     email: "vinit.dongre@tcetmumbai.in",
                   },
