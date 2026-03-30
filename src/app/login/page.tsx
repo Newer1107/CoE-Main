@@ -25,17 +25,18 @@ export default function LoginPage() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [needsOtp, setNeedsOtp] = useState(false);
+  const [showFacultyWarningModal, setShowFacultyWarningModal] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    if (!needsOtp) return;
+    if (!needsOtp && !showFacultyWarningModal) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [needsOtp]);
+  }, [needsOtp, showFacultyWarningModal]);
 
   useEffect(() => {
     if (!needsOtp || otpLoading) return;
@@ -232,6 +233,18 @@ export default function LoginPage() {
     setStatus("Verification pending. You can verify by logging in again.");
   };
 
+  const openFacultyWarningModal = () => {
+    setShowFacultyWarningModal(true);
+  };
+
+  const confirmFacultyRegistrationIntent = () => {
+    setShowFacultyWarningModal(false);
+    setNeedsOtp(false);
+    setActiveAuthMode("register-faculty");
+    setError("");
+    setStatus("Faculty onboarding requests are audited. Proceed with authentic institutional details only.");
+  };
+
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
@@ -390,7 +403,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveAuthMode("register-faculty")}
+              onClick={openFacultyWarningModal}
               className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "register-faculty" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
                 }`}
             >
@@ -514,6 +527,53 @@ export default function LoginPage() {
 
         </div>
       </section>
+
+      {showFacultyWarningModal ? (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-[#120000]/70" onClick={() => setShowFacultyWarningModal(false)} />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Faculty registration warning"
+            className="relative w-full max-w-2xl overflow-hidden border border-red-300 bg-[#fff8f8] shadow-2xl"
+          >
+            <div className="border-b border-red-300 bg-[#7a0000] px-6 py-4 text-white">
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#ffd4d4]">Restricted Pathway</p>
+              <h3 className="mt-1 font-headline text-2xl leading-tight">Faculty Registration Compliance Notice</h3>
+            </div>
+
+            <div className="space-y-4 px-6 py-6 text-sm leading-relaxed text-[#3d0a0a]">
+              <p>
+                This action initiates a monitored institutional onboarding request. Submission metadata is audit-tracked across account identity,
+                request timestamp, and system access records for compliance review.
+              </p>
+              <p className="font-bold text-[#8b0000]">
+                Unauthorized or misleading faculty claims are treated as policy violations and are liable for administrative escalation.
+              </p>
+              <p>
+                Proceed only if you are an officially appointed faculty member and are registering with your own valid institutional credentials.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-red-200 bg-[#fff1f1] px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowFacultyWarningModal(false)}
+                className="border border-[#c4c6d3] bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#434651] hover:border-[#7a0000] hover:text-[#7a0000]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmFacultyRegistrationIntent}
+                className="border border-[#7a0000] bg-[#7a0000] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-[#5f0000]"
+              >
+                I Am Authorized Faculty, Proceed
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {needsOtp ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">

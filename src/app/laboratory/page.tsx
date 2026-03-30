@@ -32,8 +32,9 @@ export default function LaboratoryPage() {
       imageAlt:
         "Dell Pro Tower QCT 1250 desktop under lab lighting, connected to keyboard, mouse and 24 inch monitor",
       imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBhoT1SdZZYyvVB7pZ01EbLd_ybTFnomxautcchnI1YaNhLR3ATcfvIk9rV_S0DzDLTYVJBfS3q_AtaAQPzCdMRt2iMks5Pf9nld3T9Tna1dEs5FIs4LAmEbSWN31CXyxxrUWvLPbOpjmdr6TDlSAZ5mKLdocKNhqmUPm1bGP74NgLeT4KtcwxTEv3ca8TB9dwOGrGyx0vxHtR4n7DIZCp1yxPtq4ssjOdaSI2uQrJIUQRk36efMx5tLkd-E-JDOOKl1iRW5wZuw-M",
+        "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/desktops/dell-pro/qct1250/pdp/non-odd/dell-pro-tower-qct-1255-amd-non-odd-pdp-module-hero.psd?fmt=jpg&wid=1920&hei=1080",
       specs: [
+        { key: "CPU", value: "Intel i7-14700" },
         { key: "RAM", value: "32 GB" },
         { key: "Storage", value: "1 TB SSD" },
         { key: "Monitor", value: "24''" },
@@ -48,8 +49,9 @@ export default function LaboratoryPage() {
       imageAlt:
         "Dell Vostro 3910 desktop in a lab environment with 19.5 inch monitor, keyboard, and mouse",
       imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuAtZsCIDkxEcZaGGO4P6OhC7AEkY-d9qnaeizUsxOcMWqMcxN-xyWoxn9wl3vhFlw7a0mkLdZQGL6-7Ayk6yyQ0EdcA-Bd-osNCUkMVat6K68bnu2LP_uxvOXw4VOq5dZrnovEslGpF4MTyAuiK9JuLrzk3Le_ea7AZlcT5Fo7_1X6CRHh2C5_FVPtT4s9Tpi2l57VSlmAYRlgexhBbDJt1vD5g7YwZHYH8DNxhrLt0cJGWqjKY3XhDm3FiDEvGuRaz1jrg0-DhKyg",
+        "https://computerstore.ug/wp-content/uploads/2022/12/ccc-1.jpg",
       specs: [
+        { key: "CPU", value: "Intel Core i5-12400" },
         { key: "RAM", value: "16 GB" },
         { key: "Storage", value: "512 GB SSD" },
         { key: "Monitor", value: "19.5''" },
@@ -63,8 +65,10 @@ export default function LaboratoryPage() {
       category: "Electronics",
       imageAlt: "EPSON LQ-310 dot matrix printer in a lab computer bay",
       imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuB44-P8e82oNHPGyeEsbnTLJwJtu0QaE4W3EISMUQ1TgKDD3_uy5fvTcbL0IoVHwHUbriSb3j_M19Az1MNjSQetFn0One6JXleY_uNffATgM4w-sQC9MqCLXaFJD5l-UOwlfbdRixYQJmkHr75iKNSKXNuawvFoNikDWIgfsFJWPyLfc0spohHeQ6m9Fc7obCAch7V7upesoFZydIVrp-vv9tFLGALZLDwBPQEo5kvpuZRHsu3Ai0Em8-y3pQo3P2-5GdWftkGL0DU",
+        "https://cdn.britannica.com/15/158715-004-2068AF16.jpg",
       specs: [
+        { key: "Print Method", value: "Dot Matrix" },
+        { key: "Paper Type", value: "Continuous, Single Sheet" },
         { key: "Type", value: "Dot matrix line printer" },
         { key: "Qty", value: "02 units" },
         
@@ -144,7 +148,7 @@ export default function LaboratoryPage() {
         ))}
       </section>
 
-      <section className="mb-4 md:mb-8">
+      {/* <section className="mb-4 md:mb-8">
         <div className="flex items-center gap-4 mb-4 md:mb-8">
           <div className="h-[1px] flex-grow bg-[#c4c6d3]"></div>
           <h2 className="text-sm font-['Inter'] font-black uppercase tracking-[0.2em] text-[#002155]">
@@ -177,7 +181,7 @@ export default function LaboratoryPage() {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
     </main>
   );
 }
