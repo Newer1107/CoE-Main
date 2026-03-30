@@ -10,6 +10,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { pushToast } = useToast();
   const hasShownBookingRequiredToast = useRef(false);
+  const lastAutoSubmittedOtp = useRef<string | null>(null);
   const [activeAuthMode, setActiveAuthMode] = useState<"login" | "register-student" | "register-faculty">("login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -38,9 +39,20 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!needsOtp || otpLoading) return;
-    if (!/^\d{6}$/.test(otp)) return;
+    if (!/^\d{6}$/.test(otp)) {
+      lastAutoSubmittedOtp.current = null;
+      return;
+    }
+    if (lastAutoSubmittedOtp.current === otp) return;
+    lastAutoSubmittedOtp.current = otp;
     void verifyOtp(otp);
   }, [needsOtp, otp, otpLoading]);
+
+  useEffect(() => {
+    if (!needsOtp) {
+      lastAutoSubmittedOtp.current = null;
+    }
+  }, [needsOtp]);
 
   useEffect(() => {
     if (hasShownBookingRequiredToast.current) return;
@@ -151,6 +163,8 @@ export default function LoginPage() {
   const handleResendOtp = async () => {
     setError("");
     setStatus("");
+    setOtp("");
+    lastAutoSubmittedOtp.current = null;
     setOtpLoading(true);
     try {
       const targetEmail = verificationEmail || (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
@@ -214,6 +228,7 @@ export default function LoginPage() {
   const closeOtpModal = () => {
     setNeedsOtp(false);
     setOtp("");
+    lastAutoSubmittedOtp.current = null;
     setStatus("Verification pending. You can verify by logging in again.");
   };
 
