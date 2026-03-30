@@ -19,6 +19,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const existing = await prisma.problem.findUnique({ where: { id: problemId } });
     if (!existing) return errorRes('Problem not found', [], 404);
 
+    if (existing.eventId && !authorize(user, 'ADMIN')) {
+      return errorRes('Forbidden', ['Only admin can manage hackathon event problem statements'], 403);
+    }
+
     if (!authorize(user, 'ADMIN') && existing.createdById !== user.id) {
       return errorRes('Forbidden', ['You can only modify your own problems'], 403);
     }

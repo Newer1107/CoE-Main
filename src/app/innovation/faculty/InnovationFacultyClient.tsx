@@ -190,13 +190,19 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     setLoading(true);
     setErrorMessage('');
     try {
-      const [openProblemData, hackathonProblemData, submissionData, openSubmissionData, eventData] = await Promise.all([
+      const [openProblemData, openSubmissionData] = await Promise.all([
         fetchJson<ProblemRow[]>('/api/innovation/problems?track=open'),
-        fetchJson<ProblemRow[]>('/api/innovation/problems?track=hackathon'),
-        fetchJson<SubmissionRow[]>('/api/innovation/faculty/submissions'),
         fetchJson<OpenSubmissionRow[]>('/api/innovation/faculty/open-submissions'),
-        fetchJson<EventRow[]>('/api/innovation/events'),
       ]);
+
+      const [hackathonProblemData, submissionData, eventData] =
+        role === 'ADMIN'
+          ? await Promise.all([
+              fetchJson<ProblemRow[]>('/api/innovation/problems?track=hackathon'),
+              fetchJson<SubmissionRow[]>('/api/innovation/faculty/submissions'),
+              fetchJson<EventRow[]>('/api/innovation/events'),
+            ])
+          : [[], [], []];
 
       setProblems([...openProblemData, ...hackathonProblemData]);
       setSubmissions(submissionData);
@@ -1115,7 +1121,9 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     activeTab === 'problems'
       ? 'Author open innovation problems and maintain your existing statements.'
       : activeTab === 'submissions'
-        ? 'Process screening and final judging in one focused review queue.'
+        ? role === 'ADMIN'
+          ? 'Process screening and final judging in one focused review queue.'
+          : 'Review open-statement submissions and publish outcomes through controlled workflows.'
         : 'Create events, control lifecycle, and manage registered teams.';
 
   return (
@@ -1183,6 +1191,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
             className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
               activeTab === 'events' ? 'bg-[#002155] text-white border-[#002155]' : 'bg-[#f5f4f0] text-[#002155] border-[#c4c6d3]'
             }`}
+            hidden={role !== 'ADMIN'}
           >
             Hackathon Events
           </button>
@@ -1636,7 +1645,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
         </section>
       ) : null}
 
-      {activeTab === 'events' ? (
+      {activeTab === 'events' && role === 'ADMIN' ? (
         <>
           <section className="mb-5 border border-[#c4c6d3] bg-white p-4">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#747782]">Event Workspace</p>

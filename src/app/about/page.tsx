@@ -60,28 +60,24 @@ export default function AboutPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 border-t border-l border-[#c4c6d3]">
                 {[
                   {
-                    role: "Director of Research",
+                    role: "Principal",
                     name: "Dr. B. K. Mishra",
-                    phone: "+91 22 6730 8000",
                     email: "principal@tcetmumbai.in",
                   },
                   {
-                    role: "Associate Professor & Dean",
-                    name: "Dr. Kamal Shah",
-                    phone: "+91 22 6730 8104",
-                    email: "dean.rnd@tcetmumbai.in",
+                    role: "Vice Principal",
+                    name: "Dr. R. R.Sedamkar",
+                    email: "tcet.vice-principal@thakureducation.org",
                   },
                   {
-                    role: "Laboratory Head",
-                    name: "Dr. Zahir Aalam",
-                    phone: "+91 22 6730 8105",
-                    email: "zahir.aalam@tcetmumbai.in",
+                    role: "R &amp; D Dean",
+                    name: "Dr. Vinit Kumar Dongre",
+                    email: "vinit.dongre@tcetmumbai.in",
                   },
                   {
-                    role: "Grants Coordinator",
-                    name: "Prof. Sheetal Rathi",
-                    phone: "+91 22 6730 8108",
-                    email: "sheetal.rathi@tcetmumbai.in",
+                    role: "Head of Research Culture",
+                    name: "Dr. Loukik Salvi",
+                    email: "loukik.salvi@tcetmumbai.in",
                   },
                 ].map((member) => (
                   <div key={member.name} className="p-4 md:p-8 border-r border-b border-[#c4c6d3] bg-white hover:bg-[#faf9f5] transition-colors">
@@ -90,10 +86,6 @@ export default function AboutPage() {
                     </span>
                     <h3 className="text-2xl font-headline font-bold text-[#002155] mb-4">{member.name}</h3>
                     <div className="space-y-1 text-sm text-[#747782] font-body">
-                      <p className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base">call</span>
-                        {member.phone}
-                      </p>
                       <p className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-base">mail</span>
                         {member.email}

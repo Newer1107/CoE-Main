@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN', 'FACULTY')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const { id } = await params;
     const eventId = Number(id);
@@ -22,10 +22,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
     if (!event) return errorRes('Hackathon event not found', [], 404);
-
-    if (!authorize(user, 'ADMIN') && event.createdById !== user.id) {
-      return errorRes('Forbidden', ['You can only change status for events you created'], 403);
-    }
 
     const nextStatus = parsed.data.status;
     if (event.status === nextStatus) {

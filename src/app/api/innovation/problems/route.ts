@@ -9,7 +9,7 @@ import { sanitizeFilename } from '@/lib/innovation';
 export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
-    const isPrivileged = !!user && authorize(user, 'ADMIN', 'FACULTY');
+    const canViewHackathonTracks = !!user && authorize(user, 'ADMIN');
     const { searchParams } = new URL(req.url);
 
     const eventIdRaw = searchParams.get('eventId');
@@ -21,13 +21,13 @@ export async function GET(req: NextRequest) {
       return errorRes('Invalid track filter', ['track must be one of: open, hackathon, all'], 400);
     }
 
-    if (!isPrivileged && trackRaw !== 'open') {
-      return errorRes('Forbidden', ['Only faculty/admin can view hackathon or all tracks from this endpoint'], 403);
+    if (!canViewHackathonTracks && trackRaw !== 'open') {
+      return errorRes('Forbidden', ['Only admin can view hackathon or all tracks from this endpoint'], 403);
     }
 
     const where: Record<string, unknown> = {
       status: { not: 'ARCHIVED' },
-      ...(isPrivileged ? {} : { mode: 'OPEN', eventId: null }),
+      ...(canViewHackathonTracks ? {} : { mode: 'OPEN', eventId: null }),
     };
 
     if (eventIdRaw) {
@@ -110,15 +110,15 @@ export async function POST(req: NextRequest) {
 
     let eventForProblem: { id: number; createdById: number } | null = null;
     if (parsed.data.eventId) {
+      if (!authorize(user, 'ADMIN')) {
+        return errorRes('Forbidden', ['Only admin can add or manage hackathon event problem statements'], 403);
+      }
+
       eventForProblem = await prisma.hackathonEvent.findUnique({
         where: { id: parsed.data.eventId },
         select: { id: true, createdById: true },
       });
       if (!eventForProblem) return errorRes('Invalid eventId', ['Hackathon event not found'], 404);
-
-      if (!authorize(user, 'ADMIN') && eventForProblem.createdById !== user.id) {
-        return errorRes('Forbidden', ['You can only add problem statements to events you created'], 403);
-      }
     } else if (parsed.data.mode !== 'OPEN') {
       return errorRes('Invalid mode', ['Open innovation problems must be OPEN. Hackathon problems are managed inside event workspace.'], 400);
     }

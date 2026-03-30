@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'FACULTY', 'ADMIN')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const { id } = await params;
     const claimId = Number(id);
@@ -36,10 +36,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
 
     if (!claim) return errorRes('Claim not found', [], 404);
-
-    if (!authorize(user, 'ADMIN') && claim.problem.createdById !== user.id) {
-      return errorRes('Forbidden', ['You can only review claims for your own problems'], 403);
-    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.claim.update({

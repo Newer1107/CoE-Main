@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN', 'FACULTY')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const { id } = await params;
     const eventId = Number(id);
@@ -18,17 +18,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
     if (!event) return errorRes('Hackathon event not found', [], 404);
 
-    if (!authorize(user, 'ADMIN') && event.createdById !== user.id) {
-      return errorRes('Forbidden', ['You can only modify events you created'], 403);
-    }
-
     const body = await req.json();
     const parsed = innovationEventUpdateSchema.safeParse(body);
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
-
-    if (typeof parsed.data.status !== 'undefined' && !authorize(user, 'ADMIN')) {
-      return errorRes('Forbidden', ['Only admin can change event status'], 403);
-    }
 
     const updateData: Record<string, unknown> = {};
     if (typeof parsed.data.title !== 'undefined') updateData.title = parsed.data.title;

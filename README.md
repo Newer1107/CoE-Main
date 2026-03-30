@@ -620,6 +620,48 @@ Cookies:
 SMTP:
 - For Gmail, use app password and SMTP-enabled account settings
 
+### 11.1 Docker Deployment (App + MySQL)
+
+Docker files included in repository:
+- `Dockerfile`
+- `docker-compose.yml`
+- `.dockerignore`
+- `.env.docker.example`
+- `scripts/docker-entrypoint.sh`
+
+Steps:
+1. Copy environment template.
+```bash
+cp .env.docker.example .env.docker
+```
+2. Update `.env.docker` with real secrets and infrastructure values (SMTP, MinIO, JWT, GA).
+3. Build and start services.
+```bash
+docker compose --env-file .env.docker up --build -d
+```
+4. Check logs.
+```bash
+docker compose --env-file .env.docker logs -f app
+```
+5. Open app at `http://localhost:3000`.
+
+Useful operations:
+```bash
+# stop containers
+docker compose --env-file .env.docker down
+
+# stop containers and remove DB volume
+docker compose --env-file .env.docker down -v
+
+# run migrations manually
+docker compose --env-file .env.docker exec app npx prisma migrate deploy
+```
+
+Notes:
+- `DATABASE_URL` in `.env.docker` must use host `db` (compose service name) for local compose networking.
+- App startup runs `prisma migrate deploy` automatically when `RUN_MIGRATIONS=true`.
+- For external managed MySQL, remove/disable the `db` service in compose and set `DATABASE_URL` to external host.
+
 ## 12) Operational Runbook
 
 Booking reminder job:

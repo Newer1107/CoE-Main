@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN', 'FACULTY')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const formData = await req.formData();
     const title = (formData.get('title') as string) || '';

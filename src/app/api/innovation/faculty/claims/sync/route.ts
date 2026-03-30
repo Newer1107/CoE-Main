@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'FACULTY', 'ADMIN')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const body = await req.json();
     const parsed = innovationBulkClaimDecisionSchema.safeParse(body);
@@ -76,13 +76,6 @@ export async function PATCH(req: NextRequest) {
       const found = new Set(claims.map((claim) => claim.id));
       const missing = claimIds.filter((id) => !found.has(id));
       return errorRes('Invalid claims', [`Claim ids not found: ${missing.join(', ')}`], 404);
-    }
-
-    if (!authorize(user, 'ADMIN')) {
-      const unauthorized = claims.find((claim) => claim.problem.createdById !== user.id);
-      if (unauthorized) {
-        return errorRes('Forbidden', ['You can only sync decisions for your own problem submissions'], 403);
-      }
     }
 
     const allowedStates = stage === 'SCREENING' ? ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED'] : ['SHORTLISTED'];

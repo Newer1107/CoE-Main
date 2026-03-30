@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'FACULTY', 'ADMIN')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const where: Record<string, unknown> = {
       status: { in: ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED', 'ACCEPTED', 'REJECTED'] },
@@ -16,10 +16,6 @@ export async function GET(req: NextRequest) {
         eventId: { not: null },
       },
     };
-
-    if (!authorize(user, 'ADMIN')) {
-      where.problem = { eventId: { not: null }, createdById: user.id };
-    }
 
     const claims = await prisma.claim.findMany({
       where,
