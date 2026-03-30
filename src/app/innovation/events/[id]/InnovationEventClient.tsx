@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 
 type ProblemLite = {
   id: number;
@@ -82,6 +83,14 @@ export default function InnovationEventClient({
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
+  const trackSafe = (eventName: string, params?: Record<string, string | number | boolean>) => {
+    try {
+      trackEvent(eventName, params);
+    } catch {
+      // analytics must never break UI flow
+    }
+  };
+
   useEffect(() => {
     if (status !== 'CLOSED') return;
 
@@ -147,6 +156,17 @@ export default function InnovationEventClient({
     }
 
     return null;
+  };
+
+  const mapHackathonFailureReason = (message: string) => {
+    if (message.includes('required UID fields')) return 'validation_required_uid_fields';
+    if (message.includes('Team size')) return 'validation_team_size_mismatch';
+    if (message.includes('unique')) return 'validation_duplicate_member_uid';
+    if (message.includes('repeated')) return 'validation_repeated_team_lead_uid';
+    if (message.includes('verify UID details')) return 'validation_uid_verification_required';
+    if (message.includes('not eligible')) return 'validation_non_eligible_uid';
+    if (message.includes('upload a PPT/PDF')) return 'validation_missing_presentation';
+    return 'server_error';
   };
 
   const handleFetchUidDetails = async () => {
@@ -217,21 +237,37 @@ export default function InnovationEventClient({
     const validationError = validateUidInputs(cleanedLeadUid, cleanedMemberUids);
     if (validationError) {
       setErrorMessage(validationError);
+      trackSafe('innovation_registration_failed', {
+        track: 'hackathon',
+        reason: mapHackathonFailureReason(validationError),
+      });
       return;
     }
 
     if (verifiedUidSnapshot !== snapshot) {
       setErrorMessage('Please fetch and verify UID details first before submitting registration.');
+      trackSafe('innovation_registration_failed', {
+        track: 'hackathon',
+        reason: mapHackathonFailureReason('Please fetch and verify UID details first before submitting registration.'),
+      });
       return;
     }
 
     if (uidLookupRows.some((row) => !row.eligible)) {
       setErrorMessage('One or more UIDs are not eligible. Please correct them and fetch details again.');
+      trackSafe('innovation_registration_failed', {
+        track: 'hackathon',
+        reason: mapHackathonFailureReason('One or more UIDs are not eligible. Please correct them and fetch details again.'),
+      });
       return;
     }
 
     if (!pptFile) {
       setErrorMessage('Please upload a PPT/PDF file.');
+      trackSafe('innovation_registration_failed', {
+        track: 'hackathon',
+        reason: mapHackathonFailureReason('Please upload a PPT/PDF file.'),
+      });
       return;
     }
 
@@ -254,6 +290,12 @@ export default function InnovationEventClient({
       const payload = (await res.json()) as { success: boolean; message: string };
       if (!res.ok || !payload.success) throw new Error(payload.message || 'Registration failed');
 
+      trackSafe('hackathon_register', {
+        event_id: String(eventId),
+        event_name: title,
+        team_size: teamSize,
+      });
+
       setStatusMessage('Team registered successfully.');
       setTeamName('');
       setTeamSize(1);
@@ -264,7 +306,12 @@ export default function InnovationEventClient({
       setUidLookupMessage('');
       setVerifiedUidSnapshot('');
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Registration failed');
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      setErrorMessage(message);
+      trackSafe('innovation_registration_failed', {
+        track: 'hackathon',
+        reason: mapHackathonFailureReason(message),
+      });
     } finally {
       setBusy(false);
     }

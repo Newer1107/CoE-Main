@@ -10,6 +10,7 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - rubric-based scoring for both hackathon judging and open-statement reviews
 - email notifications and cron-driven reminders
 - MinIO-backed object storage with browser-safe proxying
+- Google Analytics 4 instrumentation for auth, booking, innovation, and homepage engagement events
 
 ## Table of Contents
 
@@ -22,11 +23,12 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 7. API Reference
 8. Environment Configuration
 9. Local Development
-10. Deployment Notes
-11. Operational Runbook
-12. Security Model
-13. Troubleshooting
-14. Verification Checklist
+10. Analytics (GA4)
+11. Deployment Notes
+12. Operational Runbook
+13. Security Model
+14. Troubleshooting
+15. Verification Checklist
 
 ## 1) System Overview
 
@@ -74,6 +76,7 @@ Major capability groups:
 - Runtime: Node.js
 - Language: TypeScript
 - UI: React 19 + Tailwind CSS v4
+- Analytics: Google Analytics 4 via `@next/third-parties`
 - Database: MySQL + Prisma ORM
 - Auth: JWT access/refresh in httpOnly cookies
 - Validation: Zod
@@ -529,6 +532,8 @@ MINIO_ACCESS_KEY="minioadmin"
 MINIO_SECRET_KEY="minioadmin"
 MINIO_USE_SSL=false
 MINIO_BUCKET="coe-assets"
+
+NEXT_PUBLIC_GA_ID="G-XXXXXXXXXX"
 ```
 
 Optional variables:
@@ -575,7 +580,33 @@ Seed admin account:
 curl -X POST http://localhost:3000/api/seed
 ```
 
-## 10) Deployment Notes
+## 10) Analytics (GA4)
+
+Integration overview:
+- GA script is mounted in the root layout through `@next/third-parties/google`
+- Event dispatch uses a shared helper in `src/lib/analytics.ts`
+- Analytics calls are wrapped to avoid blocking UI behavior
+- Event payloads intentionally avoid PII (no raw names/emails/passwords)
+
+Tracked events:
+- `login` and `login_failed`
+- `sign_up` and `sign_up_failed`
+- `hackathon_register`
+- `open_statement_register`
+- `open_statement_docs_uploaded`
+- `innovation_registration_failed`
+- `booking_created`
+- `booking_failed`
+- `booking_cancelled`
+- `content_viewed` (news, grants, announcements, events)
+- `hero_cta_clicked`
+
+Quick validation in GA DebugView:
+- Set `NEXT_PUBLIC_GA_ID` in `.env.local`
+- Run the app locally and trigger login/register, booking, and innovation actions
+- Verify events appear in GA4 DebugView with expected non-PII parameters
+
+## 11) Deployment Notes
 
 MinIO transport:
 - Supports host-style and URL-style endpoint values
@@ -589,7 +620,7 @@ Cookies:
 SMTP:
 - For Gmail, use app password and SMTP-enabled account settings
 
-## 11) Operational Runbook
+## 12) Operational Runbook
 
 Booking reminder job:
 - Endpoint: `GET /api/cron/reminder`
@@ -609,7 +640,7 @@ Innovation reminder job:
 Operational health:
 - `GET /api/health`
 
-## 12) Security Model
+## 13) Security Model
 
 - Passwords hashed with bcrypt
 - Access/refresh token secrets from environment
@@ -618,7 +649,7 @@ Operational health:
 - Password reset requires valid OTP within TTL window
 - Role-based page redirects reduce unauthorized surface area in UI
 
-## 13) Troubleshooting
+## 14) Troubleshooting
 
 `401` on protected actions:
 - Access token expired; refresh flow should issue a new access token
@@ -651,7 +682,7 @@ Avoiding "All data will be lost" reset prompts:
 - Use `npm run db:migrate` to apply pending migrations safely
 - Avoid `npx prisma migrate dev` unless you intentionally accept reset behavior in throwaway environments
 
-## 14) Verification Checklist
+## 15) Verification Checklist
 
 Before release:
 - `npm run build`

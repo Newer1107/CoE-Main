@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { trackEvent } from "@/lib/analytics";
 
 export type HeroSlide = {
   id: string;
@@ -15,12 +17,7 @@ type HeroCarouselProps = {
 };
 
 export default function HeroCarousel({ slides, intervalMs = 4000 }: HeroCarouselProps) {
-  if (slides.length === 0) {
-    return null;
-  }
-
   const [activeIndex, setActiveIndex] = useState(0);
-  const activeSlide = slides[activeIndex];
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -32,6 +29,13 @@ export default function HeroCarousel({ slides, intervalMs = 4000 }: HeroCarousel
     return () => clearInterval(timer);
   }, [slides.length, intervalMs]);
 
+  if (slides.length === 0) {
+    return null;
+  }
+
+  const safeIndex = activeIndex % slides.length;
+  const activeSlide = slides[safeIndex];
+
   const goTo = (index: number) => {
     setActiveIndex(index);
   };
@@ -42,6 +46,17 @@ export default function HeroCarousel({ slides, intervalMs = 4000 }: HeroCarousel
 
   const next = () => {
     setActiveIndex((prevIndex) => (prevIndex + 1) % slides.length);
+  };
+
+  const handleHeroCtaClick = () => {
+    try {
+      trackEvent("hero_cta_clicked", {
+        slide_title: activeSlide.title,
+        slide_index: activeIndex + 1,
+      });
+    } catch {
+      // analytics must never break navigation
+    }
   };
 
   return (
@@ -56,6 +71,13 @@ export default function HeroCarousel({ slides, intervalMs = 4000 }: HeroCarousel
             <p className="mt-4 text-sm md:text-base text-[#434651] leading-relaxed max-w-2xl">
               {activeSlide.description}
             </p>
+            <Link
+              href="/innovation"
+              onClick={handleHeroCtaClick}
+              className="inline-flex mt-5 border border-[#002155] bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-[#1a438e]"
+            >
+              Explore Innovation
+            </Link>
           </article>
 
           {slides.length > 1 ? (

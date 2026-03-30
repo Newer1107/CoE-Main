@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { trackEvent } from "@/lib/analytics";
+
+type BookingItem = {
+  id: number;
+  lab: string;
+  date: string;
+  timeSlot: string;
+  status: string;
+  purpose: string;
+};
 
 export default function FacilityBookingPage() {
   const { pushToast } = useToast();
@@ -36,6 +46,8 @@ export default function FacilityBookingPage() {
   
   // Booking result
   const [bookingRef, setBookingRef] = useState("");
+  const [myBookings, setMyBookings] = useState<BookingItem[]>([]);
+  const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
   
   const availableLabs = [
     "Research Culture Development Room 701",
@@ -68,15 +80,28 @@ export default function FacilityBookingPage() {
   const availableEquipment = lab ? labEquipmentMap[lab] ?? [] : [];
   const timeSlots = ["09:00 - 11:00", "11:00 - 13:00", "13:00 - 15:00", "15:00 - 17:00", "17:00 - 19:00"];
 
+  const loadMyBookings = async () => {
+    const res = await fetch("/api/bookings/my", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      setMyBookings([]);
+      return false;
+    }
+
+    const payload = await res.json();
+    const rows = Array.isArray(payload?.data) ? payload.data : [];
+    setMyBookings(rows);
+    return true;
+  };
+
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch("/api/bookings/my", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (res.ok) {
+        const hasSession = await loadMyBookings();
+        if (hasSession) {
           setStep(3);
           setAuthSuccess("Active session found. You can continue booking.");
           return;
@@ -122,6 +147,7 @@ export default function FacilityBookingPage() {
     e.preventDefault();
     setAuthError("");
     setLoading(true);
+    let trackedLoginFailure = false;
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -131,6 +157,14 @@ export default function FacilityBookingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        const reason = res.status >= 500 ? "server_error" : "invalid_credentials";
+        try {
+          trackEvent("login_failed", { reason });
+        } catch {
+          // analytics must never break auth flow
+        }
+        trackedLoginFailure = true;
+
         if (data.needsVerification) {
           const targetEmail = data?.email || (loginIdentifier.includes("@") ? loginIdentifier.trim().toLowerCase() : "");
           if (!targetEmail) {
@@ -153,15 +187,32 @@ export default function FacilityBookingPage() {
         }
         throw new Error(data.message || "Login failed");
       }
-      
-        setEmail(data?.data?.user?.email || email);
+
+      const userRole = typeof data?.data?.user?.role === "string" ? data.data.user.role : "UNKNOWN";
+      try {
+        trackEvent("login", { method: "email", role: userRole });
+      } catch {
+        // analytics must never break auth flow
+      }
+
+      setEmail(data?.data?.user?.email || email);
+      await loadMyBookings();
 
       // Successfully logged in (Cookie is set), skip to booking
       setStep(3);
       pushToast("Login successful.", "success");
-    } catch (err: any) {
-      setAuthError(err.message);
-      pushToast(err.message || "Login failed", "error");
+    } catch (err: unknown) {
+      if (!trackedLoginFailure) {
+        try {
+          trackEvent("login_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break auth flow
+        }
+      }
+
+      const message = err instanceof Error ? err.message : "Login failed";
+      setAuthError(message);
+      pushToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -172,6 +223,7 @@ export default function FacilityBookingPage() {
     setAuthError("");
     setAuthSuccess("");
     setLoading(true);
+    let trackedSignUpFailure = false;
     try {
       if (role === "STUDENT") {
         const res = await fetch("/api/auth/register/student", {
@@ -180,7 +232,23 @@ export default function FacilityBookingPage() {
           body: JSON.stringify({ email, password, name, phone, uid })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Registration failed");
+        if (!res.ok) {
+          const reason = res.status >= 500 ? "server_error" : "validation";
+          try {
+            trackEvent("sign_up_failed", { reason });
+          } catch {
+            // analytics must never break auth flow
+          }
+          trackedSignUpFailure = true;
+          throw new Error(data.message || "Registration failed");
+        }
+
+        try {
+          trackEvent("sign_up", { method: "email", role: "STUDENT" });
+        } catch {
+          // analytics must never break auth flow
+        }
+
         setOtpSent(true);
         setAuthSuccess("OTP sent to your email!");
         pushToast("Registration successful. OTP sent to your email.", "success");
@@ -191,15 +259,40 @@ export default function FacilityBookingPage() {
           body: JSON.stringify({ email, password, name, phone })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Registration failed");
+        if (!res.ok) {
+          const reason = res.status >= 500 ? "server_error" : "validation";
+          try {
+            trackEvent("sign_up_failed", { reason });
+          } catch {
+            // analytics must never break auth flow
+          }
+          trackedSignUpFailure = true;
+          throw new Error(data.message || "Registration failed");
+        }
+
+        try {
+          trackEvent("sign_up", { method: "email", role: "FACULTY" });
+        } catch {
+          // analytics must never break auth flow
+        }
+
         setAuthSuccess("Registration successful! Your account is pending admin approval.");
         pushToast("Faculty registration submitted. Await admin approval.", "success");
         setEmail(""); setPassword(""); setName(""); setPhone("");
         setTimeout(() => setIsLogin(true), 3000);
       }
-    } catch (err: any) {
-      setAuthError(err.message);
-      pushToast(err.message || "Registration failed", "error");
+    } catch (err: unknown) {
+      if (!trackedSignUpFailure) {
+        try {
+          trackEvent("sign_up_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break auth flow
+        }
+      }
+
+      const message = err instanceof Error ? err.message : "Registration failed";
+      setAuthError(message);
+      pushToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -226,9 +319,10 @@ export default function FacilityBookingPage() {
       pushToast("Email verified successfully.", "success");
       setOtpSent(false);
       setIsLogin(true);
-    } catch (err: any) {
-      setAuthError(err.message);
-      pushToast(err.message || "OTP verification failed", "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "OTP verification failed";
+      setAuthError(message);
+      pushToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -238,6 +332,7 @@ export default function FacilityBookingPage() {
     e.preventDefault();
     setAuthError("");
     setLoading(true);
+    let trackedBookingFailure = false;
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -260,16 +355,73 @@ export default function FacilityBookingPage() {
       }
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Booking failed");
+      if (!res.ok) {
+        const reason = res.status >= 500 ? "server_error" : "validation";
+        try {
+          trackEvent("booking_failed", { reason });
+        } catch {
+          // analytics must never break booking flow
+        }
+        trackedBookingFailure = true;
+        throw new Error(data.message || "Booking failed");
+      }
+
+      try {
+        trackEvent("booking_created", {
+          facility_name: lab,
+          booking_date: new Date(date).toISOString(),
+        });
+      } catch {
+        // analytics must never break booking flow
+      }
       
       setBookingRef(`COE-2024-${data.data.id}-B`);
       setStep(4);
+      await loadMyBookings();
       pushToast("Booking submitted successfully.", "success");
-    } catch (err: any) {
-      setAuthError(err.message);
-      pushToast(`Booking error: ${err.message || "Please try again."}`, "error");
+    } catch (err: unknown) {
+      if (!trackedBookingFailure) {
+        try {
+          trackEvent("booking_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break booking flow
+        }
+      }
+
+      const message = err instanceof Error ? err.message : "Please try again.";
+      setAuthError(message);
+      pushToast(`Booking error: ${message}`, "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: number) => {
+    setAuthError("");
+    setCancellingBookingId(bookingId);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.message || "Failed to cancel booking.");
+
+      try {
+        trackEvent("booking_cancelled", { booking_id: String(bookingId) });
+      } catch {
+        // analytics must never break booking flow
+      }
+
+      await loadMyBookings();
+      pushToast("Booking cancelled successfully.", "success");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to cancel booking.";
+      setAuthError(message);
+      pushToast(message, "error");
+    } finally {
+      setCancellingBookingId(null);
     }
   };
 
@@ -421,6 +573,38 @@ export default function FacilityBookingPage() {
                   <span className="text-[10px] font-['Inter'] font-bold text-[#8c4f00] uppercase tracking-widest bg-[#f5f4f0] px-3 py-1 border border-[#c4c6d3]">Authenticated</span>
                   <button onClick={handleLogout} className="text-xs uppercase text-red-600 font-bold hover:underline">Logout</button>
                 </div>
+              </div>
+
+              <div className="mb-8 border border-[#c4c6d3] bg-[#f5f4f0] p-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-[#002155] mb-3">
+                  My Recent Bookings
+                </h3>
+                {myBookings.length === 0 ? (
+                  <p className="text-sm text-[#434651]">No previous bookings found.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myBookings.slice(0, 4).map((booking) => (
+                      <div key={booking.id} className="border border-[#c4c6d3] bg-white p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">
+                          #{booking.id} • {booking.lab}
+                        </p>
+                        <p className="mt-1 text-xs text-[#434651]">
+                          {new Date(booking.date).toLocaleDateString()} • {booking.timeSlot} • {booking.status}
+                        </p>
+                        {booking.status === "PENDING" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleCancelBooking(booking.id)}
+                            disabled={cancellingBookingId === booking.id}
+                            className="mt-2 text-[11px] font-bold uppercase tracking-widest text-red-700 underline disabled:opacity-60"
+                          >
+                            {cancellingBookingId === booking.id ? "Cancelling..." : "Cancel Booking"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               
               <form className="space-y-8" onSubmit={handleSubmitBooking}>

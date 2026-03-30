@@ -5,6 +5,7 @@ import { getSignedUrl } from "@/lib/minio";
 import NewsCard from "@/components/NewsModal";
 import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
 import NewOpportunitiesModal from "@/components/NewOpportunitiesModal";
+import TrackedContentLink from "@/components/TrackedContentLink";
 
 type HomeNews = {
   id: number;
@@ -342,14 +343,17 @@ export default async function HomePage() {
                       </td>
                       <td className="p-3 md:p-4">
                         {grant.referenceLink ? (
-                          <a
+                          <TrackedContentLink
+                            contentType="grant"
+                            contentId={String(grant.id)}
+                            contentTitle={grant.title}
                             className="text-[#8c4f00] font-bold underline"
                             href={grant.referenceLink}
                             target="_blank"
                             rel="noreferrer"
                           >
                             Open
-                          </a>
+                          </TrackedContentLink>
                         ) : (
                           <span className="text-[#747782]">N/A</span>
                         )}
@@ -395,14 +399,17 @@ export default async function HomePage() {
                     {event.description}
                   </p>
                   {event.registrationLink ? (
-                    <a
+                    <TrackedContentLink
+                      contentType="event"
+                      contentId={String(event.id)}
+                      contentTitle={event.title}
                       href={event.registrationLink}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-block mt-3 text-xs uppercase tracking-widest text-[#8c4f00] font-bold underline"
                     >
                       Registration Link
-                    </a>
+                    </TrackedContentLink>
                   ) : null}
                 </article>
               ))
@@ -433,14 +440,17 @@ export default async function HomePage() {
                       {announcement.text}
                     </h4>
                     {announcement.link ? (
-                      <a
+                      <TrackedContentLink
+                        contentType="announcement"
+                        contentId={String(announcement.id)}
+                        contentTitle={announcement.text}
                         className="inline-flex items-center text-[9px] font-bold text-[#8c4f00] uppercase mt-1 tracking-widest"
                         href={announcement.link}
                         target="_blank"
                         rel="noreferrer"
                       >
                         Open Link
-                      </a>
+                      </TrackedContentLink>
                     ) : null}
                   </article>
                 ))

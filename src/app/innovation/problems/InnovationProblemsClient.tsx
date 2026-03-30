@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
+import { trackEvent } from '@/lib/analytics';
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -105,6 +106,26 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   const [modalError, setModalError] = useState('');
   const [modalStatus, setModalStatus] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  const trackSafe = (eventName: string, params?: Record<string, string | number | boolean>) => {
+    try {
+      trackEvent(eventName, params);
+    } catch {
+      // analytics must never break UI flow
+    }
+  };
+
+  const mapOpenFailureReason = (message: string) => {
+    if (message.includes('Team name is required')) return 'validation_team_name_required';
+    if (message.includes('Team lead UID is required')) return 'validation_team_lead_required';
+    if (message.includes('Team size')) return 'validation_team_size_mismatch';
+    if (message.includes('unique')) return 'validation_duplicate_member_uid';
+    if (message.includes('cannot be repeated')) return 'validation_repeated_team_lead_uid';
+    if (message.includes('verify UID details')) return 'validation_uid_verification_required';
+    if (message.includes('non-eligible')) return 'validation_non_eligible_uid';
+    if (message.includes('compulsory')) return 'validation_missing_required_documents';
+    return 'server_error';
+  };
 
   const resetModalState = () => {
     setModalProblem(null);
@@ -220,18 +241,37 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
     if (!modalProblem) return;
 
     const { error, cleanedLeadUid, cleanedMemberUids, snapshot } = validateRegistrationInputs(modalForm);
-    if (error) { setModalError(error); return; }
+    if (error) {
+      setModalError(error);
+      trackSafe('innovation_registration_failed', {
+        track: 'open_statement',
+        reason: mapOpenFailureReason(error),
+      });
+      return;
+    }
 
     if (modalForm.verifiedSnapshot !== snapshot) {
       setModalError('Please fetch and verify UID details before submitting registration.');
+      trackSafe('innovation_registration_failed', {
+        track: 'open_statement',
+        reason: mapOpenFailureReason('Please fetch and verify UID details before submitting registration.'),
+      });
       return;
     }
     if (modalForm.uidLookupRows.some((row) => !row.eligible)) {
       setModalError('One or more UIDs are non-eligible. Please update and verify again.');
+      trackSafe('innovation_registration_failed', {
+        track: 'open_statement',
+        reason: mapOpenFailureReason('One or more UIDs are non-eligible. Please update and verify again.'),
+      });
       return;
     }
     if (!modalForm.technicalDocument || !modalForm.pptFile) {
       setModalError('Technical document and PPT are both compulsory for open statement registration.');
+      trackSafe('innovation_registration_failed', {
+        track: 'open_statement',
+        reason: mapOpenFailureReason('Technical document and PPT are both compulsory for open statement registration.'),
+      });
       return;
     }
 
@@ -250,12 +290,27 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
 
       await fetchJson('/api/innovation/open-submissions', { method: 'POST', body: formData });
 
+      trackSafe('open_statement_register', {
+        problem_id: String(modalProblem.id),
+        problem_title: modalProblem.title,
+        team_size: modalForm.teamSize,
+      });
+
+      trackSafe('open_statement_docs_uploaded', {
+        problem_id: String(modalProblem.id),
+      });
+
       setModalStatus('Registration submitted successfully!');
       setStatusMessage('Open problem statement registration submitted successfully.');
       setTimeout(() => closeModal(), 1800);
       await loadProblems();
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Registration failed');
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      setModalError(message);
+      trackSafe('innovation_registration_failed', {
+        track: 'open_statement',
+        reason: mapOpenFailureReason(message),
+      });
     } finally {
       setModalForm((prev) => ({ ...prev, submitLoading: false }));
     }

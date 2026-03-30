@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
+import { trackEvent } from "@/lib/analytics";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -65,6 +66,7 @@ export default function LoginPage() {
     setError("");
     setStatus("");
     setLoading(true);
+    let trackedLoginFailure = false;
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -76,6 +78,14 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (!res.ok) {
+        const reason = res.status >= 500 ? "server_error" : "invalid_credentials";
+        try {
+          trackEvent("login_failed", { reason });
+        } catch {
+          // analytics must never break auth flow
+        }
+        trackedLoginFailure = true;
+
         if (data?.needsVerification) {
           setVerificationEmail(data?.email || "");
           setNeedsOtp(true);
@@ -87,6 +97,15 @@ export default function LoginPage() {
       }
 
       const role = data?.data?.user?.role;
+      try {
+        trackEvent("login", {
+          method: "email",
+          role: typeof role === "string" ? role : "UNKNOWN",
+        });
+      } catch {
+        // analytics must never break auth flow
+      }
+
       const safeNext = getSafeNextPath();
       const destination = role === "ADMIN"
         ? "/admin"
@@ -98,6 +117,14 @@ export default function LoginPage() {
       window.location.assign(destination);
       return;
     } catch (err) {
+      if (!trackedLoginFailure) {
+        try {
+          trackEvent("login_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break auth flow
+        }
+      }
+
       const message = err instanceof Error ? err.message : "Login failed.";
       setError(message);
       pushToast(message, "error");
@@ -170,6 +197,7 @@ export default function LoginPage() {
     setError("");
     setStatus("");
     setRegisterLoading(true);
+    let trackedSignUpFailure = false;
 
     try {
       if (activeAuthMode === "register-student") {
@@ -186,7 +214,22 @@ export default function LoginPage() {
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || "Student registration failed.");
+        if (!res.ok) {
+          const reason = res.status >= 500 ? "server_error" : "validation";
+          try {
+            trackEvent("sign_up_failed", { reason });
+          } catch {
+            // analytics must never break auth flow
+          }
+          trackedSignUpFailure = true;
+          throw new Error(data?.message || "Student registration failed.");
+        }
+
+        try {
+          trackEvent("sign_up", { method: "email", role: "STUDENT" });
+        } catch {
+          // analytics must never break auth flow
+        }
 
         setVerificationEmail(registerEmail.trim().toLowerCase());
         setNeedsOtp(true);
@@ -206,7 +249,22 @@ export default function LoginPage() {
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || "Faculty registration failed.");
+        if (!res.ok) {
+          const reason = res.status >= 500 ? "server_error" : "validation";
+          try {
+            trackEvent("sign_up_failed", { reason });
+          } catch {
+            // analytics must never break auth flow
+          }
+          trackedSignUpFailure = true;
+          throw new Error(data?.message || "Faculty registration failed.");
+        }
+
+        try {
+          trackEvent("sign_up", { method: "email", role: "FACULTY" });
+        } catch {
+          // analytics must never break auth flow
+        }
 
         setStatus("Faculty registration submitted. Await admin approval.");
         pushToast("Faculty registration submitted successfully.", "success");
@@ -219,6 +277,14 @@ export default function LoginPage() {
       setRegisterPassword("");
       setRegisterUid("");
     } catch (err) {
+      if (!trackedSignUpFailure) {
+        try {
+          trackEvent("sign_up_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break auth flow
+        }
+      }
+
       const message = err instanceof Error ? err.message : "Registration failed.";
       setError(message);
       pushToast(message, "error");

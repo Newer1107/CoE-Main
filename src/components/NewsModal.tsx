@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 type NewsItem = {
   id: number;
@@ -20,6 +21,19 @@ const dateFormatter = new Intl.DateTimeFormat("en-IN", {
 export default function NewsCard({ item }: { item: NewsItem }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleOpen = () => {
+    try {
+      trackEvent("content_viewed", {
+        content_type: "news",
+        content_id: String(item.id),
+        content_title: item.title,
+      });
+    } catch {
+      // analytics must never break UI
+    }
+    setIsOpen(true);
+  };
+
   // Local helper for formatting
   const formatDate = (dateInput: Date | string) => {
     const date =
@@ -31,7 +45,7 @@ export default function NewsCard({ item }: { item: NewsItem }) {
     <>
       {/* Clickable Card */}
       <article
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpen}
         className="border border-[#c4c6d3] bg-white group cursor-pointer hover:shadow-lg transition-all duration-300"
       >
         <div className="w-full h-44 bg-[#efeeea] overflow-hidden relative border-b border-[#c4c6d3]">
