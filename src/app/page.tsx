@@ -6,6 +6,7 @@ import NewsCard from "@/components/NewsModal";
 import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
 import NewOpportunitiesModal from "@/components/NewOpportunitiesModal";
 import TrackedContentLink from "@/components/TrackedContentLink";
+import CountUp from "@/components/CountUp";
 
 type HomeNews = {
   id: number;
@@ -142,7 +143,7 @@ export default async function HomePage() {
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-10 md:mb-12 border-y border-[#c4c6d3] py-6 md:py-8 mt-12">
           <div>
             <div className="text-[#002155] font-headline text-2xl sm:text-3xl font-bold">
-              {news.length}
+              <CountUp value={news.length} duration={600} />
             </div>
             <div className="text-xs uppercase tracking-widest text-[#747782]">
               Published News
@@ -150,7 +151,7 @@ export default async function HomePage() {
           </div>
           <div>
             <div className="text-[#002155] font-headline text-2xl sm:text-3xl font-bold">
-              {events.length}
+              <CountUp value={events.length} duration={800} />
             </div>
             <div className="text-xs uppercase tracking-widest text-[#747782]">
               Upcoming Events
@@ -158,7 +159,7 @@ export default async function HomePage() {
           </div>
           <div>
             <div className="text-[#002155] font-headline text-2xl sm:text-3xl font-bold">
-              {grants.length}
+              <CountUp value={grants.length} />
             </div>
             <div className="text-xs uppercase tracking-widest text-[#747782]">
               Active Grants
@@ -166,7 +167,7 @@ export default async function HomePage() {
           </div>
           <div>
             <div className="text-[#002155] font-headline text-2xl sm:text-3xl font-bold">
-              {announcements.length}
+              <CountUp value={announcements.length} />
             </div>
             <div className="text-xs uppercase tracking-widest text-[#747782]">
               Live Circulars

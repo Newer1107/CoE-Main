@@ -119,7 +119,7 @@ export default function ProfileClient() {
   }
 
   const daysAgoUpdated = profile?.updatedAt ? Math.floor((Date.now() - new Date(profile.updatedAt).getTime()) / (1000 * 60 * 60 * 24)) : null;
-  const isProfileStale = daysAgoUpdated && daysAgoUpdated > 30;
+  const isProfileStale = daysAgoUpdated !== null && daysAgoUpdated > 30;
 
   return (
     <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
