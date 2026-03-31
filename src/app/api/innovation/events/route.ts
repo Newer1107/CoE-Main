@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
     const end = new Date(parsed.data.endTime);
     const submissionLockDate = new Date(parsed.data.submissionLockAt);
     if (end <= start) return errorRes('Invalid event timing', ['endTime must be after startTime'], 400);
-    if (submissionLockDate < start || submissionLockDate > end) {
-      return errorRes('Invalid submission lock time', ['submissionLockAt must be between startTime and endTime'], 400);
+    if (submissionLockDate > end) {
+      return errorRes('Invalid submission lock time', ['submissionLockAt must be on or before endTime'], 400);
     }
 
     const event = await prisma.$transaction(async (tx) => {
