@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ApplyModal from '@/components/ApplyModal';
+import { useToast } from "@/components/ToastProvider";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -52,7 +53,8 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   const [problems, setProblems] = useState<ProblemRow[]>([]);
   const [tagFilter, setTagFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  
+  const { pushToast } = useToast();
+
   // Apply modal state
   const [applyingProblem, setApplyingProblem] = useState<ProblemRow | null>(null);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -111,15 +113,21 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
 
   const handleApplyClick = (problem: ProblemRow) => {
     if (!role) {
-      // Redirect to login
+      pushToast("You need to log in before applying.", "info");
+
       const currentPath = typeof window !== 'undefined'
         ? window.location.pathname + window.location.search
         : '/innovation/problems';
+
       const searchParams = new URLSearchParams({
         next: currentPath,
         reason: 'problem-apply-auth-required',
       });
-      window.location.href = `/login?${searchParams.toString()}`;
+
+      setTimeout(() => {
+        window.location.href = `/login?${searchParams.toString()}`;
+      }, 1200);
+
       return;
     }
 
@@ -150,7 +158,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
+    <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       {/* Header */}
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
@@ -160,6 +168,32 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
           Apply for real-world industry problems and showcase your skills
         </p>
       </header>
+
+      <section className="mb-6 flex flex-wrap gap-3">
+        <a href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+          Innovation Home
+        </a>
+
+        <a href="/innovation/events" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+          Hackathon Events
+        </a>
+
+        <a href="/innovation/problems" className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+          Open Problems
+        </a>
+
+        {role === "STUDENT" && (
+          <a href="/innovation/my-submissions" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+            My Submissions
+          </a>
+        )}
+
+        {role === "FACULTY" && (
+          <a href="/innovation/faculty" className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+            Faculty Workspace
+          </a>
+        )}
+      </section>
 
       {/* Filters */}
       <section className="mb-8 flex flex-col md:flex-row gap-4">
@@ -242,7 +276,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                   </div>
 
                   <h3 className="text-lg font-bold text-[#002155]">{problem.title}</h3>
-                  
+
                   <p className="mt-2 text-xs text-[#434651]">
                     Type:{' '}
                     {problem.isIndustryProblem

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { useToast } from "@/components/ToastProvider";
 
 type ProblemQuestion = {
   id: number;
@@ -37,6 +38,7 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [questions, setQuestions] = useState<ProblemQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const { pushToast } = useToast();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -61,7 +63,7 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
         }
         const questionsData = await questionsRes.json();
         setQuestions(questionsData.data || []);
-        
+
         // Initialize answers map
         const init: Record<number, string> = {};
         questionsData.data?.forEach((q: ProblemQuestion) => {
@@ -82,6 +84,32 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
     if (isOpen && !dialogRef.current?.open) {
       dialogRef.current?.showModal();
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const scrollY = window.scrollY;
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+
+    return () => {
+      const y = document.body.style.top;
+
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+
+      if (y) {
+        window.scrollTo(0, parseInt(y || "0") * -1);
+      }
+    };
   }, [isOpen]);
 
   const handleClose = () => {
@@ -130,9 +158,12 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
       }
 
       handleClose();
+      pushToast(`Successfully applied to "${problemTitle}"`, "success");
       onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error submitting application');
+      const message = err instanceof Error ? err.message : 'Error submitting application';
+      setError(message);
+      pushToast(message, "error");
     } finally {
       setSubmitting(false);
     }
