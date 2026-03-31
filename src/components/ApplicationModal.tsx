@@ -120,7 +120,7 @@ export function ApplicationModal({ problemId, problemTitle, questions, onClose }
 
       // Success
       onClose();
-      router.push('/innovation/applications?success=1');
+      router.push('/innovation/my-applications?success=1');
     } catch (err) {
       setError('Error submitting application');
       console.error(err);
