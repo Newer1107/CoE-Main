@@ -51,8 +51,8 @@ export default function FacilityBookingPage() {
   
   const availableLabs = [
     "Research Culture Development Room 701",
-    "Industrial IoT & OT Room 213",
-    "Robotics & Automation Room 010",
+    // "Industrial IoT & OT Room 213",
+    // "Robotics & Automation Room 010",
   ];
 
   const labEquipmentMap: Record<string, string[]> = {
@@ -63,18 +63,18 @@ export default function FacilityBookingPage() {
       "AI computing server",
       "Projector & whiteboard",
     ],
-    "Industrial IoT & OT Room 213": [
-      "PLC training rack (mock)",
-      "IoT sensor bench (mock)",
-      "Edge gateway demo kit (mock)",
-      "SCADA simulator (mock)",
-    ],
-    "Robotics & Automation Room 010": [
-      "6-axis robot demo cell (mock)",
-      "Conveyor automation rig (mock)",
-      "Vision inspection station (mock)",
-      "Safety light curtain (mock)",
-    ],
+    // "Industrial IoT & OT Room 213": [
+    //   "PLC training rack (mock)",
+    //   "IoT sensor bench (mock)",
+    //   "Edge gateway demo kit (mock)",
+    //   "SCADA simulator (mock)",
+    // ],
+    // "Robotics & Automation Room 010": [
+    //   "6-axis robot demo cell (mock)",
+    //   "Conveyor automation rig (mock)",
+    //   "Vision inspection station (mock)",
+    //   "Safety light curtain (mock)",
+    // ],
   };
 
   const availableEquipment = lab ? labEquipmentMap[lab] ?? [] : [];

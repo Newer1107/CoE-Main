@@ -320,7 +320,7 @@ export const sendApplicationSelectionEmail = async (
   }
 ) => {
   const body = `
-    <h2 style="color:#002155;margin:0 0 8px;">Congratulations! Application Selected ✅</h2>
+    <h2 style="color:#002155;margin:0 0 8px;">Congratulations! Application Selected</h2>
     <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
     <p style="color:#434651;font-size:14px;">Your application for <strong>${details.problemTitle}</strong> has been <strong>SELECTED</strong>. Well done!</p>
     ${details.feedback ? `
