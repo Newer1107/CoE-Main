@@ -65,7 +65,7 @@ export default function NewOpportunitiesModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[999] bg-black/50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-[999] bg-black/50 backdrop-blur-xs flex items-center justify-center px-4">
             <div className="w-full max-w-2xl bg-white border border-[#c4c6d3] shadow-2xl relative">
 
                 {/* Header */}

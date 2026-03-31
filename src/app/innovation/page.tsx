@@ -50,11 +50,12 @@ export default async function InnovationLandingPage() {
 
       <section className="mb-8 flex flex-wrap gap-3">
         <Link
-          href="/innovation/events"
+          href="/innovation"
           className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider"
         >
-          Hackathon Events
+          Innovation Home
         </Link>
+
         <Link
           href="/innovation/problems"
           className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider"

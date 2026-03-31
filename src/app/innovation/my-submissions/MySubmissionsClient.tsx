@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { usePathname } from "next/navigation";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -47,6 +48,7 @@ export default function MySubmissionsClient() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [claims, setClaims] = useState<ClaimRow[]>([]);
+  const pathname = usePathname();
 
   useEffect(() => {
     const run = async () => {
@@ -135,11 +137,34 @@ export default function MySubmissionsClient() {
       </header>
 
       <section className="mb-6 flex flex-wrap gap-3">
-        <Link href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+        <Link
+          href="/innovation"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation"
+              ? "bg-[#002155] text-white"
+              : "border border-[#002155] text-[#002155]"
+            }`}
+        >
           Innovation Home
         </Link>
-        <Link href="/innovation/problems" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
-          Browse Problems
+
+        <Link
+          href="/innovation/problems"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/problems"
+              ? "bg-[#0b6b2e] text-white"
+              : "border border-[#0b6b2e] text-[#0b6b2e]"
+            }`}
+        >
+          Open Problem Statements
+        </Link>
+
+        <Link
+          href="/innovation/my-submissions"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/my-submissions"
+              ? "bg-[#002155] text-white"
+              : "border border-[#002155] text-[#002155]"
+            }`}
+        >
+          My Submissions
         </Link>
       </section>
 

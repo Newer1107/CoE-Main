@@ -16,10 +16,16 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const variantClasses: Record<ToastVariant, string> = {
-  success: "border-green-300 bg-green-50 text-green-800",
-  error: "border-red-300 bg-red-50 text-red-700",
-  info: "border-[#b9c7de] bg-[#eef4ff] text-[#1a3766]",
+const variantStyles: Record<ToastVariant, string> = {
+  success: "bg-green-50 border-green-300 text-green-800",
+  error: "bg-red-50 border-red-300 text-red-700",
+  info: "bg-[#eef4ff] border-[#b9c7de] text-[#1a3766]",
+};
+
+const variantIcons: Record<ToastVariant, string> = {
+  success: "✔",
+  error: "✖",
+  info: "ℹ",
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -29,43 +35,62 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const pushToast = useCallback((message: string, variant: ToastVariant = "info", durationMs = 3500) => {
-    if (!message) return;
+  const pushToast = useCallback(
+    (message: string, variant: ToastVariant = "info", durationMs = 3500) => {
+      if (!message) return;
 
-    const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToasts((prev) => [...prev, { id, message, variant }]);
+      const id = Date.now() + Math.floor(Math.random() * 1000);
+      setToasts((prev) => [...prev, { id, message, variant }]);
 
-    window.setTimeout(() => {
-      dismissToast(id);
-    }, durationMs);
-  }, [dismissToast]);
+      window.setTimeout(() => {
+        dismissToast(id);
+      }, durationMs);
+    },
+    [dismissToast]
+  );
 
   const value = useMemo(() => ({ pushToast }), [pushToast]);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed right-4 top-[96px] z-[160] flex w-[min(92vw,420px)] flex-col gap-2">
+
+      <div className="pointer-events-none fixed right-4 top-[96px] z-[160] flex w-[min(92vw,420px)] flex-col gap-3">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto border px-3 py-3 text-sm shadow-md ${variantClasses[toast.variant]}`}
+            className={`pointer-events-auto border rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out animate-[slideIn_0.25s_ease] ${variantStyles[toast.variant]}`}
             role="status"
             aria-live="polite"
           >
-            <div className="flex items-start justify-between gap-3">
-              <p className="leading-snug">{toast.message}</p>
-              <button
-                type="button"
-                onClick={() => dismissToast(toast.id)}
-                className="text-[11px] font-bold uppercase tracking-wider opacity-70 hover:opacity-100"
-              >
-                Close
-              </button>
+            <div className="text-base mt-0.5">{variantIcons[toast.variant]}</div>
+
+            <div className="flex-1 text-sm leading-snug">
+              {toast.message}
             </div>
+
+            <button
+              onClick={() => dismissToast(toast.id)}
+              className="text-xs font-bold opacity-60 hover:opacity-100 transition"
+            >
+              ✕
+            </button>
           </div>
         ))}
       </div>
+
+      <style jsx global>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(40px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+      `}</style>
     </ToastContext.Provider>
   );
 }

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ApplyModal from '@/components/ApplyModal';
 import { useToast } from "@/components/ToastProvider";
+import { usePathname } from "next/navigation";
+import Link from 'next/link';
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -54,6 +56,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   const [tagFilter, setTagFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { pushToast } = useToast();
+  const pathname = usePathname();
 
   // Apply modal state
   const [applyingProblem, setApplyingProblem] = useState<ProblemRow | null>(null);
@@ -170,28 +173,48 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
       </header>
 
       <section className="mb-6 flex flex-wrap gap-3">
-        <a href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+        <Link
+          href="/innovation"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation"
+              ? "bg-[#002155] text-white"
+              : "border border-[#002155] text-[#002155]"
+            }`}
+        >
           Innovation Home
-        </a>
+        </Link>
 
-        <a href="/innovation/events" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
-          Hackathon Events
-        </a>
-
-        <a href="/innovation/problems" className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider">
-          Open Problems
-        </a>
+        <Link
+          href="/innovation/problems"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/problems"
+              ? "bg-[#0b6b2e] text-white"
+              : "border border-[#0b6b2e] text-[#0b6b2e]"
+            }`}
+        >
+          Open Problem Statements
+        </Link>
 
         {role === "STUDENT" && (
-          <a href="/innovation/my-submissions" className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+          <Link
+            href="/innovation/my-submissions"
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/my-submissions"
+                ? "bg-[#002155] text-white"
+                : "border border-[#002155] text-[#002155]"
+              }`}
+          >
             My Submissions
-          </a>
+          </Link>
         )}
 
         {role === "FACULTY" && (
-          <a href="/innovation/faculty" className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+          <Link
+            href="/innovation/faculty"
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/faculty"
+                ? "bg-[#8c4f00] text-white"
+                : "border border-[#8c4f00] text-[#8c4f00]"
+              }`}
+          >
             Faculty Workspace
-          </a>
+          </Link>
         )}
       </section>
 
