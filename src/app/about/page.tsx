@@ -33,7 +33,7 @@ export default function AboutPage() {
               <img
                 className="w-full grayscale brightness-90"
                 alt="Architectural photograph of a modern university building facade with sharp shadows"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAb2yOMU6uP7lgQwxehZUDNw55-9DFNHgg1vTGJEEO5LfpM4oGK2lIajz3slddJcquvqmHPyHnHlHnqahMJWm5NaxeSX4n77dNZN6-45cD4Emg6lO6AZLiGTYYGtrhH7O7KV7PSPyOVwIS-zWGgfQwV6Mu2XMvel7Tc6hGlUev1sTGkeSt5gbMTWMmxkxoxi1yyHC-TUzi8HLYqpHV3OjS5mfBRGuxjYtA_CsOL5OSSt5yBago4al0p3jR4fAWyodKdcH4aphRkQg0"
+                src="https://www.collegebatch.com/static/clg-gallery/thakur-college-of-engineering-technology-mumbai-229678.webp"
               />
               <div className="mt-4 border-l-2 border-[#8c4f00] pl-4 py-2 bg-[#f5f4f0]">
                 <p className="text-sm italic font-headline text-[#434651]">

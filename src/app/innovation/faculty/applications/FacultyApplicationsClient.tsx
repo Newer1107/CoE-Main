@@ -280,7 +280,7 @@ export default function FacultyApplicationsClient() {
                           <p className="text-sm text-[#434651] mt-1">{selectedProfile.interests}</p>
                         </div>
                       )}
-                      {selectedProfile?.resumeFileName && (
+                      {(selectedProfile?.resumeUrl || selectedProfile?.resumeFileName) && (
                         <div>
                           <p className="text-xs font-medium text-[#002155]">Resume</p>
                           {selectedProfile.resumeUrl ? (
@@ -290,10 +290,10 @@ export default function FacultyApplicationsClient() {
                               rel="noreferrer"
                               className="text-xs text-[#fd9923] font-bold underline hover:text-[#e68a00] mt-1 inline-block"
                             >
-                              View: {selectedProfile.resumeFileName}
+                              View: {selectedProfile.resumeFileName || 'Resume'}
                             </a>
                           ) : (
-                            <p className="text-xs text-[#747782] mt-1">{selectedProfile.resumeFileName}</p>
+                            <p className="text-xs text-[#747782] mt-1">{selectedProfile.resumeFileName || 'Resume uploaded'}</p>
                           )}
                         </div>
                       )}

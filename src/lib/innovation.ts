@@ -17,6 +17,17 @@ export const sanitizeFilename = (fileName: string) => {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
 
+export const getStoredFileDisplayName = (fileKey: string | null | undefined): string | null => {
+  if (!fileKey) return null;
+
+  const lastSegment = fileKey.split('/').pop();
+  if (!lastSegment) return null;
+
+  // Stored keys usually look like: resume-<timestamp>-<original_file_name>
+  const withNoPrefix = lastSegment.replace(/^resume-\d+-/, '');
+  return decodeURIComponent(withNoPrefix);
+};
+
 export const parseIdList = (value: string | null): number[] => {
   if (!value) return [];
 

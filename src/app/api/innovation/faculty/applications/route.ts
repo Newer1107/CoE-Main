@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
+import { getStoredFileDisplayName } from '@/lib/innovation';
 import { getSignedUrl } from '@/lib/minio';
 
 // GET /api/innovation/faculty/applications
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest) {
         ...app,
         profile: {
           ...app.profile,
+          resumeFileName: getStoredFileDisplayName(app.profile.resumeUrl),
           resumeUrl: app.profile.resumeUrl ? await getSignedUrl(app.profile.resumeUrl).catch(() => null) : null,
         },
       }))

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
+import { getStoredFileDisplayName } from '@/lib/innovation';
 import { z } from 'zod';
 import { getSignedUrl } from '@/lib/minio';
 import { sendApplicationSelectionEmail, sendApplicationRejectionEmail } from '@/lib/mailer';
@@ -93,6 +94,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       ...updated,
       profile: {
         ...updated.profile,
+        resumeFileName: getStoredFileDisplayName(updated.profile.resumeUrl),
         resumeUrl: updated.profile.resumeUrl ? await getSignedUrl(updated.profile.resumeUrl).catch(() => null) : null,
       },
     };

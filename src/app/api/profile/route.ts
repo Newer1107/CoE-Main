@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
-import { sanitizeFilename } from '@/lib/innovation';
+import { getStoredFileDisplayName, sanitizeFilename } from '@/lib/innovation';
 import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
 
 // GET /api/profile/me
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
 
     const payload = {
       ...profile,
+      resumeFileName: getStoredFileDisplayName(profile.resumeUrl),
       resumeUrl: profile.resumeUrl ? await getSignedUrl(profile.resumeUrl).catch(() => null) : null,
     };
 
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       ...profile,
+      resumeFileName: getStoredFileDisplayName(profile.resumeUrl),
       resumeUrl: profile.resumeUrl ? await getSignedUrl(profile.resumeUrl).catch(() => null) : null,
     };
 
@@ -183,6 +185,7 @@ export async function PATCH(req: NextRequest) {
 
     const payload = {
       ...finalProfile,
+      resumeFileName: getStoredFileDisplayName(finalProfile.resumeUrl),
       resumeUrl: finalProfile.resumeUrl ? await getSignedUrl(finalProfile.resumeUrl).catch(() => null) : null,
     };
 
