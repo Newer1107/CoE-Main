@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationProblemUpdateSchema } from '@/lib/validators';
 import { getSignedUrl } from '@/lib/minio';
-import { sendInnovationClaimReviewEmail } from '@/lib/mailer';
 
 // PATCH /api/innovation/problems/[id]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -77,88 +76,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof parsed.data.status !== 'undefined') updateData.status = parsed.data.status;
     if (typeof parsed.data.isIndustryProblem !== 'undefined') updateData.isIndustryProblem = parsed.data.isIndustryProblem;
 
-    const shouldPublishOpenResults =
-      !existing.eventId &&
-      existing.mode === 'OPEN' &&
-      existing.status !== 'CLOSED' &&
-      parsed.data.status === 'CLOSED';
-
-    const publishTimestamp = new Date();
-
-    const { problem, submissionsToPublish } = await prisma.$transaction(async (tx) => {
-      const updatedProblem = await tx.problem.update({
-        where: { id: problemId },
-        data: updateData,
-        include: {
-          createdBy: { select: { id: true, name: true, email: true } },
-          event: { select: { id: true, title: true, status: true } },
-          _count: { select: { claims: true, openSubmissions: true } },
-        },
-      });
-
-      if (!shouldPublishOpenResults) {
-        return {
-          problem: updatedProblem,
-          submissionsToPublish: [] as Array<{
-            id: number;
-            status: 'IN_PROGRESS' | 'SUBMITTED' | 'SHORTLISTED' | 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED';
-            score: number | null;
-            feedback: string | null;
-            members: Array<{ user: { email: string } }>;
-          }>,
-        };
-      }
-
-      const pendingReleaseSubmissions = await tx.openSubmission.findMany({
-        where: {
-          problemId,
-          resultPublishedAt: null,
-        },
-        select: {
-          id: true,
-          status: true,
-          score: true,
-          feedback: true,
-          members: {
-            select: {
-              user: {
-                select: { email: true },
-              },
-            },
-          },
-        },
-      });
-
-      if (pendingReleaseSubmissions.length > 0) {
-        await tx.openSubmission.updateMany({
-          where: { id: { in: pendingReleaseSubmissions.map((submission) => submission.id) } },
-          data: { resultPublishedAt: publishTimestamp },
-        });
-      }
-
-      return {
-        problem: updatedProblem,
-        submissionsToPublish: pendingReleaseSubmissions,
-      };
+    const problem = await prisma.problem.update({
+      where: { id: problemId },
+      data: updateData,
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        event: { select: { id: true, title: true, status: true } },
+        _count: { select: { claims: true, applications: true } },
+      },
     });
-
-    for (const submission of submissionsToPublish) {
-      if (!['ACCEPTED', 'REVISION_REQUESTED', 'REJECTED'].includes(submission.status)) continue;
-
-      const recipientEmails = Array.from(new Set(submission.members.map((member) => member.user.email)));
-      if (recipientEmails.length === 0) continue;
-
-      try {
-        await sendInnovationClaimReviewEmail(recipientEmails, {
-          problemTitle: problem.title,
-          status: submission.status as 'ACCEPTED' | 'REVISION_REQUESTED' | 'REJECTED',
-          score: submission.score,
-          feedback: submission.feedback,
-        });
-      } catch (mailErr) {
-        console.error(`Open statement result email failed for submission #${submission.id}:`, mailErr);
-      }
-    }
 
     const payload = {
       ...problem,

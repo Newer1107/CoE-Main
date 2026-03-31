@@ -66,6 +66,12 @@ enum EventStatus {
   CLOSED
 }
 
+enum ApplicationStatus {
+  SUBMITTED
+  SELECTED
+  REJECTED
+}
+
 model User {
   id         Int        @id @default(autoincrement())
   name       String
@@ -85,9 +91,10 @@ model User {
   events            Event[]
   announcements     Announcement[]
   problemsCreated   ClaimMember[]
-  openSubmissionMembers OpenSubmissionMember[]
   hackathonsCreated HackathonEvent[] @relation("HackathonCreator")
   problemsAuthored  Problem[]        @relation("ProblemAuthor")
+  studentProfile    StudentProfile?
+  applications      Application[]
 
   @@map("users")
 }
@@ -107,7 +114,8 @@ model Problem {
   event       HackathonEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
   claims      Claim[]
   supportDocumentKey String?
-  openSubmissions OpenSubmission[]
+  applications Application[]
+  questions   ProblemQuestion[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -163,50 +171,67 @@ model ClaimMember {
   @@map("claim_members")
 }
 
-model OpenSubmission {
-  id                  Int                    @id @default(autoincrement())
-  problemId           Int
-  problem             Problem                @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  teamName            String?
-  teamSize            Int
-  teamLeadUid         String
-  members             OpenSubmissionMember[]
-  technicalDocumentKey String
-  pptFileKey          String
-  status              ClaimStatus            @default(SUBMITTED)
-  innovationScore     Int?
-  technicalScore      Int?
-  impactScore         Int?
-  uxScore             Int?
-  executionScore      Int?
-  presentationScore   Int?
-  feasibilityScore    Int?
-  finalScore          Int?
-  score               Int?
-  feedback            String?                @db.Text
-  badges              String?
-  resultPublishedAt   DateTime?
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
+model StudentProfile {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills      String?   @db.Text
+  experience  String?   @db.Text
+  interests   String?   @db.Text
+  resumeUrl   String?
+  isComplete  Boolean   @default(false)
+  updatedAt   DateTime  @updatedAt
+  applications Application[]
 
-  @@index([problemId])
-  @@index([status])
-  @@index([updatedAt])
-  @@map("open_submissions")
+  @@map("student_profiles")
 }
 
-model OpenSubmissionMember {
-  id               Int            @id @default(autoincrement())
-  openSubmissionId Int
-  openSubmission   OpenSubmission @relation(fields: [openSubmissionId], references: [id], onDelete: Cascade)
-  userId           Int
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role             String         @default("MEMBER")
+model ProblemQuestion {
+  id         Int       @id @default(autoincrement())
+  problemId  Int
+  problem    Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  questionText String  @db.Text
+  type       String    @default("TEXT")
+  createdAt  DateTime  @default(now())
 
-  @@unique([openSubmissionId, userId])
-  @@index([openSubmissionId])
+  answers ApplicationAnswer[]
+
+  @@index([problemId])
+  @@map("problem_questions")
+}
+
+model Application {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId   Int
+  profile     StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  problemId   Int
+  problem     Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  status      ApplicationStatus @default(SUBMITTED)
+  answers     ApplicationAnswer[]
+  feedback    String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, problemId])
+  @@index([problemId])
   @@index([userId])
-  @@map("open_submission_members")
+  @@index([status])
+  @@map("applications")
+}
+
+model ApplicationAnswer {
+  id          Int       @id @default(autoincrement())
+  applicationId Int
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  questionId  Int
+  question    ProblemQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerText  String    @db.Text
+
+  @@unique([applicationId, questionId])
+  @@index([applicationId])
+  @@map("application_answers")
 }
 
 model HackathonEvent {

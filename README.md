@@ -4,10 +4,11 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - role-based authentication and access control
 - student facility booking and admin moderation
 - faculty/admin content publishing (news, events, grants, announcements)
-- innovation platform with separated open-statement and hackathon tracks
-- open-statement lifecycle controls (`OPENED` / `CLOSED`) with faculty result release control
+- innovation platform with separated open-problem and hackathon tracks
+- application-based open-problem workflow (student profile + custom problem questions)
 - two-stage hackathon evaluation (PPT screening -> final judging)
-- rubric-based scoring for both hackathon judging and open-statement reviews
+- rubric-based scoring for hackathon judging
+- faculty application review notifications (selected/rejected email)
 - email notifications and cron-driven reminders
 - MinIO-backed object storage with browser-safe proxying
 - Google Analytics 4 instrumentation for auth, booking, innovation, and homepage engagement events
@@ -42,8 +43,8 @@ Major capability groups:
 - Public content feed: news, grants, events, announcements, hero slides
 - Facility booking: student request lifecycle with admin confirm/reject and reminders
 - Innovation platform:
-  - Open statements: students register teams with UID verification and mandatory technical doc + PPT
-  - Open statement results: faculty can review early but release results only after statement closure
+  - Open problems: students maintain reusable profile, answer faculty questions, submit individual applications
+  - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, problem statements, staged faculty judging, leaderboard
 
 ## 2) Feature Matrix by Role
@@ -60,13 +61,14 @@ Major capability groups:
 | Create news/events/grants/announcements | No | No | Yes | Yes |
 | Manage hero slides | No | No | No | Yes |
 | View innovation landing and event pages | Yes | Yes | Yes | Yes |
-| Register for open statements | No | Yes | No | No |
-| Upload open submission docs (technical + PPT) | No | Yes | No | No |
+| Create student profile for open problems | No | Yes | No | No |
+| Apply to open problems | No | Yes | No | No |
 | Register team for hackathon event | No | Yes | No | No |
-| Review open/hackathon innovation submissions | No | No | Yes | Yes |
+| Review open-problem applications | No | No | Yes | Yes |
+| Review hackathon submissions | No | No | Yes | Yes |
 | Create hackathon events and problem sets | No | No | Yes | Yes |
 | Change hackathon stage status | No | No | Yes (own events) | Yes |
-| Open/close open statements and publish results | No | No | Yes (own statements) | Yes |
+| Manage open problem status (`OPENED`/`CLOSED`/`ARCHIVED`) | No | No | Yes (own problems) | Yes |
 | Moderate faculty users | No | No | No | Yes |
 | Moderate bookings and view admin stats | No | No | No | Yes |
 
@@ -223,74 +225,73 @@ sequenceDiagram
   L->>DB: Rank by finalScore then score
 ```
 
-### 4.7 Open problem statement full workflow (conduct flow)
+### 4.7 Open problem application workflow (conduct flow)
 
 ```mermaid
 flowchart TD
   subgraph FAC[Faculty or Admin]
-    OP1[Create open problem statement]
+    OP1[Create open problem]
     OP2[Problem status defaults to OPENED]
-    OP3[Review in Faculty Workspace - Submissions tab]
-    OP4[Save decision and rubric ACCEPTED or REVISION_REQUESTED or REJECTED]
-    OP5[Close statement in Faculty Workspace - Problems tab]
+    OP3[Add custom questions]
+    OP4[Review in Faculty Applications workspace]
+    OP5[Save decision SELECTED or REJECTED + feedback]
   end
 
-  subgraph STU[Student Team]
+  subgraph STU[Student]
     OS1[Open problem board]
-    OS2[Register with team UIDs]
-    OS3[Upload technical doc + PPT]
+    OS2[Complete profile once\nskills, experience, interests, resume]
+    OS3[Answer problem-specific questions]
+    OS4[Submit application]
   end
 
   subgraph SYS[System]
-    OY1[UID lookup eligibility check]
-    OY2[OpenSubmission created]
-    OY3[Review saved but result hidden while statement is OPENED]
-    OY4[On CLOSE: publish results + set resultPublishedAt]
-    OY5[Students can view score, feedback, badges]
-    OY6[Result release emails sent]
+    OY1[StudentProfile persisted and reused]
+    OY2[Application + ApplicationAnswer created]
+    OY3[Faculty review updates status and feedback]
+    OY4[Selection/rejection email sent to student]
+    OY5[Student views status in My Applications]
   end
 
   OP1 --> OP2
+  OP2 --> OP3
   OS1 --> OS2
-  OS2 --> OY1
-  OY1 --> OS3
-  OS3 --> OY2
-  OY2 --> OP3
-  OP3 --> OP4
-  OP4 --> OY3
-  OY3 --> OP5
-  OP5 --> OY4
+  OS2 --> OS3
+  OS3 --> OS4
+  OS4 --> OY1
+  OY1 --> OY2
+  OY2 --> OP4
+  OP4 --> OP5
+  OP5 --> OY3
+  OY3 --> OY4
   OY4 --> OY5
-  OY4 --> OY6
 ```
 
-### 4.8 Open statement end-to-end sequence
+### 4.8 Open problem application end-to-end sequence
 
 ```mermaid
 sequenceDiagram
   participant F as Faculty or Admin
-  participant S as Student Team
-  participant U as /api/innovation/users/lookup
-  participant O as /api/innovation/open-submissions
-  participant R as /api/innovation/faculty/open-submissions/:id/review
-  participant P as /api/innovation/problems/:id
+  participant S as Student
+  participant PC as /api/profile/check-completion
+  participant PR as /api/profile
+  participant Q as /api/innovation/problems/:id/questions
+  participant A as /api/innovation/applications
+  participant FR as /api/innovation/faculty/applications/:id/review
   participant DB as Prisma DB
   participant M as Mailer
 
-  F->>DB: Create OPEN statement (status OPENED)
-  S->>U: Validate team UIDs for problem
-  U->>S: Eligible UID results
-  S->>O: Submit registration + technical doc + PPT
-  O->>DB: Create OpenSubmission
+  F->>DB: Create open problem (status OPENED)
+  S->>PC: Check profile completion
+  PC->>S: Incomplete
+  S->>PR: Create or update profile
+  S->>Q: Fetch custom questions
+  S->>A: Submit answers
+  A->>DB: Create Application + ApplicationAnswer
 
-  F->>R: Save review decision + rubric
-  R->>DB: Persist review and scores
-  Note over DB,S: Result hidden until statement is CLOSED
-
-  F->>P: Update problem status CLOSED
-  P->>DB: Set resultPublishedAt on related open submissions
-  P->>M: Send release emails
-  S->>DB: View published scores and feedback
+  F->>FR: Save SELECTED or REJECTED + feedback
+  FR->>DB: Persist status + feedback
+  FR->>M: Send selection/rejection email
+  S->>DB: View updated status in My Applications
 ```
 
 ## 5) Data Model
@@ -308,26 +309,29 @@ Primary entities:
 - `Problem`
 - `Claim`
 - `ClaimMember`
-- `OpenSubmission`
-- `OpenSubmissionMember`
+- `StudentProfile`
+- `ProblemQuestion`
+- `Application`
+- `ApplicationAnswer`
 
 Key innovation enums and lifecycle:
 - `ProblemMode`: `OPEN`, `CLOSED`
 - `ProblemStatus`: `OPENED`, `CLOSED`, `ARCHIVED`
+- `ApplicationStatus`: `SUBMITTED`, `SELECTED`, `REJECTED`
 - `ClaimStatus`: `IN_PROGRESS`, `SUBMITTED`, `SHORTLISTED`, `ACCEPTED`, `REVISION_REQUESTED`, `REJECTED`
 - `EventStatus`: `UPCOMING`, `ACTIVE`, `JUDGING`, `CLOSED`
-  - operational transition flow currently used: `UPCOMING -> ACTIVE -> CLOSED`
-  - `JUDGING` remains as a compatibility enum value
+  - operational transition flow currently used: `UPCOMING -> ACTIVE -> JUDGING -> CLOSED`
 
 Scoring fields persisted on `Claim` for hackathon judging:
 - `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
 - `finalScore` and `score`
 - `isAbsent` tracks judging-round attendance for shortlisted teams
 
-Scoring and release fields persisted on `OpenSubmission`:
-- rubric scores: `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
-- `finalScore` and `score`
-- `resultPublishedAt` controls student-side result visibility
+Open-problem application fields persisted on `Application`:
+- `status`: `SUBMITTED`, `SELECTED`, `REJECTED`
+- `feedback`: faculty decision notes
+- profile linkage via `profileId`
+- custom responses via `ApplicationAnswer`
 
 ## 6) App Routes and UX Flows
 
@@ -346,12 +350,18 @@ Protected pages:
 - `/facility-booking` (student)
 - `/faculty` (faculty/admin)
 - `/admin` (admin)
+- `/admin?tab=innovation` (admin hackathon control center)
 - `/innovation/problems` (student/faculty/admin)
+- `/innovation/profile` (student)
+- `/innovation/my-applications` (student)
 - `/innovation/my-submissions` (student)
 - `/innovation/faculty` (faculty/admin)
+- `/innovation/faculty/problems/create` (faculty/admin)
+- `/innovation/faculty/applications` (faculty/admin)
 
 Navigation and access behavior:
 - Navbar is role-aware (faculty/admin links hidden from unauthorized users)
+- Admin account menu includes `Hackathon Control Center` shortcut to `/admin?tab=innovation`
 - Login supports `next` redirect for student return flow
 - Admin/faculty pages hard-redirect unauthorized users
 
@@ -373,22 +383,23 @@ Route mapping for this flow:
 - Event detail page: `/innovation/events/[id]`
 - Faculty workspace: `/innovation/faculty`
 
-### 6.2 Open statement page-level flow
+### 6.2 Open problem application page-level flow
 
 ```mermaid
 flowchart LR
-  IP[Innovation Problems page] --> OR[Student registration form]
-  OR --> UV[Fetch UID details]
-  UV --> US[Submit open statement files]
-  FW[Faculty Workspace] --> PS[Problems tab\nCreate and close statements]
-  FW --> SS[Submissions tab\nOpen Statement submissions only]
-  SS --> SR[Save rubric + decision]
-  PS --> RP[Close statement and publish results]
+  IP[Innovation Problems page] --> PM[Profile completion check]
+  PM --> AP[Apply modal\nquestion answers]
+  AP --> SA[Submit Application]
+  FW[Faculty Workspace] --> PS[Problems tab\nmanage OPENED/CLOSED/ARCHIVED]
+  FW --> AR[Applications tab\nreview SUBMITTED applications]
+  AR --> RV[Mark SELECTED/REJECTED + feedback]
+  RV --> MY[Student My Applications page]
 ```
 
 Current UX notes:
-- On `/innovation`, `Open Problem Statements` is hidden for `FACULTY` users.
-- In Faculty Workspace, the `Submissions` section is dedicated to open statements; hackathon team review runs in `Events -> Registered Teams`.
+- Students are prompted globally to complete profile before applying (`ProfileCompletionModal`).
+- Faculty open-problem review runs in `/innovation/faculty/applications`.
+- Legacy open-submissions compatibility endpoints were removed; application routes are now canonical.
 
 ## 7) API Reference
 
@@ -463,24 +474,36 @@ Problems:
   - Public users can access open track (`track=open`)
   - Hackathon/all tracks require faculty/admin
 - `POST /api/innovation/problems` (faculty/admin)
-  - Open statements are created with `status=OPENED` by default
+  - Open problems are created with `status=OPENED` by default
+  - Supports optional `questions` payload for problem-specific application questions
 - `PATCH /api/innovation/problems/[id]` (owner faculty or admin)
-  - For open statements: changing status to `CLOSED` publishes pending results
+  - Used for status and metadata updates (`OPENED` / `CLOSED` / `ARCHIVED`)
 - `DELETE /api/innovation/problems/[id]` (admin)
+
+Profile and completion:
+- `GET /api/profile` (student)
+- `POST /api/profile` (student)
+- `PATCH /api/profile` (student)
+- `GET /api/profile/check-completion` (student)
+
+Open-problem questions and applications:
+- `GET /api/innovation/problems/[id]/questions` (authenticated)
+- `POST /api/innovation/problems/[id]/questions` (faculty/admin)
+- `POST /api/innovation/applications` (student)
+- `GET /api/innovation/applications/my` (student)
+
+Faculty applications review:
+- `GET /api/innovation/faculty/applications` (faculty/admin)
+- `PATCH /api/innovation/faculty/applications/[id]/review` (faculty/admin)
+  - statuses: `SUBMITTED`, `SELECTED`, `REJECTED`
+  - sends selection/rejection notification emails
 
 Claims:
 - `POST /api/innovation/claims` (student)
-  - Open-track claim creation is deprecated and returns migration guidance
+  - Open-track claim creation is deprecated; use applications APIs for open problems
 - `GET /api/innovation/claims/my` (student)
 - `PATCH /api/innovation/claims/[id]/submit` (student team member)
 - `PATCH /api/innovation/faculty/claims/[id]/review` (owner faculty or admin)
-
-Open submissions:
-- `POST /api/innovation/open-submissions` (student)
-- `GET /api/innovation/faculty/open-submissions` (faculty/admin)
-- `PATCH /api/innovation/faculty/open-submissions/[id]/review` (owner faculty or admin)
-  - Accept/reject decisions require rubric payload
-  - Save is immediate, student results remain hidden until statement closure
 
 Hackathon events:
 - `GET /api/innovation/events` (public)
@@ -592,8 +615,6 @@ Tracked events:
 - `login` and `login_failed`
 - `sign_up` and `sign_up_failed`
 - `hackathon_register`
-- `open_statement_register`
-- `open_statement_docs_uploaded`
 - `innovation_registration_failed`
 - `booking_created`
 - `booking_failed`
@@ -711,9 +732,10 @@ Final judging sync failing:
 - If a shortlisted team was marked absent, mark it present first
 - Ensure all rubric fields are present
 
-Open statement result not visible to students:
-- Ensure the statement was moved to `CLOSED`
-- Confirm `resultPublishedAt` is set on related `open_submissions`
+Application decision not visible in student portal:
+- Ensure review status for the application is `SELECTED` or `REJECTED`
+- Confirm student checks `/innovation/my-applications` (or `GET /api/innovation/applications/my`)
+- If email is missing, verify SMTP configuration; status updates still persist even if mail fails
 
 Prisma migrate drift warning after editing historical migrations:
 - Prisma may require a dev database reset to reconcile history
@@ -737,11 +759,11 @@ Before release:
   - shortlist and absent-team visibility
   - judging sync with rubric scoring for present teams
   - leaderboard output
-- Verify open-statement separated flow:
-  - statement creation defaults to `OPENED`
-  - student open registration with UID verification + mandatory technical doc + PPT
-  - faculty rubric review in open-submissions lane
-  - result remains hidden in student view until statement is moved to `CLOSED`
-  - closure publishes results and triggers release emails
+- Verify open-problem application flow:
+  - student profile completion gate before apply
+  - application submission with dynamic problem questions
+  - faculty/admin review via applications lane
+  - student decision visibility in My Applications
+  - selection/rejection emails are sent (best-effort)
 - Verify reminder cron endpoints
 - Ensure `.env` secrets are not committed

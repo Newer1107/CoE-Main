@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 type BookingStudent = {
@@ -68,9 +69,51 @@ type InnovationSubmission = {
 type InnovationEvent = {
   id: number;
   title: string;
+  description: string | null;
   status: "UPCOMING" | "ACTIVE" | "JUDGING" | "CLOSED";
+  registrationOpen: boolean;
   startTime: string;
   endTime: string;
+  submissionLockAt: string | null;
+};
+
+type ManagedHackathonSubmission = {
+  id: number;
+  teamName: string | null;
+  status: "IN_PROGRESS" | "SUBMITTED" | "SHORTLISTED" | "ACCEPTED" | "REVISION_REQUESTED" | "REJECTED";
+  isAbsent: boolean;
+  updatedAt: string;
+  feedback: string | null;
+  finalScore: number | null;
+  submissionUrl: string | null;
+  submissionFileUrl: string | null;
+  problem: {
+    id: number;
+    title: string;
+    event: { id: number; title: string; status: string } | null;
+  };
+  members: Array<{
+    id: number;
+    role: string;
+    user: { id: number; name: string; email: string; uid: string | null };
+  }>;
+};
+
+type HackathonRubrics = {
+  innovation: number;
+  technical: number;
+  impact: number;
+  ux: number;
+  execution: number;
+  presentation: number;
+  feasibility: number;
+};
+
+type EventProblemInput = {
+  title: string;
+  description: string;
+  isIndustryProblem: boolean;
+  industryName: string;
 };
 
 type InnovationLeaderboardRow = {
@@ -119,6 +162,7 @@ export default function AdminPanelClient({
   innovationEvents,
 }: AdminPanelClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [busyBookingId, setBusyBookingId] = useState<number | null>(null);
   const [busyFacultyId, setBusyFacultyId] = useState<number | null>(null);
@@ -133,6 +177,26 @@ export default function AdminPanelClient({
   const [selectedInnovationEventId, setSelectedInnovationEventId] = useState<number | null>(null);
   const [innovationLeaderboard, setInnovationLeaderboard] = useState<InnovationLeaderboardRow[]>([]);
   const [loadingInnovationLeaderboard, setLoadingInnovationLeaderboard] = useState(false);
+  const [managedSubmissions, setManagedSubmissions] = useState<ManagedHackathonSubmission[]>([]);
+  const [loadingManagedSubmissions, setLoadingManagedSubmissions] = useState(false);
+  const [busyClaimId, setBusyClaimId] = useState<number | null>(null);
+  const [managedSubmissionEventFilter, setManagedSubmissionEventFilter] = useState<number | "ALL">("ALL");
+
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDescription, setEventDescription] = useState("");
+  const [eventStartTime, setEventStartTime] = useState("");
+  const [eventEndTime, setEventEndTime] = useState("");
+  const [eventSubmissionLockAt, setEventSubmissionLockAt] = useState("");
+  const [eventPptFile, setEventPptFile] = useState<File | null>(null);
+  const [eventCreating, setEventCreating] = useState(false);
+  const [eventProblems, setEventProblems] = useState<EventProblemInput[]>([
+    {
+      title: "",
+      description: "",
+      isIndustryProblem: false,
+      industryName: "",
+    },
+  ]);
 
   const recentUsers = useMemo(() => users.slice(0, 12), [users]);
   const prepBookings = useMemo(() => {
@@ -149,6 +213,41 @@ export default function AdminPanelClient({
       })
       .slice(0, 20);
   }, [upcomingConfirmedBookings]);
+
+  const filteredManagedSubmissions = useMemo(() => {
+    if (managedSubmissionEventFilter === "ALL") return managedSubmissions;
+    return managedSubmissions.filter((claim) => claim.problem.event?.id === managedSubmissionEventFilter);
+  }, [managedSubmissions, managedSubmissionEventFilter]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "innovation") {
+      setActiveView("innovation");
+      return;
+    }
+    if (tab === "operations") {
+      setActiveView("operations");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (activeView !== "innovation") return;
+
+    const loadManagedSubmissions = async () => {
+      try {
+        setLoadingManagedSubmissions(true);
+        const payload = await apiCall("/api/innovation/faculty/submissions", { method: "GET" });
+        setManagedSubmissions((payload?.data || []) as ManagedHackathonSubmission[]);
+      } catch (err) {
+        setManagedSubmissions([]);
+        setErrorMessage(err instanceof Error ? err.message : "Could not load hackathon submissions.");
+      } finally {
+        setLoadingManagedSubmissions(false);
+      }
+    };
+
+    void loadManagedSubmissions();
+  }, [activeView]);
 
   const handleConfirmBooking = async (id: number) => {
     try {
@@ -255,7 +354,7 @@ export default function AdminPanelClient({
     }
   };
 
-  const handleInnovationEventStatus = async (eventId: number, status: "ACTIVE" | "CLOSED") => {
+  const handleInnovationEventStatus = async (eventId: number, status: "ACTIVE" | "JUDGING" | "CLOSED") => {
     try {
       setErrorMessage("");
       setStatusMessage("");
@@ -287,6 +386,201 @@ export default function AdminPanelClient({
       setErrorMessage(err instanceof Error ? err.message : "Could not load innovation leaderboard.");
     } finally {
       setLoadingInnovationLeaderboard(false);
+    }
+  };
+
+  const refreshManagedSubmissions = async () => {
+    const payload = await apiCall("/api/innovation/faculty/submissions", { method: "GET" });
+    setManagedSubmissions((payload?.data || []) as ManagedHackathonSubmission[]);
+  };
+
+  const handleCreateHackathonEvent = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const problemsPayload = eventProblems
+      .map((problem) => ({
+        title: problem.title.trim(),
+        description: problem.description.trim(),
+        isIndustryProblem: problem.isIndustryProblem,
+        industryName: problem.isIndustryProblem ? problem.industryName.trim() : "",
+      }))
+      .filter((problem) => problem.title.length > 0 || problem.description.length > 0);
+
+    if (problemsPayload.length === 0) {
+      setErrorMessage("Please add at least one problem statement for the event.");
+      return;
+    }
+
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setEventCreating(true);
+
+      const formData = new FormData();
+      formData.set("title", eventTitle);
+      formData.set("description", eventDescription);
+      formData.set("startTime", eventStartTime);
+      formData.set("endTime", eventEndTime);
+      formData.set("submissionLockAt", eventSubmissionLockAt);
+      formData.set("problems", JSON.stringify(problemsPayload));
+      if (eventPptFile) {
+        formData.set("pptFile", eventPptFile);
+      }
+
+      const res = await fetch("/api/innovation/events", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.message || "Could not create hackathon event.");
+      }
+
+      setEventTitle("");
+      setEventDescription("");
+      setEventStartTime("");
+      setEventEndTime("");
+      setEventSubmissionLockAt("");
+      setEventPptFile(null);
+      setEventProblems([{ title: "", description: "", isIndustryProblem: false, industryName: "" }]);
+      setStatusMessage("Hackathon event created successfully.");
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not create hackathon event.");
+    } finally {
+      setEventCreating(false);
+    }
+  };
+
+  const updateEventProblem = (index: number, updates: Partial<EventProblemInput>) => {
+    setEventProblems((prev) => prev.map((problem, idx) => (idx === index ? { ...problem, ...updates } : problem)));
+  };
+
+  const addEventProblemInput = () => {
+    setEventProblems((prev) => [...prev, { title: "", description: "", isIndustryProblem: false, industryName: "" }]);
+  };
+
+  const removeEventProblemInput = (index: number) => {
+    setEventProblems((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== index)));
+  };
+
+  const handleToggleEventRegistration = async (eventRow: InnovationEvent) => {
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setBusyInnovationEventId(eventRow.id);
+
+      await apiCall(`/api/innovation/events/${eventRow.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ registrationOpen: !eventRow.registrationOpen }),
+      });
+
+      setStatusMessage(`Registration ${eventRow.registrationOpen ? "closed" : "opened"} for event #${eventRow.id}.`);
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not update registration status.");
+    } finally {
+      setBusyInnovationEventId(null);
+    }
+  };
+
+  const handleMarkAttendance = async (claimId: number, isAbsent: boolean) => {
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setBusyClaimId(claimId);
+
+      await apiCall(`/api/innovation/faculty/claims/${claimId}/attendance`, {
+        method: "PATCH",
+        body: JSON.stringify({ isAbsent }),
+      });
+
+      await refreshManagedSubmissions();
+      setStatusMessage(`Claim #${claimId} marked as ${isAbsent ? "absent" : "present"}.`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not update attendance.");
+    } finally {
+      setBusyClaimId(null);
+    }
+  };
+
+  const handleScreeningDecision = async (claim: ManagedHackathonSubmission, status: "SHORTLISTED" | "REJECTED") => {
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setBusyClaimId(claim.id);
+
+      await apiCall("/api/innovation/faculty/claims/sync", {
+        method: "PATCH",
+        body: JSON.stringify({
+          stage: "SCREENING",
+          eventId: claim.problem.event?.id,
+          decisions: [{ claimId: claim.id, status }],
+        }),
+      });
+
+      await refreshManagedSubmissions();
+      setStatusMessage(`Claim #${claim.id} moved to ${status}.`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not save screening decision.");
+    } finally {
+      setBusyClaimId(null);
+    }
+  };
+
+  const collectRubrics = (): HackathonRubrics | null => {
+    const labels: Array<keyof HackathonRubrics> = [
+      "innovation",
+      "technical",
+      "impact",
+      "ux",
+      "execution",
+      "presentation",
+      "feasibility",
+    ];
+
+    const result = {} as HackathonRubrics;
+
+    for (const label of labels) {
+      const raw = window.prompt(`Enter ${label} score (0-10):`, "7");
+      if (raw === null) return null;
+      const score = Number(raw);
+      if (!Number.isFinite(score) || score < 0 || score > 10) {
+        window.alert(`Invalid ${label} score. Please enter a number between 0 and 10.`);
+        return null;
+      }
+      result[label] = Math.round(score);
+    }
+
+    return result;
+  };
+
+  const handleJudgingDecision = async (claim: ManagedHackathonSubmission, status: "ACCEPTED" | "REJECTED") => {
+    const rubrics = collectRubrics();
+    if (!rubrics) return;
+
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setBusyClaimId(claim.id);
+
+      await apiCall("/api/innovation/faculty/claims/sync", {
+        method: "PATCH",
+        body: JSON.stringify({
+          stage: "JUDGING",
+          eventId: claim.problem.event?.id,
+          decisions: [{ claimId: claim.id, status, rubrics }],
+        }),
+      });
+
+      await refreshManagedSubmissions();
+      setStatusMessage(`Claim #${claim.id} final decision saved as ${status}.`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not save judging decision.");
+    } finally {
+      setBusyClaimId(null);
     }
   };
 
@@ -328,6 +622,12 @@ export default function AdminPanelClient({
           }`}
         >
           Innovation
+        </button>
+        <button
+          onClick={() => setActiveView("innovation")}
+          className="px-4 py-2 text-xs font-bold uppercase tracking-wider border bg-[#0b6b2e] text-white border-[#0b6b2e]"
+        >
+          Hackathon Control Center
         </button>
       </section>
 
@@ -622,6 +922,143 @@ export default function AdminPanelClient({
             </Link>
           </section>
 
+          <section className="border border-[#c4c6d3] bg-white p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-headline text-2xl text-[#002155]">Create Hackathon Event</h2>
+              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">Admin control</span>
+            </div>
+
+            <form className="space-y-4" onSubmit={handleCreateHackathonEvent}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  required
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                  placeholder="Hackathon title"
+                />
+                <input
+                  type="file"
+                  accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
+                  onChange={(e) => setEventPptFile(e.target.files?.[0] ?? null)}
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                />
+              </div>
+
+              <textarea
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[90px]"
+                placeholder="Event description (optional)"
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Start Time</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={eventStartTime}
+                    onChange={(e) => setEventStartTime(e.target.value)}
+                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">End Time</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={eventEndTime}
+                    onChange={(e) => setEventEndTime(e.target.value)}
+                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Submission Lock</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={eventSubmissionLockAt}
+                    onChange={(e) => setEventSubmissionLockAt(e.target.value)}
+                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="border border-[#e3e2df] p-4 bg-[#faf9f5] space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-[#002155]">Problem Statements</p>
+                  <button
+                    type="button"
+                    onClick={addEventProblemInput}
+                    className="border border-[#002155] text-[#002155] px-3 py-1 text-xs font-bold uppercase tracking-wider"
+                  >
+                    Add Problem
+                  </button>
+                </div>
+
+                {eventProblems.map((problem, idx) => (
+                  <div key={`event-problem-${idx}`} className="border border-[#d8d6cf] bg-white p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-widest text-[#434651]">Problem #{idx + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeEventProblemInput(idx)}
+                        disabled={eventProblems.length <= 1}
+                        className="text-xs font-bold uppercase tracking-wider text-[#ba1a1a] disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <input
+                      required
+                      value={problem.title}
+                      onChange={(e) => updateEventProblem(idx, { title: e.target.value })}
+                      className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                      placeholder="Problem title"
+                    />
+                    <textarea
+                      required
+                      value={problem.description}
+                      onChange={(e) => updateEventProblem(idx, { description: e.target.value })}
+                      className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[80px]"
+                      placeholder="Problem description"
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <label className="flex items-center gap-2 text-sm text-[#434651]">
+                        <input
+                          type="checkbox"
+                          checked={problem.isIndustryProblem}
+                          onChange={(e) => updateEventProblem(idx, { isIndustryProblem: e.target.checked, industryName: e.target.checked ? problem.industryName : "" })}
+                        />
+                        Industry Problem
+                      </label>
+                      {problem.isIndustryProblem ? (
+                        <input
+                          required
+                          value={problem.industryName}
+                          onChange={(e) => updateEventProblem(idx, { industryName: e.target.value })}
+                          className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                          placeholder="Industry name"
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                disabled={eventCreating}
+                className="bg-[#002155] text-white px-5 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+              >
+                {eventCreating ? "Creating..." : "Create Hackathon Event"}
+              </button>
+            </form>
+          </section>
+
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Pending Innovation Submissions</h2>
@@ -672,7 +1109,11 @@ export default function AdminPanelClient({
                   <article key={event.id} className="border border-[#c4c6d3] bg-white p-5">
                     <p className="text-sm font-bold text-[#002155]">#{event.id} • {event.title}</p>
                     <p className="mt-1 text-xs text-[#434651]">Status: {event.status}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Registration: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
                     <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Submission lock: {event.submissionLockAt ? new Date(event.submissionLockAt).toLocaleString() : "Not set"}
+                    </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {event.status === "UPCOMING" ? (
@@ -694,6 +1135,24 @@ export default function AdminPanelClient({
                         </button>
                       ) : null}
 
+                      {event.status === "ACTIVE" ? (
+                        <button
+                          onClick={() => handleInnovationEventStatus(event.id, "JUDGING")}
+                          disabled={busyInnovationEventId === event.id}
+                          className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                        >
+                          Mark JUDGING
+                        </button>
+                      ) : null}
+
+                      <button
+                        onClick={() => void handleToggleEventRegistration(event)}
+                        disabled={busyInnovationEventId === event.id}
+                        className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                      >
+                        {event.registrationOpen ? "Close Registration" : "Open Registration"}
+                      </button>
+
                       <button
                         onClick={() => void handleLoadInnovationLeaderboard(event.id)}
                         className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
@@ -706,6 +1165,111 @@ export default function AdminPanelClient({
                       >
                         View Event Page
                       </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <h2 className="font-headline text-2xl text-[#002155]">Hackathon Submissions Control Center</h2>
+              <div className="flex items-center gap-2">
+                <select
+                  value={managedSubmissionEventFilter}
+                  onChange={(e) => setManagedSubmissionEventFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All Events</option>
+                  {innovationEvents.map((event) => (
+                    <option key={`submission-filter-${event.id}`} value={event.id}>
+                      #{event.id} {event.title}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => void refreshManagedSubmissions()}
+                  className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {loadingManagedSubmissions ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading hackathon submissions...</p>
+            ) : filteredManagedSubmissions.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No hackathon submissions found for this filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredManagedSubmissions.map((claim) => (
+                  <article key={claim.id} className="border border-[#c4c6d3] bg-white p-5">
+                    <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Event: {claim.problem.event?.title || "N/A"}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Status: {claim.status} • Attendance: {claim.isAbsent ? "ABSENT" : "PRESENT"}</p>
+                    <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      {claim.submissionUrl ? (
+                        <a href={claim.submissionUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                          Submission URL
+                        </a>
+                      ) : null}
+                      {claim.submissionFileUrl ? (
+                        <a href={claim.submissionFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                          Submission File
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => void handleMarkAttendance(claim.id, !claim.isAbsent)}
+                        disabled={busyClaimId === claim.id}
+                        className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                      >
+                        {claim.isAbsent ? "Mark Present" : "Mark Absent"}
+                      </button>
+
+                      {(claim.status === "IN_PROGRESS" || claim.status === "SUBMITTED" || claim.status === "REVISION_REQUESTED") ? (
+                        <>
+                          <button
+                            onClick={() => void handleScreeningDecision(claim, "SHORTLISTED")}
+                            disabled={busyClaimId === claim.id}
+                            className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            Shortlist
+                          </button>
+                          <button
+                            onClick={() => void handleScreeningDecision(claim, "REJECTED")}
+                            disabled={busyClaimId === claim.id}
+                            className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            Reject (Screening)
+                          </button>
+                        </>
+                      ) : null}
+
+                      {claim.status === "SHORTLISTED" ? (
+                        <>
+                          <button
+                            onClick={() => void handleJudgingDecision(claim, "ACCEPTED")}
+                            disabled={busyClaimId === claim.id}
+                            className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            Final Accept
+                          </button>
+                          <button
+                            onClick={() => void handleJudgingDecision(claim, "REJECTED")}
+                            disabled={busyClaimId === claim.id}
+                            className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            Final Reject
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </article>
                 ))}

@@ -76,10 +76,13 @@ type InnovationSubmission = {
 
 type InnovationEvent = {
   id: number;
+  description: string | null;
   title: string;
   status: 'UPCOMING' | 'ACTIVE' | 'JUDGING' | 'CLOSED';
+  registrationOpen: boolean;
   startTime: string;
   endTime: string;
+  submissionLockAt: string | null;
 };
 
 function getRequestBaseUrl(headerStore: Headers): string {

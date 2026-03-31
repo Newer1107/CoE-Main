@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
         event: { select: { id: true, title: true, status: true } },
-        _count: { select: { claims: true, openSubmissions: true } },
+        _count: { select: { claims: true, applications: true } },
       },
       orderBy: [{ updatedAt: 'desc' }],
     });
@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
         eventId: (formData.get('eventId') as string) || undefined,
         isIndustryProblem: (formData.get('isIndustryProblem') as string) ?? undefined,
         industryName: ((formData.get('industryName') as string) || '').trim(),
+        questions: (formData.get('questions') as string) || undefined,
       };
       supportDocumentFile = formData.get('supportDocument') as File | null;
     } else {
@@ -172,6 +173,33 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Create questions if provided
+    let questionsData: unknown[] = [];
+    if (body.questions && !problem.eventId && problem.mode === 'OPEN') {
+      try {
+        const questionsRaw = typeof body.questions === 'string' ? JSON.parse(body.questions) : body.questions;
+        if (Array.isArray(questionsRaw) && questionsRaw.length > 0) {
+          const validQuestions = questionsRaw.filter((q) => q && typeof q.questionText === 'string' && q.questionText.trim().length > 0);
+
+          if (validQuestions.length > 0) {
+            questionsData = await Promise.all(
+              validQuestions.map((q) =>
+                prisma.problemQuestion.create({
+                  data: {
+                    problemId: problem.id,
+                    questionText: q.questionText.trim(),
+                    type: q.type && ['TEXT', 'LONG_TEXT'].includes(q.type) ? q.type : 'TEXT',
+                  },
+                })
+              )
+            );
+          }
+        }
+      } catch {
+        // Silently ignore invalid questions JSON
+      }
+    }
+
     const supportDocumentUrl = supportDocumentKey ? await getSignedUrl(supportDocumentKey).catch(() => null) : null;
 
     return successRes(
@@ -179,6 +207,7 @@ export async function POST(req: NextRequest) {
         ...problem,
         supportDocumentKey,
         supportDocumentUrl,
+        questions: questionsData,
       },
       'Problem created successfully.',
       201

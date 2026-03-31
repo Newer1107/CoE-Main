@@ -309,3 +309,51 @@ export const sendInnovationWinnerEmail = async (
 
   await send(recipients, `Innovation Winners: ${details.eventTitle}`, body);
 };
+
+// ─── 13. Innovation: Application Selected ───
+export const sendApplicationSelectionEmail = async (
+  studentEmail: string,
+  details: {
+    studentName: string;
+    problemTitle: string;
+    feedback?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Congratulations! Application Selected ✅</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">Your application for <strong>${details.problemTitle}</strong> has been <strong>SELECTED</strong>. Well done!</p>
+    ${details.feedback ? `
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:12px 16px;margin:16px 0;">
+      <p style="margin:0;color:#434651;font-weight:bold;">Feedback from Faculty:</p>
+      <p style="margin:4px 0 0;color:#002155;">${details.feedback}</p>
+    </div>
+    ` : ''}
+    <p style="color:#747782;font-size:12px;">Please log in to the CoE Innovation Portal to view next steps and connect with your assigned faculty mentor.</p>`;
+
+  await send(studentEmail, 'Application Selected — TCET CoE Innovation', body);
+};
+
+// ─── 14. Innovation: Application Rejected ───
+export const sendApplicationRejectionEmail = async (
+  studentEmail: string,
+  details: {
+    studentName: string;
+    problemTitle: string;
+    feedback?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Application Status Update</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">After reviewing your application for <strong>${details.problemTitle}</strong>, we regret to inform you that it was not selected at this time.</p>
+    ${details.feedback ? `
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:12px 16px;margin:16px 0;">
+      <p style="margin:0;color:#434651;font-weight:bold;">Feedback from Faculty:</p>
+      <p style="margin:4px 0 0;color:#002155;">${details.feedback}</p>
+    </div>
+    ` : ''}
+    <p style="color:#747782;font-size:12px;">We encourage you to explore other open problems and apply again. Check the Innovation Portal for more opportunities.</p>`;
+
+  await send(studentEmail, 'Application Status — TCET CoE Innovation', body);
+};

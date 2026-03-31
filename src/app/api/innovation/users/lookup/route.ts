@@ -86,15 +86,16 @@ export async function GET(req: NextRequest) {
 
         participationRows.forEach((entry) => participatedUserIds.add(entry.userId));
       } else {
-        const participationRows = await prisma.openSubmissionMember.findMany({
+        // For open problems, check Applications instead of OpenSubmissionMembers
+        const applicationRows = await prisma.application.findMany({
           where: {
             userId: { in: userIds },
-            openSubmission: { problemId },
+            problemId,
           },
           select: { userId: true },
         });
 
-        participationRows.forEach((entry) => participatedUserIds.add(entry.userId));
+        applicationRows.forEach((entry) => participatedUserIds.add(entry.userId));
       }
     }
 

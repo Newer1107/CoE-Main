@@ -142,14 +142,39 @@ export default function Navbar({ user }: NavbarProps) {
                     {user?.uid ? <p className="mt-1 text-xs text-[#434651]">UID: {user.uid}</p> : null}
 
                     <div className="mt-3 grid grid-cols-1 gap-2">
-                      {canSeeMySubmissions ? (
+                      {canSeeAdminPanel ? (
                         <Link
-                          href="/innovation/my-submissions"
+                          href="/admin?tab=innovation"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155]"
+                          className="border border-[#0b6b2e] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#0b6b2e] hover:bg-[#0b6b2e] hover:text-white transition-colors"
                         >
-                          My Submissions
+                          Hackathon Control Center
                         </Link>
+                      ) : null}
+                      {canSeeMySubmissions ? (
+                        <>
+                          <Link
+                            href="/profile"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
+                          >
+                            My Profile
+                          </Link>
+                          <Link
+                            href="/innovation/my-applications"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="border border-[#fd9923] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#fd9923] hover:bg-[#fd9923] hover:text-white transition-colors"
+                          >
+                            My Applications
+                          </Link>
+                          <Link
+                            href="/innovation/my-submissions"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155]"
+                          >
+                            My Submissions
+                          </Link>
+                        </>
                       ) : null}
                       <Link
                         href="/facility-booking"
@@ -235,14 +260,39 @@ export default function Navbar({ user }: NavbarProps) {
             </Link>
             {isLoggedIn ? (
               <>
-                {canSeeMySubmissions ? (
+                {canSeeAdminPanel ? (
                   <Link
-                    href="/innovation/my-submissions"
+                    href="/admin?tab=innovation"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="mt-3 inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-white"
+                    className="mt-3 inline-block w-full border border-[#0b6b2e] py-3 text-center text-xs font-bold uppercase tracking-wider text-[#0b6b2e] hover:bg-[#0b6b2e] hover:text-white transition-colors"
                   >
-                    My Submissions
+                    Hackathon Control Center
                   </Link>
+                ) : null}
+                {canSeeMySubmissions ? (
+                  <>
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="mt-3 inline-block w-full border border-[#002155] py-3 text-center text-xs font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
+                    >
+                      My Profile
+                    </Link>
+                    <Link
+                      href="/innovation/my-applications"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="mt-3 inline-block w-full border border-[#fd9923] py-3 text-center text-xs font-bold uppercase tracking-wider text-[#fd9923] hover:bg-[#fd9923] hover:text-white transition-colors"
+                    >
+                      My Applications
+                    </Link>
+                    <Link
+                      href="/innovation/my-submissions"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="mt-3 inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-white"
+                    >
+                      My Submissions
+                    </Link>
+                  </>
                 ) : null}
                 <button
                   type="button"

@@ -83,7 +83,7 @@ export default async function HomePage() {
           id: true,
           title: true,
           tags: true,
-          _count: { select: { openSubmissions: true } },
+          _count: { select: { applications: true } },
         },
       }),
     ]);
@@ -519,7 +519,7 @@ export default async function HomePage() {
                             </span>
                           ) : <span />}
                           <span className="text-[9px] font-bold text-[#0b6b2e]">
-                            {problem._count.openSubmissions} registered
+                            {problem._count.applications} applications
                           </span>
                         </div>
                       </article>
