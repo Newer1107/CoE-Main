@@ -3,9 +3,21 @@ import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { z } from 'zod';
 
-const questionSchema = z.object({
+const singleQuestionSchema = z.object({
   questionText: z.string().trim().min(5, 'Question must be at least 5 characters'),
   type: z.enum(['TEXT', 'LONG_TEXT']).default('TEXT'),
+});
+
+const batchQuestionSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        questionText: z.string().trim().min(5, 'Question must be at least 5 characters'),
+        questionType: z.enum(['SHORT_TEXT', 'LONG_TEXT']).optional(),
+        type: z.enum(['TEXT', 'LONG_TEXT']).optional(),
+      })
+    )
+    .min(1, 'At least one question is required'),
 });
 
 // GET /api/innovation/problems/[id]/questions
@@ -59,10 +71,27 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
 
     const body = await req.json();
-    const parsed = questionSchema.safeParse(body);
 
-    if (!parsed.success) {
-      return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
+    let questionsToCreate: Array<{ questionText: string; type: 'TEXT' | 'LONG_TEXT' }> = [];
+
+    const parsedBatch = batchQuestionSchema.safeParse(body);
+    if (parsedBatch.success) {
+      questionsToCreate = parsedBatch.data.questions.map((q) => ({
+        questionText: q.questionText.trim(),
+        type: q.type ?? (q.questionType === 'LONG_TEXT' ? 'LONG_TEXT' : 'TEXT'),
+      }));
+    } else {
+      const parsedSingle = singleQuestionSchema.safeParse(body);
+      if (!parsedSingle.success) {
+        return errorRes('Validation failed', parsedSingle.error.issues.map((issue) => issue.message), 400);
+      }
+
+      questionsToCreate = [
+        {
+          questionText: parsedSingle.data.questionText.trim(),
+          type: parsedSingle.data.type,
+        },
+      ];
     }
 
     const problem = await prisma.problem.findFirst({
@@ -86,15 +115,23 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       return errorRes('Forbidden', ['You can only add questions to your own problems'], 403);
     }
 
-    const question = await prisma.problemQuestion.create({
-      data: {
-        problemId,
-        questionText: parsed.data.questionText,
-        type: parsed.data.type,
-      },
-    });
+    const createdQuestions = await prisma.$transaction(
+      questionsToCreate.map((q) =>
+        prisma.problemQuestion.create({
+          data: {
+            problemId,
+            questionText: q.questionText,
+            type: q.type,
+          },
+        })
+      )
+    );
 
-    return successRes(question, 'Question created successfully.', 201);
+    return successRes(
+      createdQuestions.length === 1 ? createdQuestions[0] : createdQuestions,
+      createdQuestions.length === 1 ? 'Question created successfully.' : 'Questions created successfully.',
+      201
+    );
   } catch (err) {
     console.error('Problem questions POST error:', err);
     return errorRes('Internal server error', [], 500);

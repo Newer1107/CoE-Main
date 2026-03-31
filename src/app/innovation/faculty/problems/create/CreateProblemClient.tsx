@@ -138,7 +138,8 @@ export default function CreateProblemClient() {
         });
 
         if (!questionsRes.ok) {
-          throw new Error('Failed to create questions');
+          const errData = await questionsRes.json().catch(() => null);
+          throw new Error(errData?.message || 'Failed to create questions');
         }
       }
 
