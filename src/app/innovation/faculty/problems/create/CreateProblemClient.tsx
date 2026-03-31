@@ -104,6 +104,17 @@ export default function CreateProblemClient() {
       requestBody.append('isIndustryProblem', String(formData.isIndustryProblem));
       requestBody.append('industryName', formData.isIndustryProblem ? formData.industryName.trim() : '');
       requestBody.append('mode', 'OPEN');
+      if (questions.length > 0) {
+        requestBody.append(
+          'questions',
+          JSON.stringify(
+            questions.map((q) => ({
+              questionText: q.questionText.trim(),
+              type: q.questionType === 'LONG_TEXT' ? 'LONG_TEXT' : 'TEXT',
+            }))
+          )
+        );
+      }
       if (supportDocument) {
         requestBody.append('supportDocument', supportDocument);
       }
@@ -120,28 +131,7 @@ export default function CreateProblemClient() {
       }
 
       const problemData = await problemRes.json();
-      const problemId = problemData.data.id;
-
-      // Create questions
-      if (questions.length > 0) {
-        const questionsRes = await fetch(`/api/innovation/problems/${problemId}/questions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            questions: questions.map(q => ({
-              questionText: q.questionText,
-              questionType: q.questionType,
-              isRequired: q.isRequired,
-              order: q.order,
-            })),
-          }),
-        });
-
-        if (!questionsRes.ok) {
-          const errData = await questionsRes.json().catch(() => null);
-          throw new Error(errData?.message || 'Failed to create questions');
-        }
-      }
+      void problemData;
 
       setSuccess(true);
       setTimeout(() => {
