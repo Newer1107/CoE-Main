@@ -47,6 +47,138 @@ Major capability groups:
   - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, problem statements, staged faculty judging, leaderboard
 
+### 1.1 System Component Architecture
+
+```mermaid
+graph TB
+  subgraph "Client Layer"
+    B[Browser/Web Client]
+    M[Mobile Browser]
+  end
+
+  subgraph "Next.js Application"
+    L[Root Layout + Auth Context]
+    PC[Pages & Server Components]
+    PSC[Protected Pages]
+    CC[Client Components]
+    PUB[Public Pages]
+  end
+
+  subgraph "API Layer"
+    RH["Route Handlers (/api)"]
+    AUTH["Auth APIs"]
+    CONTENT["Content APIs"]
+    INNOV["Innovation APIs"]
+    ADMIN["Admin APIs"]
+    UTIL["Utility APIs"]
+  end
+
+  subgraph "Service Layer"
+    JWT["JWT Manager"]
+    AUTH_SVC["Authentication"]
+    AUTH_Z["Authorization/RBAC"]
+    MAIL["Mailer Service"]
+    STORAGE["Storage Service"]
+    SCORE["Scoring Engine"]
+  end
+
+  subgraph "External Services & Storage"
+    DB[(MySQL Database)]
+    MINIO["MinIO Object Store"]
+    SMTP["SMTP Server"]
+    GA["Google Analytics 4"]
+    CRON["Scheduler/Cron"]
+  end
+
+  B --> L
+  M --> L
+  L --> PC
+  PC --> PSC
+  PC --> PUB
+  PSC --> CC
+  PUB --> CC
+
+  PC --> RH
+  CC --> RH
+  RH --> AUTH
+  RH --> CONTENT
+  RH --> INNOV
+  RH --> ADMIN
+  RH --> UTIL
+
+  AUTH --> JWT
+  AUTH --> AUTH_SVC
+  CONTENT --> AUTH_Z
+  INNOV --> AUTH_Z
+  ADMIN --> AUTH_Z
+  UTIL --> AUTH_Z
+
+  AUTH_SVC --> DB
+  AUTH_Z --> DB
+  MAIL --> SMTP
+  STORAGE --> MINIO
+  SCORE --> DB
+  GA --> GA
+
+  CRON --> AUTH
+  CRON --> MAIL
+  CRON --> DB
+```
+
+### 1.2 Feature Module Organization
+
+```mermaid
+graph LR
+  subgraph "Core"
+    AUTH["Authentication"]
+    USER["User Management"]
+  end
+
+  subgraph "Content Management"
+    NEWS["News Feed"]
+    GRANTS["Grants"]
+    EVENTS["Events"]
+    ANNOUN["Announcements"]
+    HERO["Hero Slides"]
+  end
+
+  subgraph "Facility Management"
+    BOOK["Booking System"]
+  end
+
+  subgraph "Innovation Platform"
+    subgraph "Open Problems Track"
+      PROF["Student Profile"]
+      PROB["Problems"]
+      APP["Applications"]
+    end
+
+    subgraph "Hackathon Track"
+      HACK["Hackathon Events"]
+      CLAIM["Team Claims"]
+      SCORE["Scoring"]
+      LB["Leaderboard"]
+    end
+  end
+
+  subgraph "Operations"
+    ADMIN_OPS["Admin Panel"]
+    STATS["Analytics/Stats"]
+  end
+
+  AUTH --> USER
+  USER --> BOOK
+  USER --> PROF
+  USER --> APP
+  PROF --> APP
+  PROF --> CLAIM
+  PROB --> APP
+  HACK --> CLAIM
+  CLAIM --> SCORE
+  SCORE --> LB
+  ADMIN_OPS --> STATS
+```
+
 ## 2) Feature Matrix by Role
 
 | Capability | Public | Student | Faculty | Admin |
@@ -103,6 +235,93 @@ flowchart TD
   C --> CR2[GET /api/cron/innovation-reminder]
   CR1 --> R
   CR2 --> R
+```
+
+### 4.1a Data Flow Through Core Workflows
+
+```mermaid
+graph LR
+  subgraph "Input Sources"
+    WEB["Web Form<br/>Client Input"]
+    API_VER["API Verification<br/>OTP/Password"]
+    FILE["File Upload<br/>PPT/Resume"]
+  end
+
+  subgraph "Processing Pipeline"
+    VALID["Validation Layer<br/>Zod Schemas"]
+    AUTH["Authentication<br/>JWT Tokens"]
+    AUTHOR["Authorization<br/>RBAC Checks"]
+    PROCESS["Business Logic<br/>Transform Data"]
+  end
+
+  subgraph "Persistence"
+    DB_WRITE["Database Write<br/>Prisma ORM"]
+    STORAGE["Object Storage<br/>MinIO"]
+    CACHE["Cache Layer<br/>Session Store"]
+  end
+
+  subgraph "Notifications"
+    MAIL["Email Service<br/>Nodemailer"]
+    ANALYTICS["Analytics Events<br/>GA4"]
+    LOGS["Audit Logs<br/>DB Records"]
+  end
+
+  subgraph "Output"
+    RESPONSE["API Response<br/>JSON Envelope"]
+    UI["UI Refresh<br/>Client State"]
+    REPORT["Reports/Admin<br/>Aggregated Data"]
+  end
+
+  WEB --> VALID
+  API_VER --> VALID
+  FILE --> VALID
+  VALID --> AUTH
+  AUTH --> AUTHOR
+  AUTHOR --> PROCESS
+  PROCESS --> DB_WRITE
+  PROCESS --> STORAGE
+  DB_WRITE --> CACHE
+  STORAGE --> CACHE
+  DB_WRITE --> MAIL
+  DB_WRITE --> ANALYTICS
+  DB_WRITE --> LOGS
+  CACHE --> RESPONSE
+  RESPONSE --> UI
+  LOGS --> REPORT
+  ANALYTICS --> REPORT
+```
+
+### 4.1b Database Entity Relationship Diagram
+
+```mermaid
+erDiagram
+  USER ||--o{ BOOKING : creates
+  USER ||--o{ NEWSPOST : creates
+  USER ||--o{ GRANT : creates
+  USER ||--o{ EVENT : creates
+  USER ||--o{ ANNOUNCEMENT : creates
+  USER ||--o{ PROBLEM : creates
+  USER ||--o{ HACKATHONEVENT : creates
+  USER ||--o{ STUDENTPROFILE : has
+  USER ||--o{ APPLICATION : submits
+  USER ||--o{ CLAIMMEMBER : joins
+
+  PROBLEM ||--o{ CLAIM : contains
+  PROBLEM ||--o{ PROBLEMQUESTION : has
+  PROBLEM ||--o{ APPLICATION : accepts
+
+  HACKATHONEVENT ||--o{ PROBLEM : has
+
+  CLAIM ||--o{ CLAIMMEMBER : includes
+  CLAIM ||--o{ RUBRIC : scored_with
+
+  STUDENTPROFILE ||--o{ APPLICATION : linked_to
+
+  APPLICATION ||--o{ APPLICATIONANSWER : includes
+  PROBLEMQUESTION ||--o{ APPLICATIONANSWER : answered
+
+  OTP ||--o{ USER : verifies
+  HEROSLIDE ||--|| CONTENT : displays
 ```
 
 ### 4.2 Session lifecycle
@@ -294,6 +513,186 @@ sequenceDiagram
   S->>DB: View updated status in My Applications
 ```
 
+### 4.9 API Route Organization & Hierarchy
+
+```mermaid
+graph TD
+  root["🔌 /api"]
+
+  auth["🔐 /auth"]
+  auth_reg["POST /register/student<br/>POST /register/faculty"]
+  auth_verify["POST /verify-otp<br/>POST /resend-otp"]
+  auth_session["POST /login<br/>POST /refresh<br/>POST /logout"]
+  auth_pwd["POST /forgot-password<br/>POST /reset-password"]
+
+  booking["📅 /bookings"]
+  booking_create["POST /"]
+  booking_view["GET /my<br/>GET / guidance"]
+  booking_cancel["DELETE /:id"]
+
+  admin["👨‍💼 /admin"]
+  admin_booking["PATCH /bookings/:id/confirm<br/>PATCH /bookings/:id/reject"]
+  admin_faculty["PATCH /faculty/:id/approve<br/>PATCH /faculty/:id/reject"]
+  admin_stats["GET /stats<br/>GET /users<br/>GET /bookings"]
+
+  content["📰 /news, /events, /grants"]
+  content_read["GET /"]
+  content_create["POST /<br/>PATCH /:id<br/>DELETE /:id"]
+
+  innovation["🚀 /innovation"]
+  innov_prob["GET /problems<br/>POST /problems"]
+  innov_app["POST /applications<br/>GET /applications/my"]
+  innov_hack["POST /events/:id/register<br/>GET /events/:id/leaderboard"]
+  innov_faculty["GET /faculty/*<br/>PATCH /faculty/claims/sync"]
+
+  profile["👤 /profile"]
+  profile_mgmt["GET /<br/>POST /<br/>PATCH /"]
+  profile_check["GET /check-completion"]
+
+  util["⚙️ Utilities"]
+  util_store["GET /storage/:path"]
+  util_health["GET /health"]
+  util_seed["POST /seed"]
+  util_cron["GET /cron/reminder<br/>GET /cron/innovation-reminder"]
+
+  root --> auth
+  root --> booking
+  root --> admin
+  root --> content
+  root --> innovation
+  root --> profile
+  root --> util
+
+  auth --> auth_reg
+  auth --> auth_verify
+  auth --> auth_session
+  auth --> auth_pwd
+
+  booking --> booking_create
+  booking --> booking_view
+  booking --> booking_cancel
+
+  admin --> admin_booking
+  admin --> admin_faculty
+  admin --> admin_stats
+
+  content --> content_read
+  content --> content_create
+
+  innovation --> innov_prob
+  innovation --> innov_app
+  innovation --> innov_hack
+  innovation --> innov_faculty
+
+  profile --> profile_mgmt
+  profile --> profile_check
+
+  util --> util_store
+  util --> util_health
+  util --> util_seed
+  util --> util_cron
+```
+
+### 4.10 Application Status State Machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> SUBMITTED: Student applies
+
+  SUBMITTED --> SELECTED: Faculty approves
+  SUBMITTED --> REJECTED: Faculty rejects
+
+  SELECTED --> [*]: Selection email sent
+  REJECTED --> [*]: Rejection email sent
+
+  note right of SUBMITTED
+    Open Problem Application
+    Awaiting faculty review
+    Can have feedback
+  end note
+
+  note right of SELECTED
+    Student accepted
+    Receives feedback
+    Can view in My Applications
+  end note
+
+  note right of REJECTED
+    Student rejected
+    Receives feedback
+    Can apply to other problems
+  end note
+```
+
+### 4.11 Hackathon Claim Status Lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> IN_PROGRESS: Team starts form
+
+  IN_PROGRESS --> SUBMITTED: Team submits PPT
+
+  SUBMITTED --> SHORTLISTED: Screening approved
+  SUBMITTED --> REJECTED: Screening rejected
+
+  SHORTLISTED --> ACCEPTED: Final judging approved
+  SHORTLISTED --> REJECTED: Final judging rejected
+  SHORTLISTED --> REVISION_REQUESTED: Needs revision
+
+  REVISION_REQUESTED --> SUBMITTED: Team resubmits
+
+  ACCEPTED --> [*]: Winners announced
+  REJECTED --> [*]: Consolation emails sent
+
+  note right of IN_PROGRESS
+    PPT Form Active
+    Not yet submitted
+  end note
+
+  note right of SUBMITTED
+    Awaiting Screening
+    PPT ready for review
+  end note
+
+  note right of SHORTLISTED
+    Passed Screening
+    Ready for Final Judging
+    rubrics can be set
+  end note
+
+  note right of ACCEPTED
+    Final Judging Approved
+    Final scores persisted
+    Leaderboard eligible
+  end note
+```
+
+### 4.12 Booking Status Lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> PENDING: Student creates booking
+
+  PENDING --> CONFIRMED: Admin approves
+  PENDING --> REJECTED: Admin rejects
+  PENDING --> CANCELLED: Student cancels
+
+  CONFIRMED --> [*]: Reminder sent 30min before
+  REJECTED --> [*]: Notification sent
+  CANCELLED --> [*]: Confirmation sent
+
+  note right of PENDING
+    Awaiting admin review
+    Student can cancel anytime
+  end note
+
+  note right of CONFIRMED
+    Admin approved
+    Reminder mail sent before time
+    Student shows up at facility
+  end note
+```
+
 ## 5) Data Model
 
 Primary entities:
@@ -333,7 +732,65 @@ Open-problem application fields persisted on `Application`:
 - profile linkage via `profileId`
 - custom responses via `ApplicationAnswer`
 
-## 6) App Routes and UX Flows
+### 5.1 Principal Data Entities Flow Diagram
+
+```mermaid
+graph LR
+  U["User<br/>id, role, status<br/>email, phone, uid"]
+
+  SP["StudentProfile<br/>skills, experience<br/>interests, resume"]
+
+  PROF["Problem<br/>title, description<br/>mode, status"]
+
+  HE["HackathonEvent<br/>title, timeline<br/>status, problems"]
+
+  APP["Application<br/>user + profile<br/>+ problem<br/>status, feedback"]
+
+  CLAIM["Claim<br/>problemId<br/>team members<br/>scores"]
+
+  NP["NewsPost<br/>Events, Grants<br/>Announcements"]
+
+  BOOK["Booking<br/>student, facility<br/>date, status"]
+
+  U -->|creates-one| SP
+  U -->|creates-many| APP
+  U -->|creates-many| PROF
+  U -->|creates-many| HE
+  U -->|creates-many| BOOK
+  U -->|owns| NP
+
+  SP -->|answered-by| APP
+  PROF -->|has-many| APP
+  PROF -->|belongs-to| HE
+
+  APP -->|tracks| CLAIM
+  HE -->|contains| CLAIM
+
+  U -->|joins-as| CLAIM
+```
+
+### 5.2 Role-Based Access Control Matrix
+
+```mermaid
+graph TD
+  subgraph "Public Access"
+    PUB["✅ View homepage<br/>✅ View innovation landing<br/>✅ View hackathon events<br/>✅ View announcements"]
+  end
+
+  subgraph "Student Restricted"
+    STU["✅ Register & Login<br/>✅ Create facility booking<br/>✅ Create student profile<br/>✅ Submit applications<br/>✅ View my applications<br/>✅ Register for hackathon<br/>❌ Manage content<br/>❌ Admin functions"]
+  end
+
+  subgraph "Faculty Restricted"
+    FAC["✅ Login & create content<br/>✅ Create problems<br/>✅ Create hackathon events<br/>✅ Review applications<br/>✅ Judge submissions<br/>✅ Manage own content<br/>❌ Moderate other faculty<br/>❌ Global admin controls"]
+  end
+
+  subgraph "Admin Unrestricted"
+    ADM["✅ ALL student actions<br/>✅ ALL faculty actions<br/>✅ Approve/reject faculty<br/>✅ Moderate bookings<br/>✅ View platform stats<br/>✅ Delete any content<br/>✅ Manage hero slides"]
+  end
+```
+
+Open-problem application fields persisted on `Application`:
 
 Public/common pages:
 - `/`
@@ -400,6 +857,94 @@ Current UX notes:
 - Students are prompted globally to complete profile before applying (`ProfileCompletionModal`).
 - Faculty open-problem review runs in `/innovation/faculty/applications`.
 - Legacy open-submissions compatibility endpoints were removed; application routes are now canonical.
+
+### 6.3 Role-Based Navigation & Page Access Flow
+
+```mermaid
+graph TD
+  LOGIN[Login Page]
+
+  LOGIN -->|student role| SDASH["Student Dashboard<br/>/"]
+  LOGIN -->|faculty role| FDASH["Faculty Portal<br/>/faculty"]
+  LOGIN -->|admin role| ADASH["Admin Panel<br/>/admin"]
+
+  subgraph "Student Routes"
+    SDASH --> FB["📅 /facility-booking"]
+    SDASH --> PROF["👤 /innovation/profile"]
+    SDASH --> PROB["🚀 /innovation/problems"]
+    SDASH --> APP["📋 /innovation/my-applications"]
+    SDASH --> SUB["📤 /innovation/my-submissions"]
+  end
+
+  subgraph "Faculty Routes"
+    FDASH --> FE["🛠️ Events Management<br/>/innovation/faculty"]
+    FDASH --> FPC["➕ Create Problem<br/>/innovation/faculty/problems/create"]
+    FDASH --> FA["📝 Applications Review<br/>/innovation/faculty/applications"]
+    FDASH --> NE["📰 Create News Event<br/>/faculty"]
+  end
+
+  subgraph "Admin Routes"
+    ADASH --> AB["📅 Booking Moderation"]
+    ADASH --> AHC["🎯 Hackathon Control<br/>/admin?tab=innovation"]
+    ADASH --> AU["👥 User Management"]
+    ADASH --> AS["📊 Analytics & Stats"]
+  end
+
+  subgraph "Public/Common"
+    HOME["🏠 /"]
+    ABOUT["ℹ️ /about"]
+    LAB["🔬 /laboratory"]
+    INNOV["🚀 /innovation"]
+    EVENT["🎪 /innovation/events/:id"]
+  end
+```
+
+### 6.4 Complete Student Innovation Journey Map
+
+```mermaid
+journey
+  title Student Complete Innovation Journey
+  section Profile Setup
+    Complete profile: 5: Student
+    Upload resume: 4: Student
+    section Open Problem Track
+    Browse open problems: 5: Student
+    View problem details: 4: Student
+    Apply to problem: 5: Student
+    Answer custom questions: 4: Student
+    Submit application: 5: Student
+    View application status: 3: Student
+    Receive decision email: 3: Student
+    section Hackathon Track
+    Visit hackathon event page: 4: Student
+    Register team: 5: Student
+    Upload PPT submission: 5: Student
+    Wait for screening: 2: System
+    View screening result: 3: Student
+    Attend final judging: 5: Student
+    Check final score: 5: Student
+    View on leaderboard: 5: Student
+```
+
+### 6.5 Facility Booking User Journey
+
+```mermaid
+journey
+  title Facility Booking Complete Flow
+  section Student Actions
+    Create booking request: 5: Student
+    Select facility & time: 4: Student
+    Submit booking: 5: Student
+    Receive confirmation: 3: Student
+    section Admin Actions
+    View pending bookings: 4: Admin
+    Verify booking details: 3: Admin
+    Approve booking: 5: Admin
+    section Reminders
+    Booking confirmed: 4: System
+    Reminder 30min before: 5: System
+    Access granted: 5: Student
+```
 
 ## 7) API Reference
 
@@ -530,6 +1075,102 @@ Event stage controls and review:
 - `GET /api/cron/reminder`
 - `GET /api/cron/innovation-reminder`
 
+### 7.7 API Request/Response Flow & Error Handling
+
+```mermaid
+graph TD
+  REQ["Incoming HTTP Request"]
+
+  EXTRACT["Extract & Parse<br/>Headers, Body, Params"]
+  TOKEN_CHECK["Check Token<br/>Cookie/Bearer"]
+
+  TOKEN_VALID{Token<br/>Valid?}
+  TOKEN_INVALID["Return 401<br/>Unauthorized"]
+
+  BODY_VALIDATE["Validate Request<br/>with Zod Schema"]
+  VALID_CHECK{Schema<br/>Valid?}
+  INVALID_BODY["Return 400<br/>Bad Request<br/>Error Details"]
+
+  AUTHORIZE["Check Role<br/>Permissions"]
+  AUTH_CHECK{User<br/>Authorized?}
+  NOT_AUTH["Return 403<br/>Forbidden"]
+
+  EXECUTE["Execute Business<br/>Logic"]
+  LOGIC_TRY{Success?}
+
+  SUCCESS["✅ Response 200<br/>{success: true,<br/>data: payload}"]
+  LOGIC_ERROR["❌ Response 5xx<br/>{success: false,<br/>message: error}"]
+
+  REQ --> EXTRACT
+  EXTRACT --> TOKEN_CHECK
+  TOKEN_CHECK -->|No| TOKEN_INVALID
+  TOKEN_CHECK -->|Yes| TOKEN_VALID
+  TOKEN_VALID --> BODY_VALIDATE
+  BODY_VALIDATE --> VALID_CHECK
+  VALID_CHECK -->|No| INVALID_BODY
+  VALID_CHECK -->|Yes| AUTHORIZE
+  AUTHORIZE --> AUTH_CHECK
+  AUTH_CHECK -->|No| NOT_AUTH
+  AUTH_CHECK -->|Yes| EXECUTE
+  EXECUTE --> LOGIC_TRY
+  LOGIC_TRY -->|Yes| SUCCESS
+  LOGIC_TRY -->|No| LOGIC_ERROR
+
+  TOKEN_INVALID --> RESP["Return Response"]
+  INVALID_BODY --> RESP
+  NOT_AUTH --> RESP
+  SUCCESS --> RESP
+  LOGIC_ERROR --> RESP
+```
+
+### 7.8 Service Module Interaction Diagram
+
+```mermaid
+graph TB
+  API["API Route Handler"]
+
+  subgraph "Service Layer"
+    AUTH_SVC["Authentication<br/>Services"]
+    VALIDATE["Validation<br/>Services"]
+    BUS["Business Logic<br/>Services"]
+    MAIL_SVC["Mailer<br/>Service"]
+    STORAGE_SVC["Storage<br/>Service"]
+    SCORE_SVC["Scoring<br/>Service"]
+  end
+
+  subgraph "Data Layer"
+    PRISMA["Prisma Client"]
+    DB[(MySQL)]
+  end
+
+  subgraph "External"
+    MINIO["MinIO"]
+    SMTP["SMTP"]
+  end
+
+  API --> VALIDATE
+  API --> AUTH_SVC
+  API --> BUS
+
+  VALIDATE -->|Zod| VALIDATE
+
+  AUTH_SVC -->|JWT| AUTH_SVC
+  AUTH_SVC -->|Bcrypt| AUTH_SVC
+  AUTH_SVC --> PRISMA
+
+  BUS -->|Complex Ops| BUS
+  BUS --> PRISMA
+  BUS --> SCORE_SVC
+  BUS --> MAIL_SVC
+
+  MAIL_SVC --> SMTP
+  SCORE_SVC --> PRISMA
+
+  STORAGE_SVC --> MINIO
+
+  PRISMA --> DB
+```
+
 ## 8) Environment Configuration
 
 Required variables:
@@ -629,6 +1270,151 @@ Quick validation in GA DebugView:
 
 ## 11) Deployment Notes
 
+### 11.0 Deployment Architecture Diagram
+
+```mermaid
+graph TB
+  subgraph "Client Tier"
+    BROWSER["🌐 Web Browser<br/>Desktop/Mobile"]
+    DNS["🔗 DNS Resolution<br/>domain.com"]
+  end
+
+  subgraph "CDN & Reverse Proxy"
+    CF["🚀 CloudFlare / Nginx<br/>SSL/TLS Termination<br/>Request Translation"]
+  end
+
+  subgraph "Application Server"
+    NEXT["Next.js App Server<br/>Node.js Runtime<br/>/api routes<br/>SSR/SSG pages"]
+    PC["Prisma Client<br/>Query Builder"]
+  end
+
+  subgraph "Data Layer"
+    DB["☁️ MySQL Database<br/>Connection Pooling<br/>Replication"]
+    CACHE["💾 Session Store<br/>JWT Tokens"]
+  end
+
+  subgraph "Object Storage"
+    S3["🪣 MinIO / S3<br/>PPT Files<br/>Resume Files<br/>News Images"]
+    PROXY["📡 Storage Proxy<br/>/api/storage/:path"]
+  end
+
+  subgraph "External Services"
+    SMTP["📧 SMTP Gateway<br/>Gmail / Sendgrid<br/>Email Notifications"]
+    GA["📊 Google Analytics 4<br/>Event Tracking<br/>User Analytics"]
+  end
+
+  subgraph "Scheduled Tasks"
+    CRON["⏰ Cron Scheduler<br/>Reminder Jobs<br/>Event Transitions<br/>Cleanup Tasks"]
+  end
+
+  BROWSER -->|HTTPS| DNS
+  DNS -->|Route| CF
+  CF -->|Forward| NEXT
+  NEXT --> PC
+  PC -->|Query| DB
+  NEXT -->|Session| CACHE
+  CF -->|Direct| PROXY
+  PROXY -->|Stream| S3
+  NEXT -->|Send| SMTP
+  NEXT -->|Track| GA
+  CRON -->|Trigger| NEXT
+  CRON -->|Command| SMTP
+
+  style BROWSER fill:#e1f5ff
+  style CF fill:#fff3e0
+  style NEXT fill:#f3e5f5
+  style DB fill:#e8f5e9
+  style S3 fill:#fce4ec
+  style SMTP fill:#fff9c4
+  style GA fill:#ede7f6
+  style CRON fill:#fff3e0
+```
+
+### 11.0a External Service Integration Points
+
+```mermaid
+graph LR
+  APP["Next.js Application"]
+
+  subgraph "Email Service"
+    NM["Nodemailer Mailer"]
+    SMTP_SVR["SMTP Server<br/>Gmail / AWS SES"]
+  end
+
+  subgraph "Database"
+    PRS["Prisma ORM"]
+    MYSQL["MySQL Database"]
+  end
+
+  subgraph "File Storage"
+    MINIO_CLIENT["MinIO SDK"]
+    MINIO_SERVER["MinIO Server<br/>S3-Compatible"]
+  end
+
+  subgraph "Identity"
+    JWT["JWT Library<br/>jsonwebtoken"]
+    BCRYPT["bcryptjs<br/>Password Hashing"]
+  end
+
+  subgraph "Analytics"
+    GA_LIB["GA4 Client Lib<br/>@next/third-parties"]
+    GA_ENDPOINT["Google Analytics<br/>Measurement API"]
+  end
+
+  APP -->|Mail Events| NM -->|SMTP| SMTP_SVR
+  APP -->|Prisma Queries| PRS -->|TCP| MYSQL
+  APP -->|Upload/Download| MINIO_CLIENT -->|S3 Protocol| MINIO_SERVER
+  APP -->|Token Ops| JWT
+  APP -->|Hash/Compare| BCRYPT
+  APP -->|Event Track| GA_LIB -->|HTTPS| GA_ENDPOINT
+
+  style APP fill:#f3e5f5
+  style NM fill:#fff9c4
+  style PRS fill:#e8f5e9
+  style MINIO_CLIENT fill:#fce4ec
+  style JWT fill:#e1f5ff
+  style GA_LIB fill:#ede7f6
+```
+
+### 11.0b Request Authentication & Authorization Flow
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant MW as Middleware
+  participant RH as Route Handler
+  participant AUTH as Auth Service
+  participant DB as Database
+  participant RESP as Response
+
+  C->>RH: HTTP Request<br/>+ cookies/bearer
+  RH->>MW: Extract token
+  MW->>AUTH: Verify JWT signature
+  AUTH->>AUTH: Check expiry
+  alt Token Valid
+    AUTH->>DB: Get user role
+    DB-->>AUTH: User object + role
+    AUTH->>MW: User context
+  else Token Expired
+    MW->>MW: Check refresh rotation
+    RH-->>C: 401 Unauthorized
+  else Invalid Token
+    RH-->>C: 401 Unauthorized
+  end
+
+  RH->>RH: RBAC authorrization check
+  alt Authorized
+    RH->>RH: Business logic
+    RH->>DB: Query/Mutation
+    DB-->>RH: Result
+    RH->>RESP: Success envelope
+  else Not Authorized
+    RH-->>C: 403 Forbidden
+  end
+
+  RESP-->>C: JSON Response
+```
+
 MinIO transport:
 - Supports host-style and URL-style endpoint values
 - For HTTPS app + HTTP MinIO, use storage proxy route (`/api/storage/[...path]`)
@@ -685,6 +1471,104 @@ Notes:
 
 ## 12) Operational Runbook
 
+### 12.0 Email Notification Flow Across Features
+
+```mermaid
+graph TD
+  subgraph "Authentication Events"
+    AUTH_REG["User Register"]
+    OTP_SEND["OTP Sent"]
+    PWD_RESET["Password Reset"]
+  end
+
+  subgraph "Facility Booking Events"
+    BOOK_PENDING["Booking Created"]
+    BOOK_CONF["Booking Confirmed<br/>30min Reminder"]
+    BOOK_REJ["Booking Rejected"]
+  end
+
+  subgraph "Hackathon Events"
+    HACK_REGISTER["Team Registration<br/>Confirmation"]
+    HACK_ACTIVE["Event Activated<br/>Reminder Email"]
+    HACK_SCREENING["Screening Complete<br/>Shortlist/Reject"]
+    HACK_JUDGING["Final Judging<br/>Scores & Decision"]
+    HACK_CLOSE["Event Closed<br/>Winners Announced"]
+  end
+
+  subgraph "Open Problem Events"
+    APP_SUBMIT["Application Submitted<br/>Confirmation"]
+    APP_DECISION["Application Decision<br/>Selected/Rejected"]
+  end
+
+  subgraph "Mailer Service"
+    NODEMAILER["Nodemailer<br/>SMTP Client"]
+  end
+
+  subgraph "External Service"
+    SMTP_SERVER["SMTP Gateway<br/>Gmail/SendGrid"]
+    INBOX["User Inbox"]
+  end
+
+  AUTH_REG --> OTP_SEND
+  BOOK_PENDING --> BOOK_CONF
+  BOOK_PENDING --> BOOK_REJ
+  HACK_REGISTER --> HACK_ACTIVE
+  HACK_SCREENING --> HACK_JUDGING
+  HACK_JUDGING --> HACK_CLOSE
+  APP_SUBMIT --> APP_DECISION
+
+  OTP_SEND --> NODEMAILER
+  BOOK_CONF --> NODEMAILER
+  BOOK_REJ --> NODEMAILER
+  HACK_ACTIVE --> NODEMAILER
+  HACK_SCREENING --> NODEMAILER
+  HACK_JUDGING --> NODEMAILER
+  HACK_CLOSE --> NODEMAILER
+  APP_DECISION --> NODEMAILER
+
+  NODEMAILER -->|SMTP| SMTP_SERVER
+  SMTP_SERVER -->|Deliver| INBOX
+```
+
+### 12.1 Cron Job Processing Workflows
+
+```mermaid
+graph TD
+  CRON_TRIGGER["⏰ External Scheduler<br/>GET /api/cron/reminder"]
+
+  REMINDER_JOB["Reminder Job Handler"]
+  CHECK_BOOKINGS["Query Confirmed<br/>Bookings starting<br/>in 30mins"]
+  SEND_REMINDER["Send Email<br/>Reminder"]
+  MARK_SENT["Mark<br/>reminderSent=true"]
+  CLEANUP_OTP["Clean Expired<br/>OTP Records"]
+
+  INNOV_TRIGGER["⏰ External Scheduler<br/>GET /api/cron/innovation-reminder"]
+  INNOV_JOB["Innovation Job<br/>Handler"]
+  CHECK_EVENTS["Find Events<br/>Ready to start"]
+  TRANSITION_ACTIVE["Transition<br/>UPCOMING→ACTIVE"]
+  SEND_ACTIVE_EMAIL["Send Active<br/>Phase Email"]
+  CHECK_ENDING["Find Events<br/>About to end"]
+  SEND_ENDING_REMINDER["Send Ending<br/>Reminder"]
+
+  CRON_TRIGGER --> REMINDER_JOB
+  REMINDER_JOB --> CHECK_BOOKINGS
+  CHECK_BOOKINGS --> SEND_REMINDER
+  SEND_REMINDER --> MARK_SENT
+  MARK_SENT --> CLEANUP_OTP
+  CLEANUP_OTP --> COMPLETE1["✅ Complete"]
+
+  INNOV_TRIGGER --> INNOV_JOB
+  INNOV_JOB --> CHECK_EVENTS
+  CHECK_EVENTS --> TRANSITION_ACTIVE
+  TRANSITION_ACTIVE --> SEND_ACTIVE_EMAIL
+  SEND_ACTIVE_EMAIL --> CHECK_ENDING
+  CHECK_ENDING --> SEND_ENDING_REMINDER
+  SEND_ENDING_REMINDER --> COMPLETE2["✅ Complete"]
+
+  style COMPLETE1 fill:#c8e6c9
+  style COMPLETE2 fill:#c8e6c9
+```
+
 Booking reminder job:
 - Endpoint: `GET /api/cron/reminder`
 - Behavior:
@@ -714,7 +1598,83 @@ Operational health:
 
 ## 14) Troubleshooting
 
-`401` on protected actions:
+### 14.0 Feature Workflow Troubleshooting Guide
+
+```mermaid
+graph TD
+  START["🔍 Issue Occurs"]
+
+  CATEGORY{Issue<br/>Category?}
+
+  AUTH_ISSUE["🔐 Authentication"]
+  AUTH1["User can't login"]
+  AUTH1 --> CHECK_PASS["Verify password<br/>and email"]
+  CHECK_PASS --> CHECK_OTP["Check OTP valid<br/>for 5 minutes"]
+  CHECK_OTP --> CHECK_JWT["Verify JWT in<br/>browser cookies"]
+  CHECK_JWT --> FIX_AUTH["❌ Token expired<br/>→ Refresh<br/>❌ Invalid<br/>→ Re-login"]
+
+  BOOK_ISSUE["📅 Booking Problem"]
+  BOOK1["Booking stuck in<br/>PENDING"]
+  BOOK1 --> CHECK_ADMIN["Admin approved?<br/>Check status"]
+  CHECK_ADMIN --> CHECK_TIME["Check booking<br/>date/time valid"]
+  CHECK_TIME --> FIX_BOOK["❌ No action<br/>→ Admin review<br/>❌ Invalid<br/>→ Cancel & retry"]
+
+  INNOV_ISSUE["🚀 Innovation Problem"]
+  INNOV1["Application not<br/>visible to faculty"]
+  INNOV1 --> CHECK_PROFILE["Student profile<br/>complete?"]
+  CHECK_PROFILE --> CHECK_SUBMIT["Application<br/>status?"]
+  CHECK_SUBMIT --> FIX_INNOV["❌ Profile incomplete<br/>→ Fill profile first<br/>❌ Not SUBMITTED<br/>→ Check form"]
+
+  HACK_ISSUE["🎯 Hackathon Problem"]
+  HACK1["Leaderboard<br/>not visible"]
+  HACK1 --> CHECK_EVENT["Event status<br/>CLOSED?"]
+  CHECK_EVENT --> CHECK_SCORES["Rubrics filled<br/>for all teams?"]
+  CHECK_SCORES --> FIX_HACK["❌ Event not closed<br/>→ Close event<br/>❌ Missing scores<br/>→ Complete judging"]
+
+  START --> CATEGORY
+  CATEGORY -->|Auth| AUTH_ISSUE
+  CATEGORY -->|Booking| BOOK_ISSUE
+  CATEGORY -->|Open Problem| INNOV_ISSUE
+  CATEGORY -->|Hackathon| HACK_ISSUE
+
+  AUTH_ISSUE --> AUTH1
+  BOOK_ISSUE --> BOOK1
+  INNOV_ISSUE --> INNOV1
+  HACK_ISSUE --> HACK1
+```
+
+### 14.1 Common HTTP Status Codes & Handling
+
+```mermaid
+graph LR
+  subgraph "2xx Success"
+    200["200 OK<br/>Request successful"]
+    201["201 Created<br/>Resource created"]
+  end
+
+  subgraph "4xx Client Error"
+    400["400 Bad Request<br/>Invalid payload<br/>Check validation"]
+    401["401 Unauthorized<br/>Token missing/invalid<br/>Login or refresh"]
+    403["403 Forbidden<br/>User not authorized<br/>Check role & permissions"]
+    404["404 Not Found<br/>Resource doesn't exist<br/>Check ID/path"]
+    409["409 Conflict<br/>Duplicate entry<br/>Unique constraint"]
+  end
+
+  subgraph "5xx Server Error"
+    500["500 Server Error<br/>Unexpected exception<br/>Check server logs"]
+    503["503 Service Unavailable<br/>DB or service down<br/>Retry later"]
+  end
+
+  style 200 fill:#c8e6c9
+  style 201 fill:#c8e6c9
+  style 400 fill:#ffccbc
+  style 401 fill:#ffccbc
+  style 403 fill:#ffccbc
+  style 404 fill:#ffccbc
+  style 409 fill:#ffccbc
+  style 500 fill:#ffcdd2
+  style 503 fill:#ffcdd2
+```
 - Access token expired; refresh flow should issue a new access token
 
 Mixed-content or broken media URLs:
@@ -748,6 +1708,133 @@ Avoiding "All data will be lost" reset prompts:
 
 ## 15) Verification Checklist
 
+### 15.0 Quick Reference: Common Developer Tasks
+
+```mermaid
+graph TB
+  DEV["👨‍💻 Developer Tasks"]
+
+  LOCAL["🖥️ Local Development"]
+  LOCAL --> L1["npm install"]
+  LOCAL --> L2["npm run db:migrate"]
+  LOCAL --> L3["npm run dev"]
+  L3 --> L4["→ localhost:3000"]
+
+  TEST["🧪 Testing & Building"]
+  TEST --> T1["npm run lint<br/>ESLint validation"]
+  TEST --> T2["npm run build<br/>Next.js compilation"]
+  TEST --> T3["npm run db:migrate:status<br/>Check pending migrations"]
+
+  SEED["🌱 Database Setup"]
+  SEED --> S1["curl -X POST /api/seed<br/>Create admin user"]
+  SEED --> S2["Verify User table has<br/>admin account"]
+
+  FEATURE["✨ Adding Features"]
+  FEATURE --> F1["Update prisma/schema.prisma"]
+  FEATURE --> F2["npm run db:migrate:create<br/>-- --name feature_name"]
+  FEATURE --> F3["npm run db:migrate<br/>Apply to DB"]
+  FEATURE --> F4["Create /api routes"]
+  FEATURE --> F5["Create UI components"]
+  FEATURE --> F6["Test in browser"]
+
+  BUG["🐛 Bug Fixing"]
+  BUG --> B1["Identify issue in logs"]
+  BUG --> B2["Locate code"]
+  BUG --> B3["Fix logic/data flow"]
+  BUG --> B4["Test locally"]
+  BUG --> B5["npm run build verify"]
+
+  DEPLOY["🚀 Deployment"]
+  DEPLOY --> D1["All tests passing"]
+  DEPLOY --> D2["Migrations ready"]
+  DEPLOY --> D3["npm run build succeeds"]
+  DEPLOY --> D4["docker compose up<br/>or platform deploy"]
+
+  DEV --> LOCAL
+  DEV --> TEST
+  DEV --> SEED
+  DEV --> FEATURE
+  DEV --> BUG
+  DEV --> DEPLOY
+```
+
+### 15.1 End-to-End Feature Validation Workflows
+
+```mermaid
+graph TD
+  PRECHECK["Pre-Release Checks"]
+
+  BUILD["npm run build<br/>✅ No compilation errors"]
+
+  AUTH_CHECK["Authentication Flows"]
+  AUTH_CHECK1["Register student/faculty"]
+  AUTH_CHECK2["Verify OTP (5 min TTL)"]
+  AUTH_CHECK3["Login & token in cookies"]
+  AUTH_CHECK4["Forgot/reset password"]
+
+  FACILITY_CHECK["Facility Booking"]
+  FACILITY_CHECK1["Student creates booking"]
+  FACILITY_CHECK2["Admin review & confirm"]
+  FACILITY_CHECK3["Reminder email 30min before"]
+  FACILITY_CHECK4["Student can cancel pending"]
+
+  CONTENT_CHECK["Content Management"]
+  CONTENT_CHECK1["Faculty create news/events"]
+  CONTENT_CHECK2["Upload images to MinIO"]
+  CONTENT_CHECK3["Verify public page loads"]
+  CONTENT_CHECK4["Admin delete capability"]
+
+  INNOVATION_CHECK["Innovation Platform"]
+  INNOVATION_CHECK1["Student completes profile"]
+  INNOVATION_CHECK2["Student applies to open problem"]
+  INNOVATION_CHECK3["Faculty reviews applications"]
+  INNOVATION_CHECK4["Decision email sent"]
+  INNOVATION_CHECK5["Hackathon registration works"]
+  INNOVATION_CHECK6["Screening & judging sync"]
+  INNOVATION_CHECK7["Leaderboard visible CLOSED"]
+
+  CRON_CHECK["Automation Checks"]
+  CRON_CHECK1["Cron reminder job runs"]
+  CRON_CHECK2["Innovation events transition"]
+  CRON_CHECK3["Reminders sent correctly"]
+
+  PRECHECK --> BUILD
+  BUILD --> AUTH_CHECK
+  AUTH_CHECK --> AUTH_CHECK1
+  AUTH_CHECK --> AUTH_CHECK2
+  AUTH_CHECK --> AUTH_CHECK3
+  AUTH_CHECK --> AUTH_CHECK4
+  BUILD --> FACILITY_CHECK
+  FACILITY_CHECK --> FACILITY_CHECK1
+  FACILITY_CHECK --> FACILITY_CHECK2
+  FACILITY_CHECK --> FACILITY_CHECK3
+  FACILITY_CHECK --> FACILITY_CHECK4
+  BUILD --> CONTENT_CHECK
+  CONTENT_CHECK --> CONTENT_CHECK1
+  CONTENT_CHECK --> CONTENT_CHECK2
+  CONTENT_CHECK --> CONTENT_CHECK3
+  CONTENT_CHECK --> CONTENT_CHECK4
+  BUILD --> INNOVATION_CHECK
+  INNOVATION_CHECK --> INNOVATION_CHECK1
+  INNOVATION_CHECK --> INNOVATION_CHECK2
+  INNOVATION_CHECK --> INNOVATION_CHECK3
+  INNOVATION_CHECK --> INNOVATION_CHECK4
+  INNOVATION_CHECK --> INNOVATION_CHECK5
+  INNOVATION_CHECK --> INNOVATION_CHECK6
+  INNOVATION_CHECK --> INNOVATION_CHECK7
+  BUILD --> CRON_CHECK
+  CRON_CHECK --> CRON_CHECK1
+  CRON_CHECK --> CRON_CHECK2
+  CRON_CHECK --> CRON_CHECK3
+
+  ALL_PASS["✅ All Checks Passed<br/>Ready for Release"]
+
+  INNOVATION_CHECK --> ALL_PASS
+  FACILITY_CHECK --> ALL_PASS
+  CONTENT_CHECK --> ALL_PASS
+  CRON_CHECK --> ALL_PASS
+```
+
 Before release:
 - `npm run build`
 - Verify auth flows (register, OTP verify, login, forgot/reset password)
@@ -767,3 +1854,151 @@ Before release:
   - selection/rejection emails are sent (best-effort)
 - Verify reminder cron endpoints
 - Ensure `.env` secrets are not committed
+
+---
+
+## 16) Complete System Feature Map (Reference)
+
+```mermaid
+mindmap
+  root((🎓 TCET CoE<br/>Portal))
+    🔐 Authentication
+      Register Student/Faculty
+      OTP Verification
+      Login/Logout
+      Password Reset
+      Token Refresh
+    📚 Content Management
+      📰 News Feed
+      🎪 Events
+      💰 Grants
+      📢 Announcements
+      🖼️ Hero Slides
+    📅 Facility Booking
+      Create Booking
+      Admin Moderation
+      Reminders
+      Cancellation
+    🚀 Innovation Platform
+      🎯 Open Problems
+        Create Problem
+        Student Profile
+        Submit Applications
+        Answer Questions
+        Faculty Review
+        Selection/Rejection
+      🏆 Hackathon Track
+        Create Event
+        Team Registration
+        PPT Submission
+        Screening Stage
+        Judging Stage
+        Rubric Scoring
+        Leaderboard
+    👥 User Management
+      Role-Based Access
+      Faculty Approval
+      User Statistics
+    📊 Analytics
+      Google Analytics 4
+      Event Tracking
+      Engagement Metrics
+    ⚙️ Operations
+      Cron Jobs
+      Email Service
+      File Storage
+      Health Checks
+```
+
+### 16.1 System Maturity Assessment
+
+```mermaid
+graph LR
+  AUTH["Authentication<br/>🟢 Production Ready"]
+  CONTENT["Content Management<br/>🟢 Production Ready"]
+  BOOKING["Facility Booking<br/>🟢 Production Ready"]
+  OPENPROB["Open Problems<br/>🟡 Recently Enhanced"]
+  HACKATHON["Hackathon Track<br/>🟡 Recently Enhanced"]
+  ANALYTICS["Analytics<br/>🟢 Production Ready"]
+  STORAGE["File Storage<br/>🟢 Production Ready"]
+  NOTIFICATIONS["Notifications<br/>🟢 Production Ready"]
+
+  style AUTH fill:#c8e6c9
+  style CONTENT fill:#c8e6c9
+  style BOOKING fill:#c8e6c9
+  style OPENPROB fill:#fff9c4
+  style HACKATHON fill:#fff9c4
+  style ANALYTICS fill:#c8e6c9
+  style STORAGE fill:#c8e6c9
+  style NOTIFICATIONS fill:#c8e6c9
+```
+
+### 16.2 Recent Enhancement Timeline
+
+```mermaid
+timeline
+  title Recent Project Enhancements
+  section Current (2026-03)
+    Resume file name handling in applications
+    Problem submission question handling
+    Student profile management and modals
+  section Previous (2026-02)
+    Application selection email improvements
+  section Foundation (2025-12 to 2026-01)
+    Open problems implementation
+    Hackathon two-stage judging system
+    Facility booking platform
+    Content management portal
+    JWT authentication and RBAC
+```
+
+### 16.3 Integration Points Checklist
+
+| Component | Status | Endpoint/Port | Purpose |
+|-----------|--------|----------|---------|
+| **JWT Auth** | ✅ Active | `/api/auth/*` | Session management & role-based access |
+| **MySQL DB** | ✅ Active | Port 3306 (Prisma) | Data persistence & queries |
+| **Email (SMTP)** | ✅ Active | Port 587 (Nodemailer) | Notifications & reminders |
+| **MinIO Storage** | ✅ Active | Port 9000 / `/api/storage/*` | File & image hosting |
+| **Analytics (GA4)** | ✅ Active | `@next/third-parties` | Event tracking & engagement |
+| **Scheduler (Cron)** | ✅ Active | `/api/cron/*` | Automated jobs & reminders |
+| **OTP System** | ✅ Active | In-memory (5 min TTL) | Email verification |
+| **File Upload** | ✅ Active | Multipart form data | Resume/PPT handling |
+
+---
+
+## 17) Quick Links & Resources
+
+### Development
+- **Local Setup**: See section 9) Local Development
+- **Environment Config**: See section 8) Environment Configuration
+- **Database Migrations**: Use `npm run db:migrate:create` and `npm run db:migrate`
+- **Testing**: Run `npm run lint && npm run build`
+- **Seeding**: `curl -X POST http://localhost:3000/api/seed`
+
+### Operations
+- **Health Check**: `GET /api/health`
+- **Booking Reminders**: `GET /api/cron/reminder` (external trigger)
+- **Innovation Events**: `GET /api/cron/innovation-reminder` (external trigger)
+- **Docker Deployment**: See section 11.1 Docker Deployment
+
+### Troubleshooting
+- **Auth Issues**: See section 14.0 - Feature Workflow Troubleshooting
+- **API Errors**: See section 14.1 - HTTP Status Codes
+- **Database Drift**: See section 14 - Avoiding reset prompts
+- **Email Problems**: Verify SMTP config in `.env`
+
+### Feature Documentation
+- **Bookings**: Section 4.3
+- **Open Problems**: Section 4.7 & 4.8
+- **Hackathon**: Section 4.4, 4.5 & 4.6
+- **APIs**: Section 7) API Reference
+- **User Flows**: Section 6) App Routes & UX Flows
+
+---
+
+**Project Status**: ✅ Production Ready
+**Last Updated**: 2026-03-31
+**Version**: 1.0 Stable
+**Maintained by**: TCET Center of Excellence Team
+**Next Review**: Upon completion of next enhancement cycle
