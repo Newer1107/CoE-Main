@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import ApplyModal from '@/components/ApplyModal';
 import { useToast } from "@/components/ToastProvider";
-import { usePathname } from "next/navigation";
 import Link from 'next/link';
 
 type ApiEnvelope<T> = {
