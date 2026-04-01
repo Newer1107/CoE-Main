@@ -666,7 +666,7 @@ export default function AdminPanelClient({
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
+    <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
           Admin Control Room
@@ -703,12 +703,6 @@ export default function AdminPanelClient({
           }`}
         >
           Innovation
-        </button>
-        <button
-          onClick={() => setActiveView("innovation")}
-          className="px-4 py-2 text-xs font-bold uppercase tracking-wider border bg-[#0b6b2e] text-white border-[#0b6b2e]"
-        >
-          Hackathon Control Center
         </button>
       </section>
 
