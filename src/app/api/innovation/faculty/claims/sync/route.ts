@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
+import { processEmailQueue } from '@/lib/email-delivery';
 import { innovationBulkClaimDecisionSchema } from '@/lib/validators';
 import { sendInnovationRubricScoreEmail, sendInnovationScreeningResultEmail } from '@/lib/mailer';
 import { calculateWeightedHackathonScore, HackathonRubricScores } from '@/lib/hackathon-scoring';
@@ -173,6 +174,12 @@ export async function PATCH(req: NextRequest) {
       } catch (mailErr) {
         console.error(`Bulk sync email failed for claim #${claim.id}:`, mailErr);
       }
+    }
+
+    try {
+      await processEmailQueue(50);
+    } catch (queueErr) {
+      console.error('Email queue drain after claim sync failed:', queueErr);
     }
 
     if (stage === 'SCREENING') {

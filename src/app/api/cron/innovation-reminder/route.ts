@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { errorRes, successRes } from '@/lib/api-helpers';
 import { getEventParticipantEmails } from '@/lib/innovation';
+import { processEmailQueue } from '@/lib/email-delivery';
 import { sendInnovationEventActiveEmail, sendInnovationEventReminderEmail } from '@/lib/mailer';
 
 // GET /api/cron/innovation-reminder
@@ -99,6 +100,12 @@ export async function GET() {
           console.error(`Reminder failed for event ${event.id}:`, mailErr);
         }
       }
+    }
+
+    try {
+      await processEmailQueue(50);
+    } catch (queueErr) {
+      console.error('Email queue drain after innovation reminder cron failed:', queueErr);
     }
 
     return successRes(

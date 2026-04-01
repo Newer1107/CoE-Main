@@ -134,6 +134,32 @@ type AdminPanelClientProps = {
   innovationEvents: InnovationEvent[];
 };
 
+type EmailQueueStatus = "PENDING" | "PROCESSING" | "RETRY" | "SENT" | "FAILED";
+
+type EmailQueueItem = {
+  id: number;
+  toEmail: string;
+  subject: string;
+  category: string;
+  mode: "IMMEDIATE" | "BULK";
+  status: EmailQueueStatus;
+  attempts: number;
+  maxAttempts: number;
+  nextAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  sentAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+};
+
+type EmailQueueSnapshot = {
+  items: EmailQueueItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: Record<EmailQueueStatus, number>;
+};
+
 const apiCall = async (url: string, options?: RequestInit) => {
   const res = await fetch(url, {
     ...options,
@@ -198,6 +224,14 @@ export default function AdminPanelClient({
     },
   ]);
 
+  const [emailSnapshot, setEmailSnapshot] = useState<EmailQueueSnapshot | null>(null);
+  const [loadingEmailSnapshot, setLoadingEmailSnapshot] = useState(false);
+  const [emailStatusFilter, setEmailStatusFilter] = useState<"ALL" | EmailQueueStatus>("ALL");
+  const [emailModeFilter, setEmailModeFilter] = useState<"ALL" | "IMMEDIATE" | "BULK">("ALL");
+  const [emailCategoryFilter, setEmailCategoryFilter] = useState("");
+  const [emailPage, setEmailPage] = useState(1);
+  const [emailPageSize, setEmailPageSize] = useState(25);
+
   const recentUsers = useMemo(() => users.slice(0, 12), [users]);
   const prepBookings = useMemo(() => {
     const todayStart = new Date();
@@ -248,6 +282,53 @@ export default function AdminPanelClient({
 
     void loadManagedSubmissions();
   }, [activeView]);
+
+  useEffect(() => {
+    if (activeView !== "operations") return;
+
+    const loadEmailSnapshot = async () => {
+      try {
+        setLoadingEmailSnapshot(true);
+        const params = new URLSearchParams();
+        params.set("page", String(emailPage));
+        params.set("pageSize", String(emailPageSize));
+        if (emailStatusFilter !== "ALL") params.set("status", emailStatusFilter);
+        if (emailModeFilter !== "ALL") params.set("mode", emailModeFilter);
+        if (emailCategoryFilter.trim()) params.set("category", emailCategoryFilter.trim());
+
+        const payload = await apiCall(`/api/admin/emails?${params.toString()}`, { method: "GET" });
+        setEmailSnapshot((payload?.data || null) as EmailQueueSnapshot | null);
+      } catch (err) {
+        setEmailSnapshot(null);
+        setErrorMessage(err instanceof Error ? err.message : "Could not load email monitor data.");
+      } finally {
+        setLoadingEmailSnapshot(false);
+      }
+    };
+
+    void loadEmailSnapshot();
+  }, [activeView, emailStatusFilter, emailModeFilter, emailCategoryFilter, emailPage, emailPageSize]);
+
+  const handleRefreshEmailSnapshot = async () => {
+    try {
+      setErrorMessage("");
+      setLoadingEmailSnapshot(true);
+      const params = new URLSearchParams();
+      params.set("page", String(emailPage));
+      params.set("pageSize", String(emailPageSize));
+      if (emailStatusFilter !== "ALL") params.set("status", emailStatusFilter);
+      if (emailModeFilter !== "ALL") params.set("mode", emailModeFilter);
+      if (emailCategoryFilter.trim()) params.set("category", emailCategoryFilter.trim());
+
+      const payload = await apiCall(`/api/admin/emails?${params.toString()}`, { method: "GET" });
+      setEmailSnapshot((payload?.data || null) as EmailQueueSnapshot | null);
+      setStatusMessage("Email monitor refreshed.");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not refresh email monitor.");
+    } finally {
+      setLoadingEmailSnapshot(false);
+    }
+  };
 
   const handleConfirmBooking = async (id: number) => {
     try {
@@ -659,6 +740,162 @@ export default function AdminPanelClient({
           <p className="text-xs uppercase tracking-widest text-[#434651] font-label">Visible News Posts</p>
           <p className="mt-2 text-3xl font-bold text-[#002155]">{stats.newsCount}</p>
         </div>
+      </section>
+
+      <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-headline text-2xl text-[#002155]">Email Monitor</h2>
+            <p className="text-sm text-[#434651]">Queue visibility for pending, processing, retry, sent, and failed emails.</p>
+          </div>
+          <button
+            onClick={() => void handleRefreshEmailSnapshot()}
+            disabled={loadingEmailSnapshot}
+            className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+          >
+            {loadingEmailSnapshot ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+          <div className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-widest text-[#434651]">Pending</p>
+            <p className="text-lg font-bold text-[#8c4f00]">{emailSnapshot?.counts?.PENDING ?? 0}</p>
+          </div>
+          <div className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-widest text-[#434651]">Processing</p>
+            <p className="text-lg font-bold text-[#002155]">{emailSnapshot?.counts?.PROCESSING ?? 0}</p>
+          </div>
+          <div className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-widest text-[#434651]">Retry</p>
+            <p className="text-lg font-bold text-[#8c4f00]">{emailSnapshot?.counts?.RETRY ?? 0}</p>
+          </div>
+          <div className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-widest text-[#434651]">Sent</p>
+            <p className="text-lg font-bold text-[#0b6b2e]">{emailSnapshot?.counts?.SENT ?? 0}</p>
+          </div>
+          <div className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-widest text-[#434651]">Failed</p>
+            <p className="text-lg font-bold text-[#ba1a1a]">{emailSnapshot?.counts?.FAILED ?? 0}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          <select
+            value={emailStatusFilter}
+            onChange={(e) => {
+              setEmailPage(1);
+              setEmailStatusFilter(e.target.value as "ALL" | EmailQueueStatus);
+            }}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PENDING">PENDING</option>
+            <option value="PROCESSING">PROCESSING</option>
+            <option value="RETRY">RETRY</option>
+            <option value="SENT">SENT</option>
+            <option value="FAILED">FAILED</option>
+          </select>
+
+          <select
+            value={emailModeFilter}
+            onChange={(e) => {
+              setEmailPage(1);
+              setEmailModeFilter(e.target.value as "ALL" | "IMMEDIATE" | "BULK");
+            }}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+          >
+            <option value="ALL">All Modes</option>
+            <option value="IMMEDIATE">IMMEDIATE</option>
+            <option value="BULK">BULK</option>
+          </select>
+
+          <input
+            value={emailCategoryFilter}
+            onChange={(e) => {
+              setEmailPage(1);
+              setEmailCategoryFilter(e.target.value);
+            }}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            placeholder="Category filter (e.g. AUTH_OTP)"
+          />
+
+          <select
+            value={emailPageSize}
+            onChange={(e) => {
+              setEmailPage(1);
+              setEmailPageSize(Number(e.target.value));
+            }}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+          >
+            <option value={10}>10 / page</option>
+            <option value={25}>25 / page</option>
+            <option value={50}>50 / page</option>
+          </select>
+        </div>
+
+        {loadingEmailSnapshot ? (
+          <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading email queue...</p>
+        ) : !emailSnapshot || emailSnapshot.items.length === 0 ? (
+          <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No email activity found for the selected filters.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto border border-[#c4c6d3]">
+              <table className="w-full text-sm bg-white">
+                <thead className="bg-[#f5f4f0] text-[#434651] uppercase text-xs tracking-wider">
+                  <tr>
+                    <th className="text-left px-3 py-2">ID</th>
+                    <th className="text-left px-3 py-2">Recipient</th>
+                    <th className="text-left px-3 py-2">Category</th>
+                    <th className="text-left px-3 py-2">Mode</th>
+                    <th className="text-left px-3 py-2">Status</th>
+                    <th className="text-left px-3 py-2">Attempts</th>
+                    <th className="text-left px-3 py-2">Created</th>
+                    <th className="text-left px-3 py-2">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailSnapshot.items.map((item) => (
+                    <tr key={item.id} className="border-t border-[#e3e2df] align-top">
+                      <td className="px-3 py-2">#{item.id}</td>
+                      <td className="px-3 py-2 break-all">{item.toEmail}<div className="text-[11px] text-[#747782] mt-1 line-clamp-2">{item.subject}</div></td>
+                      <td className="px-3 py-2">{item.category}</td>
+                      <td className="px-3 py-2">{item.mode}</td>
+                      <td className="px-3 py-2">{item.status}</td>
+                      <td className="px-3 py-2">{item.attempts}/{item.maxAttempts}</td>
+                      <td className="px-3 py-2 text-xs">{new Date(item.createdAt).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-xs text-[#ba1a1a] max-w-[260px] break-words">{item.lastError || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-xs text-[#434651]">Total: {emailSnapshot.total} jobs</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEmailPage((p) => Math.max(1, p - 1))}
+                  disabled={emailPage <= 1 || loadingEmailSnapshot}
+                  className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-[#434651]">Page {emailPage}</span>
+                <button
+                  onClick={() => {
+                    const maxPage = Math.max(1, Math.ceil((emailSnapshot.total || 0) / emailPageSize));
+                    setEmailPage((p) => Math.min(maxPage, p + 1));
+                  }}
+                  disabled={loadingEmailSnapshot || emailPage >= Math.max(1, Math.ceil((emailSnapshot.total || 0) / emailPageSize))}
+                  className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="mb-10 grid grid-cols-1 xl:grid-cols-2 gap-6">

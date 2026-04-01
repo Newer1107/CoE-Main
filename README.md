@@ -214,9 +214,9 @@ graph LR
 - Database: MySQL + Prisma ORM
 - Auth: JWT access/refresh in httpOnly cookies
 - Validation: Zod
-- Email: Nodemailer (SMTP)
+- Email: Nodemailer (SMTP) with durable DB-backed queue (`email_jobs`)
 - Storage: MinIO (S3-compatible)
-- Scheduled jobs: cron-triggered route handlers
+- Scheduled jobs: cron-triggered route handlers + email queue worker
 
 ## 4) Architecture and Core Flows
 
@@ -229,10 +229,11 @@ flowchart TD
   N --> R[Route Handlers: /api/*]
   R --> A[Auth and RBAC]
   R --> D[(MySQL via Prisma)]
-  R --> M[SMTP via Nodemailer]
+  R --> M[Email Dispatcher + Queue]
   R --> S[MinIO Object Store]
   C[Scheduler] --> CR1[GET /api/cron/reminder]
   C --> CR2[GET /api/cron/innovation-reminder]
+  C --> CR3[GET /api/cron/email-queue]
   CR1 --> R
   CR2 --> R
 ```
@@ -533,7 +534,7 @@ graph TD
   admin["👨‍💼 /admin"]
   admin_booking["PATCH /bookings/:id/confirm<br/>PATCH /bookings/:id/reject"]
   admin_faculty["PATCH /faculty/:id/approve<br/>PATCH /faculty/:id/reject"]
-  admin_stats["GET /stats<br/>GET /users<br/>GET /bookings"]
+  admin_stats["GET /stats<br/>GET /users<br/>GET /bookings<br/>GET /emails"]
 
   content["📰 /news, /events, /grants"]
   content_read["GET /"]
@@ -553,7 +554,7 @@ graph TD
   util_store["GET /storage/:path"]
   util_health["GET /health"]
   util_seed["POST /seed"]
-  util_cron["GET /cron/reminder<br/>GET /cron/innovation-reminder"]
+  util_cron["GET /cron/reminder<br/>GET /cron/innovation-reminder<br/>GET /cron/email-queue"]
 
   root --> auth
   root --> booking
@@ -712,6 +713,7 @@ Primary entities:
 - `ProblemQuestion`
 - `Application`
 - `ApplicationAnswer`
+- `EmailJob`
 
 Key innovation enums and lifecycle:
 - `ProblemMode`: `OPEN`, `CLOSED`
@@ -1134,6 +1136,7 @@ graph TB
     VALIDATE["Validation<br/>Services"]
     BUS["Business Logic<br/>Services"]
     MAIL_SVC["Mailer<br/>Service"]
+    EMAIL_QUEUE["Email Queue<br/>Dispatcher/Worker"]
     STORAGE_SVC["Storage<br/>Service"]
     SCORE_SVC["Scoring<br/>Service"]
   end
@@ -1146,6 +1149,10 @@ graph TB
   subgraph "External"
     MINIO["MinIO"]
     SMTP["SMTP"]
+  end
+
+  subgraph "Queue Storage"
+    EMAIL_JOBS[(email_jobs)]
   end
 
   API --> VALIDATE
@@ -1163,7 +1170,10 @@ graph TB
   BUS --> SCORE_SVC
   BUS --> MAIL_SVC
 
-  MAIL_SVC --> SMTP
+  MAIL_SVC --> EMAIL_QUEUE
+  EMAIL_QUEUE --> PRISMA
+  EMAIL_QUEUE --> EMAIL_JOBS
+  EMAIL_QUEUE --> SMTP
   SCORE_SVC --> PRISMA
 
   STORAGE_SVC --> MINIO
@@ -1189,6 +1199,11 @@ SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
 SMTP_PASS="app-password"
 SMTP_FROM="TCET CoE <noreply@tcetmumbai.in>"
+
+CRON_SECRET="change-me-cron-secret"
+EMAIL_MAX_ATTEMPTS="5"
+EMAIL_PRIORITY_IMMEDIATE="100"
+EMAIL_PRIORITY_BULK="20"
 
 MINIO_ENDPOINT="localhost"
 MINIO_PORT=9000
@@ -1304,7 +1319,11 @@ graph TB
   end
 
   subgraph "Scheduled Tasks"
-    CRON["⏰ Cron Scheduler<br/>Reminder Jobs<br/>Event Transitions<br/>Cleanup Tasks"]
+    CRON["⏰ Cron Scheduler<br/>Reminder Jobs<br/>Event Transitions<br/>Queue Worker"]
+  end
+
+  subgraph "Queue Persistence"
+    EMAIL_JOBS["📬 email_jobs table<br/>pending/retry/failed/sent"]
   end
 
   BROWSER -->|HTTPS| DNS
@@ -1316,9 +1335,10 @@ graph TB
   CF -->|Direct| PROXY
   PROXY -->|Stream| S3
   NEXT -->|Send| SMTP
+  NEXT -->|Queue & status| EMAIL_JOBS
   NEXT -->|Track| GA
   CRON -->|Trigger| NEXT
-  CRON -->|Command| SMTP
+  CRON -->|Drain queue| NEXT
 
   style BROWSER fill:#e1f5ff
   style CF fill:#fff3e0
@@ -1328,6 +1348,7 @@ graph TB
   style SMTP fill:#fff9c4
   style GA fill:#ede7f6
   style CRON fill:#fff3e0
+  style EMAIL_JOBS fill:#e8f5e9
 ```
 
 ### 11.0a External Service Integration Points
@@ -1337,7 +1358,9 @@ graph LR
   APP["Next.js Application"]
 
   subgraph "Email Service"
-    NM["Nodemailer Mailer"]
+    NM["Mailer + Dispatcher"]
+    QW["Queue Worker<br/>/api/cron/email-queue"]
+    EQ["EmailJob Store<br/>email_jobs"]
     SMTP_SVR["SMTP Server<br/>Gmail / AWS SES"]
   end
 
@@ -1361,7 +1384,10 @@ graph LR
     GA_ENDPOINT["Google Analytics<br/>Measurement API"]
   end
 
-  APP -->|Mail Events| NM -->|SMTP| SMTP_SVR
+  APP -->|Mail Events| NM
+  NM -->|Persist jobs| EQ
+  QW -->|Read pending/retry| EQ
+  QW -->|SMTP send| SMTP_SVR
   APP -->|Prisma Queries| PRS -->|TCP| MYSQL
   APP -->|Upload/Download| MINIO_CLIENT -->|S3 Protocol| MINIO_SERVER
   APP -->|Token Ops| JWT

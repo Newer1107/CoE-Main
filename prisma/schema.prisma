@@ -354,3 +354,32 @@ model HeroSlide {
 
   @@map("hero_slides")
 }
+
+model EmailJob {
+  id                Int       @id @default(autoincrement())
+  toEmail           String
+  subject           String
+  htmlBody          String    @db.LongText
+  category          String
+  mode              String    @default("IMMEDIATE")
+  status            String    @default("PENDING")
+  priority          Int       @default(50)
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(5)
+  nextAttemptAt     DateTime?
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  lockedAt          DateTime?
+  lastError         String?   @db.Text
+  providerMessageId String?
+  dedupeKey         String?   @unique
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([category])
+  @@index([mode])
+  @@index([createdAt])
+  @@map("email_jobs")
+}

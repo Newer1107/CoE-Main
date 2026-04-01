@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
+import { processEmailQueue } from '@/lib/email-delivery';
 import { innovationEventStatusSchema } from '@/lib/validators';
 import { canTransitionEventStatus, getEventLeaderboard, getEventParticipantEmails } from '@/lib/innovation';
 import { sendInnovationEventActiveEmail, sendInnovationWinnerEmail } from '@/lib/mailer';
@@ -80,6 +81,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           }
         }
       }
+    }
+
+    try {
+      await processEmailQueue(50);
+    } catch (queueErr) {
+      console.error('Email queue drain after event status update failed:', queueErr);
     }
 
     return successRes(updated, 'Event status updated successfully.');

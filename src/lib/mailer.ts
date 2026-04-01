@@ -1,14 +1,4 @@
-import nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+import { dispatchEmail } from '@/lib/email-delivery';
 
 const brandHeader = `
   <div style="background:#002155;padding:16px 24px;text-align:center;">
@@ -35,12 +25,19 @@ const wrap = (body: string) => `
   </div>
 </body></html>`;
 
-const send = async (to: string | string[], subject: string, htmlBody: string) => {
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || '"TCET CoE" <noreply@tcetmumbai.in>',
+const send = async (
+  to: string | string[],
+  subject: string,
+  htmlBody: string,
+  options?: { mode?: 'immediate' | 'bulk'; category?: string; dedupeKey?: string }
+) => {
+  await dispatchEmail({
     to,
     subject,
     html: wrap(htmlBody),
+    mode: options?.mode || 'immediate',
+    category: options?.category || 'GENERAL',
+    dedupeKey: options?.dedupeKey,
   });
 };
 
@@ -53,7 +50,10 @@ export const sendOTPEmail = async (email: string, otp: string) => {
       <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#002155;">${otp}</span>
     </div>
     <p style="color:#747782;font-size:12px;">This code is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>`;
-  await send(email, `Verify your TCET CoE account — OTP: ${otp}`, body);
+  await send(email, `Verify your TCET CoE account — OTP: ${otp}`, body, {
+    mode: 'immediate',
+    category: 'AUTH_OTP',
+  });
 };
 
 export const sendPasswordResetOTPEmail = async (email: string, otp: string) => {
@@ -64,7 +64,10 @@ export const sendPasswordResetOTPEmail = async (email: string, otp: string) => {
       <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#002155;">${otp}</span>
     </div>
     <p style="color:#747782;font-size:12px;">This code is valid for <strong>10 minutes</strong>. If you did not request this reset, you can ignore this email.</p>`;
-  await send(email, `Reset your TCET CoE password — OTP: ${otp}`, body);
+  await send(email, `Reset your TCET CoE password — OTP: ${otp}`, body, {
+    mode: 'immediate',
+    category: 'AUTH_PASSWORD_RESET_OTP',
+  });
 };
 
 interface BookingDetails {
@@ -89,7 +92,10 @@ export const sendBookingConfirmationEmail = async (email: string, b: BookingDeta
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Lab</td><td style="padding:8px;color:#002155;">${b.lab}</td></tr>
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Facilities</td><td style="padding:8px;color:#002155;">${facilities}</td></tr>
     </table>`;
-  await send(email, 'Your CoE Facility Booking is Confirmed ✅', body);
+  await send(email, 'Your CoE Facility Booking is Confirmed ✅', body, {
+    mode: 'immediate',
+    category: 'BOOKING_CONFIRMED',
+  });
 };
 
 // ─── 3. Booking Rejection ───
@@ -105,7 +111,10 @@ export const sendBookingRejectionEmail = async (email: string, b: BookingDetails
       <p style="margin:0;color:#93000a;font-weight:bold;font-size:12px;">REASON</p>
       <p style="margin:4px 0 0;color:#434651;">${reason || 'No specific reason provided.'}</p>
     </div>`;
-  await send(email, 'Facility Booking Rejected — TCET CoE', body);
+  await send(email, 'Facility Booking Rejected — TCET CoE', body, {
+    mode: 'immediate',
+    category: 'BOOKING_REJECTED',
+  });
 };
 
 // ─── 4. Booking Reminder ───
@@ -119,7 +128,10 @@ export const sendBookingReminderEmail = async (email: string, b: BookingDetails)
       <tr><td style="padding:8px;color:#747782;font-weight:bold;">Facilities</td><td style="padding:8px;color:#002155;">${facilities}</td></tr>
     </table>
     <p style="color:#8c4f00;font-size:13px;font-weight:bold;">Please carry your valid Institutional ID card.</p>`;
-  await send(email, '⏰ Reminder: Your CoE lab booking starts in 30 minutes', body);
+  await send(email, '⏰ Reminder: Your CoE lab booking starts in 30 minutes', body, {
+    mode: 'immediate',
+    category: 'BOOKING_REMINDER',
+  });
 };
 
 // ─── 5. Faculty Pending (to Admin) ───
@@ -131,7 +143,10 @@ export const sendFacultyPendingNotification = async (adminEmail: string, f: { na
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Email</td><td style="padding:8px;color:#002155;">${f.email}</td></tr>
     </table>
     <p style="color:#434651;font-size:13px;">Please log into the admin panel to approve or reject this account.</p>`;
-  await send(adminEmail, 'New Faculty Account Pending Approval — TCET CoE', body);
+  await send(adminEmail, 'New Faculty Account Pending Approval — TCET CoE', body, {
+    mode: 'immediate',
+    category: 'FACULTY_PENDING',
+  });
 };
 
 // ─── 6. Faculty Approved ───
@@ -143,7 +158,10 @@ export const sendFacultyApprovalEmail = async (email: string, name: string) => {
     <div style="text-align:center;margin:24px 0;">
       <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/facility-booking" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;">LOG IN NOW</a>
     </div>`;
-  await send(email, 'Your CoE Faculty Account is Approved ✅', body);
+  await send(email, 'Your CoE Faculty Account is Approved ✅', body, {
+    mode: 'immediate',
+    category: 'FACULTY_APPROVED',
+  });
 };
 
 // ─── 7. Faculty Rejected ───
@@ -152,7 +170,10 @@ export const sendFacultyRejectionEmail = async (email: string, name: string) => 
     <h2 style="color:#002155;margin:0 0 8px;">Account Registration Rejected</h2>
     <p style="color:#434651;font-size:14px;">Dear <strong>${name}</strong>,</p>
     <p style="color:#434651;font-size:14px;">Your faculty account registration for the TCET Center of Excellence has been rejected. Please contact the CoE office if you believe this is an error.</p>`;
-  await send(email, 'Faculty Account Registration Rejected — TCET CoE', body);
+  await send(email, 'Faculty Account Registration Rejected — TCET CoE', body, {
+    mode: 'immediate',
+    category: 'FACULTY_REJECTED',
+  });
 };
 
 // ─── 8. Innovation: Problem Claimed ───
@@ -171,7 +192,10 @@ export const sendInnovationProblemClaimedEmail = async (
     <p style="color:#434651;font-size:14px;">Team: <strong>${details.teamName || 'Individual'}</strong></p>
     <p style="color:#747782;font-size:12px;">Please review submissions in the Innovation dashboard.</p>`;
 
-  await send(facultyEmail, 'Innovation Update: Problem Claimed', body);
+  await send(facultyEmail, 'Innovation Update: Problem Claimed', body, {
+    mode: 'immediate',
+    category: 'INNOVATION_PROBLEM_CLAIMED',
+  });
 };
 
 // ─── 9. Innovation: Claim Reviewed ───
@@ -194,7 +218,10 @@ export const sendInnovationClaimReviewEmail = async (
       <p style="margin:4px 0 0;color:#002155;">${details.feedback || 'No feedback shared.'}</p>
     </div>`;
 
-  await send(recipients, 'Innovation Submission Review Update', body);
+  await send(recipients, 'Innovation Submission Review Update', body, {
+    mode: 'immediate',
+    category: 'INNOVATION_CLAIM_REVIEW',
+  });
 };
 
 // ─── 9a. Innovation: Hackathon Screening Result ───
@@ -217,7 +244,10 @@ export const sendInnovationScreeningResultEmail = async (
     <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
     <p style="color:#434651;font-size:14px;">Result: <strong>${statusLine}</strong></p>`;
 
-  await send(recipients, 'Hackathon PPT Screening Result', body);
+  await send(recipients, 'Hackathon PPT Screening Result', body, {
+    mode: 'bulk',
+    category: 'HACKATHON_SCREENING_RESULT',
+  });
 };
 
 // ─── 9b. Innovation: Hackathon Rubric Result ───
@@ -255,7 +285,10 @@ export const sendInnovationRubricScoreEmail = async (
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Final Score</td><td style="padding:8px;color:#002155;"><strong>${details.finalScore}/100</strong></td></tr>
     </table>`;
 
-  await send(recipients, 'Hackathon Evaluation Result', body);
+  await send(recipients, 'Hackathon Evaluation Result', body, {
+    mode: 'bulk',
+    category: 'HACKATHON_JUDGING_RESULT',
+  });
 };
 
 // ─── 10. Innovation: Event Ending Reminder ───
@@ -271,7 +304,10 @@ export const sendInnovationEventReminderEmail = async (
     <p style="color:#434651;font-size:14px;">Your event <strong>${details.eventTitle}</strong> is closing soon.</p>
     <p style="color:#434651;font-size:14px;">Submission lock time: <strong>${details.endTime}</strong></p>`;
 
-  await send(recipients, 'Innovation Reminder: 30 Minutes Remaining', body);
+  await send(recipients, 'Innovation Reminder: 30 Minutes Remaining', body, {
+    mode: 'bulk',
+    category: 'HACKATHON_EVENT_REMINDER',
+  });
 };
 
 // ─── 11. Innovation: Event Became Active ───
@@ -286,7 +322,10 @@ export const sendInnovationEventActiveEmail = async (
     <p style="color:#434651;font-size:14px;">The event <strong>${details.eventTitle}</strong> is now active.</p>
     <p style="color:#434651;font-size:14px;">Final judging is now open during the active phase. Results are announced when the event is closed.</p>`;
 
-  await send(recipients, 'Innovation Update: Event Is Active', body);
+  await send(recipients, 'Innovation Update: Event Is Active', body, {
+    mode: 'bulk',
+    category: 'HACKATHON_EVENT_ACTIVE',
+  });
 };
 
 // Backward-compatible alias for older imports.
@@ -307,7 +346,10 @@ export const sendInnovationWinnerEmail = async (
     <p style="color:#434651;font-size:14px;">Final Score: <strong>${details.score}</strong></p>
     <p style="color:#434651;font-size:14px;">Please watch the admin announcements for certificate and recognition details.</p>`;
 
-  await send(recipients, `Innovation Winners: ${details.eventTitle}`, body);
+  await send(recipients, `Innovation Winners: ${details.eventTitle}`, body, {
+    mode: 'bulk',
+    category: 'HACKATHON_WINNER',
+  });
 };
 
 // ─── 13. Innovation: Application Selected ───
@@ -331,7 +373,10 @@ export const sendApplicationSelectionEmail = async (
     ` : ''}
     <p style="color:#747782;font-size:12px;">Please log in to the CoE Innovation Portal to view next steps and connect with your assigned faculty mentor.</p>`;
 
-  await send(studentEmail, 'Application Selected — TCET CoE Innovation', body);
+  await send(studentEmail, 'Application Selected — TCET CoE Innovation', body, {
+    mode: 'immediate',
+    category: 'APPLICATION_SELECTED',
+  });
 };
 
 // ─── 14. Innovation: Application Rejected ───
@@ -355,5 +400,8 @@ export const sendApplicationRejectionEmail = async (
     ` : ''}
     <p style="color:#747782;font-size:12px;">We encourage you to explore other open problems and apply again. Check the Innovation Portal for more opportunities.</p>`;
 
-  await send(studentEmail, 'Application Status — TCET CoE Innovation', body);
+  await send(studentEmail, 'Application Status — TCET CoE Innovation', body, {
+    mode: 'immediate',
+    category: 'APPLICATION_REJECTED',
+  });
 };
