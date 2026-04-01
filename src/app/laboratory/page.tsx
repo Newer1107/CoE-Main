@@ -82,18 +82,18 @@ export default function LaboratoryPage() {
       : equipment.filter((item) => item.category === activeFilter);
 
   return (
-    <main className="pt-[100px] md:pt-[120px] pb-20 max-w-7xl mx-auto px-4 md:px-8">
-      <section className="mb-4 md:mb-8 md:mb-16 border-l-4 border-[#002155] pl-4 md:pl-8 py-4 mt-8">
-        <h2 className="text-3xl md:text-[40px] font-headline tracking-tight leading-none mb-4">
+    <main className="pt-[100px] md:pt-[120px] mt-10 pb-20 max-w-7xl mx-auto px-4 md:px-8">
+      <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
+        <h2 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
           Laboratory Infrastructure & Research Facilities
         </h2>
-        <p className="max-w-3xl text-lg text-[#434651] font-body leading-relaxed">
+        <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
           The TCET Center of Excellence houses state-of-the-art computational and
           experimental environments designed for high-impact multidisciplinary
           research. Our facilities serve as the bedrock for innovation in
           Electronics, Fabrication, and Advanced Computing.
         </p>
-      </section>
+      </header>
 
       <section className="mb-4 md:mb-8 md:mb-12">
         <div className="flex flex-wrap gap-1 border-b border-[#c4c6d3] pb-px">

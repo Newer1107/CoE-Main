@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import ApplyModal from '@/components/ApplyModal';
+import { useToast } from "@/components/ToastProvider";
+import Link from 'next/link';
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -52,7 +54,9 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   const [problems, setProblems] = useState<ProblemRow[]>([]);
   const [tagFilter, setTagFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  
+  const { pushToast } = useToast();
+  const pathname = usePathname();
+
   // Apply modal state
   const [applyingProblem, setApplyingProblem] = useState<ProblemRow | null>(null);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -111,15 +115,21 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
 
   const handleApplyClick = (problem: ProblemRow) => {
     if (!role) {
-      // Redirect to login
+      pushToast("You need to log in before applying.", "info");
+
       const currentPath = typeof window !== 'undefined'
         ? window.location.pathname + window.location.search
         : '/innovation/problems';
+
       const searchParams = new URLSearchParams({
         next: currentPath,
         reason: 'problem-apply-auth-required',
       });
-      window.location.href = `/login?${searchParams.toString()}`;
+
+      setTimeout(() => {
+        window.location.href = `/login?${searchParams.toString()}`;
+      }, 1200);
+
       return;
     }
 
@@ -150,7 +160,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
+    <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       {/* Header */}
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
@@ -160,6 +170,52 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
           Apply for real-world industry problems and showcase your skills
         </p>
       </header>
+
+      <section className="mb-6 flex flex-wrap gap-3">
+        <Link
+          href="/innovation"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation"
+              ? "bg-[#002155] text-white"
+              : "border border-[#002155] text-[#002155]"
+            }`}
+        >
+          Innovation Home
+        </Link>
+
+        <Link
+          href="/innovation/problems"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/problems"
+              ? "bg-[#0b6b2e] text-white"
+              : "border border-[#0b6b2e] text-[#0b6b2e]"
+            }`}
+        >
+          Open Problem Statements
+        </Link>
+
+        {role === "STUDENT" && (
+          <Link
+            href="/innovation/my-submissions"
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/my-submissions"
+                ? "bg-[#002155] text-white"
+                : "border border-[#002155] text-[#002155]"
+              }`}
+          >
+            My Submissions
+          </Link>
+        )}
+
+        {role === "FACULTY" && (
+          <Link
+            href="/innovation/faculty"
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/faculty"
+                ? "bg-[#8c4f00] text-white"
+                : "border border-[#8c4f00] text-[#8c4f00]"
+              }`}
+          >
+            Faculty Workspace
+          </Link>
+        )}
+      </section>
 
       {/* Filters */}
       <section className="mb-8 flex flex-col md:flex-row gap-4">
@@ -242,7 +298,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                   </div>
 
                   <h3 className="text-lg font-bold text-[#002155]">{problem.title}</h3>
-                  
+
                   <p className="mt-2 text-xs text-[#434651]">
                     Type:{' '}
                     {problem.isIndustryProblem

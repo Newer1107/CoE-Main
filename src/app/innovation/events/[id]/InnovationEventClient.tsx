@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
+import { usePathname } from "next/navigation";
+import { useToast } from "@/components/ToastProvider";
 
 type ProblemLite = {
   id: number;
@@ -65,12 +67,15 @@ export default function InnovationEventClient({
   viewerRole,
 }: InnovationEventClientProps) {
   const [selectedProblem, setSelectedProblem] = useState<ProblemLite | null>(null);
+  const [selectedProblemIndex, setSelectedProblemIndex] = useState<number | null>(null);
   const [teamName, setTeamName] = useState('');
   const [teamSize, setTeamSize] = useState(1);
   const [teamLeadUid, setTeamLeadUid] = useState('');
   const [memberUids, setMemberUids] = useState<string[]>([]);
   const [problemId, setProblemId] = useState<number>(problems[0]?.id ?? 0);
   const [pptFile, setPptFile] = useState<File | null>(null);
+  const pathname = usePathname();
+  const { pushToast } = useToast();
 
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -138,6 +143,32 @@ export default function InnovationEventClient({
     };
   };
 
+  useEffect(() => {
+    if (!selectedProblem) return;
+
+    const scrollY = window.scrollY;
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+
+    return () => {
+      const y = document.body.style.top;
+
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+
+      if (y) {
+        window.scrollTo(0, parseInt(y || "0") * -1);
+      }
+    };
+  }, [selectedProblem]);
+
   const validateUidInputs = (cleanedLeadUid: string, cleanedMemberUids: string[]) => {
     if (!cleanedLeadUid || cleanedMemberUids.some((uid) => !uid)) {
       return 'Please fill all required UID fields.';
@@ -178,6 +209,7 @@ export default function InnovationEventClient({
     const validationError = validateUidInputs(cleanedLeadUid, cleanedMemberUids);
     if (validationError) {
       setErrorMessage(validationError);
+      pushToast(validationError, "error");
       return;
     }
 
@@ -188,8 +220,8 @@ export default function InnovationEventClient({
       const res = await fetch(
         `/api/innovation/users/lookup?uids=${encodeURIComponent(JSON.stringify(requestedUids))}&eventId=${eventId}&problemId=${problemId}`,
         {
-        method: 'GET',
-        credentials: 'include',
+          method: 'GET',
+          credentials: 'include',
         }
       );
 
@@ -214,17 +246,19 @@ export default function InnovationEventClient({
 
       setVerifiedUidSnapshot(snapshot);
       setUidLookupMessage('UID details fetched and verified. You can now submit registration.');
+      pushToast("UIDs verified successfully!", "success");
     } catch (err) {
       setUidLookupRows([]);
       setVerifiedUidSnapshot('');
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to fetch UID details');
+      const message = err instanceof Error ? err.message : 'Failed to fetch UID details';
+      setErrorMessage(message);
+      pushToast(message, "error");
     } finally {
       setUidLookupBusy(false);
     }
   };
 
   const registrationClosed = !registrationOpen || status === 'CLOSED' || new Date() > new Date(registrationCloseISO);
-  const canSeeMySubmissions = viewerRole === 'STUDENT';
   const canShowRegistrationForm = viewerRole === 'STUDENT' && !registrationClosed && problems.length > 0;
 
   const handleRegister = async (event: React.FormEvent) => {
@@ -237,6 +271,7 @@ export default function InnovationEventClient({
     const validationError = validateUidInputs(cleanedLeadUid, cleanedMemberUids);
     if (validationError) {
       setErrorMessage(validationError);
+      pushToast(validationError, "error");
       trackSafe('innovation_registration_failed', {
         track: 'hackathon',
         reason: mapHackathonFailureReason(validationError),
@@ -245,7 +280,9 @@ export default function InnovationEventClient({
     }
 
     if (verifiedUidSnapshot !== snapshot) {
-      setErrorMessage('Please fetch and verify UID details first before submitting registration.');
+      const msg = 'Please fetch and verify UID details first before submitting registration.';
+      setErrorMessage(msg);
+      pushToast(msg, "error");
       trackSafe('innovation_registration_failed', {
         track: 'hackathon',
         reason: mapHackathonFailureReason('Please fetch and verify UID details first before submitting registration.'),
@@ -254,7 +291,9 @@ export default function InnovationEventClient({
     }
 
     if (uidLookupRows.some((row) => !row.eligible)) {
-      setErrorMessage('One or more UIDs are not eligible. Please correct them and fetch details again.');
+      const msg = 'One or more UIDs are not eligible. Please correct them and fetch details again.';
+      setErrorMessage(msg);
+      pushToast(msg, "error");
       trackSafe('innovation_registration_failed', {
         track: 'hackathon',
         reason: mapHackathonFailureReason('One or more UIDs are not eligible. Please correct them and fetch details again.'),
@@ -263,7 +302,9 @@ export default function InnovationEventClient({
     }
 
     if (!pptFile) {
-      setErrorMessage('Please upload a PPT/PDF file.');
+      const msg = 'Please upload a PPT/PDF file.';
+      setErrorMessage(msg);
+      pushToast(msg, "error");
       trackSafe('innovation_registration_failed', {
         track: 'hackathon',
         reason: mapHackathonFailureReason('Please upload a PPT/PDF file.'),
@@ -297,6 +338,7 @@ export default function InnovationEventClient({
       });
 
       setStatusMessage('Team registered successfully.');
+      pushToast("Team registered successfully!", "success");
       setTeamName('');
       setTeamSize(1);
       setTeamLeadUid('');
@@ -308,6 +350,7 @@ export default function InnovationEventClient({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed';
       setErrorMessage(message);
+      pushToast(message, "error");
       trackSafe('innovation_registration_failed', {
         track: 'hackathon',
         reason: mapHackathonFailureReason(message),
@@ -323,17 +366,37 @@ export default function InnovationEventClient({
       {errorMessage ? <p className="mb-4 border border-red-300 bg-red-50 text-red-700 px-4 py-3 text-sm">{errorMessage}</p> : null}
 
       <section className="mb-6 flex flex-wrap gap-3">
-        <Link href="/innovation" className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+        <Link
+          href="/innovation"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation"
+            ? "bg-[#002155] text-white"
+            : "border border-[#002155] text-[#002155]"
+            }`}
+        >
           Innovation Home
         </Link>
-        <Link href="/innovation/problems" className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+
+        <Link
+          href="/innovation/problems"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/problems"
+            ? "bg-[#0b6b2e] text-white"
+            : "border border-[#0b6b2e] text-[#0b6b2e]"
+            }`}
+        >
           Open Problem Statements
         </Link>
-        {canSeeMySubmissions ? (
-          <Link href="/innovation/my-submissions" className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider">
+
+        {viewerRole === "STUDENT" && (
+          <Link
+            href="/innovation/my-submissions"
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/my-submissions"
+              ? "bg-[#8c4f00] text-white"
+              : "border border-[#8c4f00] text-[#8c4f00]"
+              }`}
+          >
             My Submissions
           </Link>
-        ) : null}
+        )}
       </section>
 
       <section className="mb-8 border border-[#c4c6d3] bg-white p-5">
@@ -360,19 +423,21 @@ export default function InnovationEventClient({
           <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No problems linked to this event yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {problems.map((problem) => (
+            {problems.map((problem, index) => (
               <button
                 key={problem.id}
                 type="button"
-                onClick={() => setSelectedProblem(problem)}
+                onClick={() => {
+                  setSelectedProblem(problem);
+                  setSelectedProblemIndex(index);
+                }}
                 className="border border-[#c4c6d3] bg-white p-4 text-left hover:border-[#002155] focus:outline-none focus:ring-2 focus:ring-[#002155]"
               >
-                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{problem.mode}</p>
+                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">PROBLEM STATEMENT {index + 1}</p>
                 <p className="mt-1 text-sm font-bold text-[#002155]">{problem.title}</p>
                 <p className="mt-1 text-xs text-[#434651]">
                   Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
                 </p>
-                <p className="mt-2 text-xs text-[#434651]">{problem.status}</p>
                 <p className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]">Click to view details</p>
               </button>
             ))}
@@ -381,20 +446,25 @@ export default function InnovationEventClient({
       </section>
 
       {selectedProblem ? (
-        <div className="fixed inset-0 z-[120] bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-2xl border border-[#c4c6d3] bg-white p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">Problem Statement</p>
+                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">
+                  PROBLEM STATEMENT {selectedProblemIndex !== null ? selectedProblemIndex + 1 : ""}
+                  {" "}of {problems.length}
+                </p>
                 <h4 className="mt-1 text-xl font-bold text-[#002155]">{selectedProblem.title}</h4>
-                <p className="mt-1 text-xs text-[#434651]">{selectedProblem.mode} • {selectedProblem.status}</p>
                 <p className="mt-1 text-xs text-[#434651]">
                   Type: {selectedProblem.isIndustryProblem ? `Industry${selectedProblem.industryName ? ` (${selectedProblem.industryName})` : ''}` : 'Normal'}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedProblem(null)}
+                onClick={() => {
+                  setSelectedProblem(null);
+                  setSelectedProblemIndex(null);
+                }}
                 className="border border-[#747782] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#434651]"
               >
                 Close
@@ -509,7 +579,7 @@ export default function InnovationEventClient({
                 ? 'Event registration is currently closed by faculty/admin.'
                 : registrationClosed
                   ? 'Event registration is closed.'
-                : 'Registration will open once event problems are available.'}
+                  : 'Registration will open once event problems are available.'}
           {viewerRole === null ? (
             <Link href={`/login?next=${encodeURIComponent(`/innovation/events/${eventId}`)}`} className="ml-2 text-[#002155] font-bold underline uppercase text-xs tracking-wider">
               Go to Login
