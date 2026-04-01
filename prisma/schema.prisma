@@ -116,6 +116,7 @@ model Problem {
   supportDocumentKey String?
   applications Application[]
   questions   ProblemQuestion[]
+  notificationSent Boolean @default(false)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

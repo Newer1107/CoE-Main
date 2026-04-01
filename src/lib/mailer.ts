@@ -405,3 +405,39 @@ export const sendApplicationRejectionEmail = async (
     category: 'APPLICATION_REJECTED',
   });
 };
+
+// ─── 15. Innovation: New Problem Statement Posted ───
+export const sendNewProblemStatementEmail = async (
+  recipients: string[],
+  details: {
+    problemTitle: string;
+    problemDescription: string;
+    tags: string | null;
+    createdBy: string;
+    problemId: number;
+  }
+) => {
+  const tagsDisplay = details.tags ? `<p style="color:#747782;font-size:12px;">Tags: <strong>${details.tags}</strong></p>` : '';
+  
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">New Problem Statement Available</h2>
+    <p style="color:#434651;font-size:14px;">A new innovation problem statement has been posted on TCET CoE!</p>
+    
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;border-radius:4px;">
+      <h3 style="margin:0 0 8px;color:#002155;font-size:15px;">${details.problemTitle}</h3>
+      <p style="margin:0 0 12px;color:#434651;font-size:13px;line-height:1.5;">${details.problemDescription.substring(0, 200)}${details.problemDescription.length > 200 ? '...' : ''}</p>
+      ${tagsDisplay}
+      <p style="margin:8px 0 0;color:#747782;font-size:12px;">Posted by: <strong>${details.createdBy}</strong></p>
+    </div>
+    
+    <p style="text-align:center;margin:24px 0;">
+      <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/innovation/problems?problemId=${details.problemId}" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;border-radius:4px;display:inline-block;">View Problem Statement</a>
+    </p>
+    
+    <p style="color:#747782;font-size:12px;">Have an innovative solution? Apply now on the CoE platform!</p>`;
+
+  await send(recipients, `New Problem Statement: ${details.problemTitle}`, body, {
+    mode: 'bulk',
+    category: 'PROBLEM_STATEMENT_NOTIFICATION',
+  });
+};
