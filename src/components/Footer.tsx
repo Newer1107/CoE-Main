@@ -22,7 +22,7 @@ export default function Footer() {
             <li><a className="text-slate-600 hover:text-[#002155] underline transition-all" href="#">Institute Address &amp; NAAC</a></li>
             <li><a className="text-slate-600 hover:text-[#002155] underline transition-all" href="#">Mumbai University</a></li>
             <li><a className="text-slate-600 hover:text-[#002155] underline transition-all" href="#">Quick Links</a></li>
-            <li><a className="text-slate-600 hover:text-[#002155] underline transition-all" href="#">Privacy Policy</a></li>
+            <li><a className="text-slate-600 hover:text-[#002155] underline transition-all" href="/privacy-policy">Privacy Policy</a></li>
             <li><a className="text-slate-600 hover:text-[#002155] underline transition-all" href="#">Contact Us</a></li>
           </ul>
         </div>
