@@ -6,10 +6,12 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - faculty/admin content publishing (news, events, grants, announcements)
 - innovation platform with separated open-problem and hackathon tracks
 - application-based open-problem workflow (student profile + custom problem questions)
-- two-stage hackathon evaluation (PPT screening -> final judging)
+- two-stage hackathon evaluation with staged sync (PPT screening -> final judging)
 - rubric-based scoring for hackathon judging
+- team ticket issuance on shortlisting (leader receives PDF + QR)
+- per-member attendance tracking from team ticket check-in
 - faculty application review notifications (selected/rejected email)
-- email notifications and cron-driven reminders
+- email notifications and cron-driven reminders (active-phase broadcast, stage decisions, closed-event score/rank updates)
 - MinIO-backed object storage with browser-safe proxying
 - Google Analytics 4 instrumentation for auth, booking, innovation, and homepage engagement events
 
@@ -45,7 +47,7 @@ Major capability groups:
 - Innovation platform:
   - Open problems: students maintain reusable profile, answer faculty questions, submit individual applications
   - Faculty application review: select/reject + feedback + notification emails
-  - Hackathon track: event registration, problem statements, staged faculty judging, leaderboard
+  - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
 
 ### 1.1 System Component Architecture
 
@@ -214,7 +216,7 @@ graph LR
 - Database: MySQL + Prisma ORM
 - Auth: JWT access/refresh in httpOnly cookies
 - Validation: Zod
-- Email: Nodemailer (SMTP) with durable DB-backed queue (`email_jobs`)
+- Email: Nodemailer (SMTP) with durable DB-backed queue (`email_jobs`) and explicit job logging for direct attachment sends
 - Storage: MinIO (S3-compatible)
 - Scheduled jobs: cron-triggered route handlers + email queue worker
 
@@ -357,7 +359,7 @@ flowchart TD
     HC2[Move event status to ACTIVE]
     HC3[Registered Teams queue in Faculty Workspace - Events tab]
     HC4[Stage 1 sync: SCREENING]
-    HC5[Mark attendance for shortlisted teams]
+    HC5[Issue team ticket on shortlisting + mark member attendance]
     HC6[Stage 2 sync: JUDGING with rubric]
     HC7[Move event status to CLOSED]
   end
@@ -370,10 +372,10 @@ flowchart TD
   subgraph SYS[System]
     HY1[Claim created with status SUBMITTED]
     HY2[Claim status becomes SHORTLISTED or REJECTED]
-    HY3[Absent teams excluded from judging]
+    HY3[Member attendance captured on team ticket]
     HY4[Final decision ACCEPTED or REJECTED + scores persisted]
     HY5[Leaderboard available on event page]
-    HY6[Notification emails sent at stage transitions]
+    HY6[Stage emails: ACTIVE notice, screening result, judging score, CLOSED score-rank link]
   end
 
   HC1 --> HC2
@@ -399,9 +401,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  HE[HackathonEvent\nstatus: UPCOMING or ACTIVE or CLOSED\nregistrationOpen: true or false\npptFileKey: optional] --> P[Problem statements\nmode: CLOSED]
-  P --> C[Claim per team\nstatus lifecycle: IN_PROGRESS -> SUBMITTED -> SHORTLISTED -> ACCEPTED or REJECTED\nattendance flag: isAbsent]
+  HE[HackathonEvent\nstatus: UPCOMING or ACTIVE or JUDGING or CLOSED\nregistrationOpen: true or false\npptFileKey: optional] --> P[Problem statements\nmode: CLOSED]
+  P --> C[Claim per team\nstatus lifecycle: IN_PROGRESS -> SUBMITTED -> SHORTLISTED -> ACCEPTED or REJECTED\njudging attendance gate: isAbsent]
+  C --> TK[Team ticket issued when claim is SHORTLISTED\nleader receives PDF + QR]
   C --> CM[ClaimMember list\nLEAD + MEMBER]
+  C --> TA[TicketAttendance per member\nNOT_PRESENT or PRESENT]
   C --> SF[Submission assets\nsubmissionFileKey or submissionUrl]
   C --> RB[Rubric scores\ninnovation, technical, impact, ux, execution, presentation, feasibility]
   RB --> FS[finalScore and score]
@@ -432,6 +436,8 @@ sequenceDiagram
 
   F->>SY: Stage=SCREENING (SHORTLISTED or REJECTED)
   SY->>DB: Update claim status
+  SY->>DB: Issue team ticket for shortlisted claims
+  SY->>M: Send team ticket email to team leader
   SY->>M: Send screening result email
 
   F->>SY: Stage=JUDGING (ACCEPTED or REJECTED + rubrics, present shortlisted teams only)
@@ -439,7 +445,7 @@ sequenceDiagram
   SY->>M: Send final score email
 
   F->>AD: Move event ACTIVE to CLOSED
-  AD->>M: Send winners announcement emails
+  AD->>M: Send participant result emails (score + rank + leaderboard link)
 
   S->>L: View leaderboard (CLOSED only)
   L->>DB: Rank by finalScore then score
@@ -642,8 +648,8 @@ stateDiagram-v2
 
   REVISION_REQUESTED --> SUBMITTED: Team resubmits
 
-  ACCEPTED --> [*]: Winners announced
-  REJECTED --> [*]: Consolation emails sent
+  ACCEPTED --> [*]: Result mail sent on event close
+  REJECTED --> [*]: Result mail sent on event close
 
   note right of IN_PROGRESS
     PPT Form Active
@@ -726,7 +732,11 @@ Key innovation enums and lifecycle:
 Scoring fields persisted on `Claim` for hackathon judging:
 - `innovationScore`, `technicalScore`, `impactScore`, `uxScore`, `executionScore`, `presentationScore`, `feasibilityScore`
 - `finalScore` and `score`
-- `isAbsent` tracks judging-round attendance for shortlisted teams
+- `isAbsent` is the judging gate used during sync validation
+
+Attendance fields persisted for member-level check-in:
+- `TicketAttendance.status`: `NOT_PRESENT`, `PRESENT`
+- `TicketAttendance.markedAt` and `markedByUserId` capture attendance audit metadata
 
 Open-problem application fields persisted on `Application`:
 - `status`: `SUBMITTED`, `SELECTED`, `REJECTED`
@@ -1060,14 +1070,15 @@ Hackathon events:
 - `GET /api/innovation/events/[id]/leaderboard` (event must be `CLOSED`)
 
 Event stage controls and review:
-- `PATCH /api/innovation/admin/events/[id]/status` (admin, or creator faculty)
+- `PATCH /api/innovation/admin/events/[id]/status` (admin)
 - `GET /api/innovation/admin/submissions` (admin)
-- `GET /api/innovation/faculty/submissions` (faculty/admin)
-- `PATCH /api/innovation/faculty/claims/sync` (faculty/admin)
-- `PATCH /api/innovation/faculty/claims/[id]/attendance` (owner faculty or admin)
+- `GET /api/innovation/faculty/submissions` (admin)
+- `PATCH /api/innovation/faculty/claims/sync` (admin)
+- `PATCH /api/innovation/faculty/claims/[id]/attendance` (admin)
+  - returns a deprecation response; use ticket member check-in instead
   - Stage-aware payload:
     - `stage=SCREENING`: decision statuses `SHORTLISTED` or `REJECTED`
-    - `stage=JUDGING`: decision statuses `ACCEPTED` or `REJECTED`, rubrics required, absent teams excluded
+    - `stage=JUDGING`: decision statuses `ACCEPTED` or `REJECTED`, rubrics required, event cannot be `UPCOMING`, absent teams excluded
 
 ### 7.6 Utility and Ops APIs
 
@@ -1516,9 +1527,9 @@ graph TD
   subgraph "Hackathon Events"
     HACK_REGISTER["Team Registration<br/>Confirmation"]
     HACK_ACTIVE["Event Activated<br/>Reminder Email"]
-    HACK_SCREENING["Screening Complete<br/>Shortlist/Reject"]
+    HACK_SCREENING["Screening Complete<br/>Shortlist/Reject + Team Ticket"]
     HACK_JUDGING["Final Judging<br/>Scores & Decision"]
-    HACK_CLOSE["Event Closed<br/>Winners Announced"]
+    HACK_CLOSE["Event Closed<br/>Result Email + Leaderboard Link"]
   end
 
   subgraph "Open Problem Events"
@@ -1713,7 +1724,7 @@ Leaderboard endpoint failing:
 - Verify event status is `CLOSED`
 
 Final judging sync failing:
-- Ensure event status is `ACTIVE`
+- Ensure event status is not `UPCOMING`
 - Ensure only present shortlisted claims are included
 - If a shortlisted team was marked absent, mark it present first
 - Ensure all rubric fields are present
@@ -1868,10 +1879,11 @@ Before release:
 - Verify faculty content create/update/delete flows with uploads
 - Verify innovation two-stage flow:
   - registration/submission
-  - screening sync
-  - shortlist and absent-team visibility
+  - screening sync and shortlist decision emails
+  - team ticket issuance to leader after shortlisting
+  - member attendance marking from team ticket
   - judging sync with rubric scoring for present teams
-  - leaderboard output
+  - event close result emails with score/rank + leaderboard output
 - Verify open-problem application flow:
   - student profile completion gate before apply
   - application submission with dynamic problem questions
