@@ -216,6 +216,7 @@ const buildPdfBuffer = async (payload: {
 };
 
 const getDownloadPath = (ticketId: string) => `/api/tickets/${encodeURIComponent(ticketId)}/download`;
+const getVerifyPath = (ticketId: string) => `/admin?tab=operations&ops=tickets&ticketId=${encodeURIComponent(ticketId)}`;
 
 const toAbsoluteUrl = (path: string) => {
   const base = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -248,7 +249,7 @@ const issueTicket = async (input: TicketBuildInput) => {
   }
 
   const ticketId = await generateUniqueTicketId(input.type);
-  const qrValue = ticketId;
+  const qrValue = toAbsoluteUrl(getVerifyPath(ticketId));
   const pdfBuffer = await buildPdfBuffer({
     ticketId,
     ticketTitle: input.title,

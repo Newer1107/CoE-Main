@@ -202,6 +202,34 @@ const apiCall = async (url: string, options?: RequestInit) => {
   return payload;
 };
 
+const extractTicketIdFromInput = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed);
+    const fromQuery = parsed.searchParams.get("ticketId")?.trim();
+    if (fromQuery) return fromQuery;
+
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const ticketsIndex = segments.findIndex((segment) => segment === "tickets");
+    if (ticketsIndex >= 0) {
+      const nextSegment = segments[ticketsIndex + 1]?.trim();
+      if (nextSegment) {
+        try {
+          return decodeURIComponent(nextSegment);
+        } catch {
+          return nextSegment;
+        }
+      }
+    }
+  } catch {
+    // Not a URL; keep raw ticket input.
+  }
+
+  return trimmed;
+};
+
 export default function AdminPanelClient({
   stats,
   pendingBookings,
@@ -296,6 +324,7 @@ export default function AdminPanelClient({
   useEffect(() => {
     const tab = searchParams.get("tab");
     const ops = searchParams.get("ops");
+    const parsedQueryTicketId = extractTicketIdFromInput(searchParams.get("ticketId") || "");
 
     if (
       ops === "overview" ||
@@ -310,10 +339,16 @@ export default function AdminPanelClient({
 
     if (tab === "innovation") {
       setActiveView("innovation");
-      return;
     }
     if (tab === "operations") {
       setActiveView("operations");
+    }
+
+    if (parsedQueryTicketId) {
+      setActiveView("operations");
+      setOperationsTab("tickets");
+      setTicketIdInput(parsedQueryTicketId);
+      setTicketVerifyError("");
     }
   }, [searchParams]);
 
@@ -425,7 +460,7 @@ export default function AdminPanelClient({
   };
 
   const verifyTicketById = async (ticketIdRaw: string) => {
-    const normalizedTicketId = ticketIdRaw.trim();
+    const normalizedTicketId = extractTicketIdFromInput(ticketIdRaw);
     if (normalizedTicketId.length < 8) {
       setTicketVerifyError("Enter a valid ticket ID before verification.");
       setTicketVerifyResult(null);
@@ -442,6 +477,7 @@ export default function AdminPanelClient({
         body: JSON.stringify({ ticketId: normalizedTicketId }),
       });
 
+      setTicketIdInput(normalizedTicketId);
       setTicketVerifyResult((payload?.data || null) as TicketVerificationResult | null);
       setStatusMessage(`Ticket ${normalizedTicketId} verified.`);
     } catch (err) {
@@ -519,9 +555,10 @@ export default function AdminPanelClient({
             ?.rawValue?.trim();
 
           if (scannedValue) {
-            setTicketIdInput(scannedValue);
+            const normalizedScannedTicketId = extractTicketIdFromInput(scannedValue);
+            setTicketIdInput(normalizedScannedTicketId);
             stopTicketScanner();
-            await verifyTicketById(scannedValue);
+            await verifyTicketById(normalizedScannedTicketId);
             return;
           }
         } catch {
@@ -1220,7 +1257,7 @@ export default function AdminPanelClient({
             value={ticketIdInput}
             onChange={(e) => setTicketIdInput(e.target.value)}
             className="border border-[#c4c6d3] px-3 py-2 text-sm"
-            placeholder="Enter or paste ticket ID"
+            placeholder="Enter ticket ID or paste QR URL"
           />
           <button
             onClick={() => void handleVerifyTicket()}
