@@ -1,4 +1,16 @@
 import { dispatchEmail } from '@/lib/email-delivery';
+import nodemailer from 'nodemailer';
+import prisma from '@/lib/prisma';
+
+const attachmentTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '587', 10),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 const brandHeader = `
   <div style="background:#002155;padding:16px 24px;text-align:center;">
@@ -352,6 +364,37 @@ export const sendInnovationWinnerEmail = async (
   });
 };
 
+// ─── 12a. Innovation: Event Closed Score + Leaderboard ───
+export const sendInnovationEventClosedScoreEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+    teamName: string;
+    score: number | null;
+    rank?: number | null;
+    leaderboardUrl: string;
+  }
+) => {
+  const scoreLine = details.score === null ? 'Score: Not Available' : `Score: ${details.score}/100`;
+  const rankLine = typeof details.rank === 'number' ? `<p style="color:#434651;font-size:14px;">Leaderboard Rank: <strong>#${details.rank}</strong></p>` : '';
+
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Results Published</h2>
+    <p style="color:#434651;font-size:14px;">The event <strong>${details.eventTitle}</strong> has been closed and results are now available.</p>
+    <p style="color:#434651;font-size:14px;">Team: <strong>${details.teamName}</strong></p>
+    <p style="color:#434651;font-size:14px;"><strong>${scoreLine}</strong></p>
+    ${rankLine}
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${details.leaderboardUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View Leaderboard</a>
+    </div>
+    <p style="color:#747782;font-size:12px;">You can view full rankings and event details on the leaderboard page.</p>`;
+
+  await send(recipients, `Hackathon Results: ${details.eventTitle}`, body, {
+    mode: 'bulk',
+    category: 'HACKATHON_EVENT_CLOSED_RESULT',
+  });
+};
+
 // ─── 13. Innovation: Application Selected ───
 export const sendApplicationSelectionEmail = async (
   studentEmail: string,
@@ -451,9 +494,26 @@ export const sendTicketIssuedEmail = async (
     ticketId: string;
     subjectName: string;
     scheduledAt: string | null;
-    ticketUrl: string;
+    ticketPdfBuffer: Buffer;
+    teamMembers?: Array<{ name: string; email: string; role: string }>;
   }
 ) => {
+  const teamMemberRows = (details.teamMembers || [])
+    .map(
+      (member) =>
+        `<tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;">${member.name}</td><td style="padding:8px;color:#002155;">${member.email}</td><td style="padding:8px;color:#434651;">${member.role}</td></tr>`
+    )
+    .join('');
+
+  const teamMembersSection = teamMemberRows
+    ? `
+    <h3 style="color:#002155;margin:16px 0 6px;font-size:15px;">Team Members</h3>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 16px;font-size:13px;">
+      <tr style="background:#f5f4f0;border-bottom:1px solid #c4c6d3;"><th style="padding:8px;text-align:left;color:#747782;">Name</th><th style="padding:8px;text-align:left;color:#747782;">Email</th><th style="padding:8px;text-align:left;color:#747782;">Role</th></tr>
+      ${teamMemberRows}
+    </table>`
+    : '';
+
   const body = `
     <h2 style="color:#002155;margin:0 0 8px;">Your Digital Ticket is Ready</h2>
     <p style="color:#434651;font-size:14px;">Dear <strong>${details.userName}</strong>,</p>
@@ -464,14 +524,70 @@ export const sendTicketIssuedEmail = async (
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Event / Booking</td><td style="padding:8px;color:#002155;">${details.subjectName}</td></tr>
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Date & Time</td><td style="padding:8px;color:#002155;">${details.scheduledAt || 'N/A'}</td></tr>
     </table>
-    <div style="text-align:center;margin:24px 0;">
-      <a href="${details.ticketUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;display:inline-block;">Download Ticket PDF</a>
-    </div>
-    <p style="color:#747782;font-size:12px;">Present this ticket at entry. Each ticket is valid for one successful verification only.</p>`;
+    ${teamMembersSection}
+    <p style="color:#747782;font-size:12px;">Your ticket PDF is attached to this email. Present it at entry. Each ticket is valid for one successful verification only.</p>`;
 
-  await send(email, `${details.ticketTitle} Issued — ${details.ticketId}`, body, {
-    mode: 'immediate',
-    category: 'TICKET_ISSUED',
-    dedupeKey: `ticket-issued:${details.ticketId}:${email.toLowerCase()}`,
-  });
+  const subject = `${details.ticketTitle} Issued — ${details.ticketId}`;
+  const wrappedHtml = wrap(body);
+
+  try {
+    const result = await attachmentTransporter.sendMail({
+      from: process.env.SMTP_FROM || '"TCET CoE" <noreply@tcetmumbai.in>',
+      to: email,
+      subject,
+      html: wrappedHtml,
+      attachments: [
+        {
+          filename: `${details.ticketId}.pdf`,
+          content: details.ticketPdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+
+    await (prisma as any).emailJob.create({
+      data: {
+        toEmail: email.trim().toLowerCase(),
+        subject,
+        htmlBody: wrappedHtml,
+        category: 'TICKET_ISSUED',
+        mode: 'IMMEDIATE',
+        status: 'SENT',
+        priority: Number.parseInt(process.env.EMAIL_PRIORITY_IMMEDIATE || '100', 10),
+        attempts: 1,
+        maxAttempts: 1,
+        lastAttemptAt: new Date(),
+        sentAt: new Date(),
+        providerMessageId: (result as any)?.messageId || null,
+        metadata: {
+          source: 'mailer.sendTicketIssuedEmail',
+          ticketId: details.ticketId,
+          hasAttachment: true,
+        },
+      },
+    });
+  } catch (err) {
+    await (prisma as any).emailJob.create({
+      data: {
+        toEmail: email.trim().toLowerCase(),
+        subject,
+        htmlBody: wrappedHtml,
+        category: 'TICKET_ISSUED',
+        mode: 'IMMEDIATE',
+        status: 'FAILED',
+        priority: Number.parseInt(process.env.EMAIL_PRIORITY_IMMEDIATE || '100', 10),
+        attempts: 1,
+        maxAttempts: 1,
+        lastAttemptAt: new Date(),
+        lastError: err instanceof Error ? err.message.slice(0, 1900) : String(err).slice(0, 1900),
+        metadata: {
+          source: 'mailer.sendTicketIssuedEmail',
+          ticketId: details.ticketId,
+          hasAttachment: true,
+        },
+      },
+    });
+
+    throw err;
+  }
 };

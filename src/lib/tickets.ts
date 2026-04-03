@@ -21,6 +21,17 @@ type TicketBuildInput = {
   bookingId?: number;
   claimId?: number;
   metadata?: Prisma.InputJsonValue;
+  teamMembersForEmail?: Array<{ name: string; email: string; role: string }>;
+};
+
+type AttendanceMemberRow = {
+  claimMemberId: number;
+  userId: number;
+  name: string;
+  email: string;
+  role: string;
+  attendanceStatus: 'NOT_PRESENT' | 'PRESENT';
+  checkedInAt: string | null;
 };
 
 const platformName = 'TCET Center of Excellence';
@@ -232,12 +243,17 @@ const issueTicket = async (input: TicketBuildInput) => {
   }
 
   const existing = await prisma.ticket.findFirst({
-    where: {
-      type: input.type,
-      userId: input.userId,
-      bookingId: input.bookingId ?? null,
-      claimId: input.claimId ?? null,
-    },
+    where:
+      input.type === 'HACKATHON_SELECTION'
+        ? {
+            type: input.type,
+            claimId: input.claimId ?? null,
+          }
+        : {
+            type: input.type,
+            userId: input.userId,
+            bookingId: input.bookingId ?? null,
+          },
   });
 
   if (existing) {
@@ -297,7 +313,8 @@ const issueTicket = async (input: TicketBuildInput) => {
         ticketId: ticket.ticketId,
         subjectName: ticket.subjectName,
         scheduledAt: ticket.scheduledAt ? ticket.scheduledAt.toISOString() : null,
-        ticketUrl: toAbsoluteUrl(downloadPath),
+        ticketPdfBuffer: pdfBuffer,
+        teamMembers: input.teamMembersForEmail,
       });
     } catch (mailErr) {
       logActivity('TICKET_EMAIL_DISPATCH_FAILED', {
@@ -393,36 +410,57 @@ export const issueHackathonSelectionTicketsForClaim = async (claimId: number) =>
     throw new Error('Hackathon event not found for accepted claim ticket issuance');
   }
 
-  const issued = [] as Array<{ ticketId: string; userId: number; created: boolean }>;
+  if (claim.members.length === 0) {
+    throw new Error('Claim has no members for team ticket issuance');
+  }
 
-  for (const member of claim.members) {
-    const result = await issueTicket({
-      type: 'HACKATHON_SELECTION',
-      userId: member.user.id,
-      userName: member.user.name,
-      userEmail: member.user.email,
-      title: 'Hackathon Ticket',
-      subjectName: `${claim.problem.event.title} - ${claim.problem.title}`,
-      scheduledAt: claim.problem.event.startTime,
-      instructionText: 'Present this ticket at check-in. Ticket is valid for one check-in only.',
+  const leaderMember = claim.members.find((member) => member.role === 'LEAD') ?? claim.members[0];
+
+  const result = await issueTicket({
+    type: 'HACKATHON_SELECTION',
+    userId: leaderMember.user.id,
+    userName: leaderMember.user.name,
+    userEmail: leaderMember.user.email,
+    title: 'Hackathon Team Ticket',
+    subjectName: `${claim.problem.event.title} - ${claim.problem.title}`,
+    scheduledAt: claim.problem.event.startTime,
+    instructionText: 'Present this team ticket at check-in. Mark attendance for members who are present.',
+    claimId: claim.id,
+    metadata: {
       claimId: claim.id,
-      metadata: {
-        claimId: claim.id,
-        eventId: claim.problem.event.id,
-        eventTitle: claim.problem.event.title,
-        problemId: claim.problemId,
-        problemTitle: claim.problem.title,
-      },
-    });
+      eventId: claim.problem.event.id,
+      eventTitle: claim.problem.event.title,
+      problemId: claim.problemId,
+      problemTitle: claim.problem.title,
+      teamName: claim.teamName,
+      teamLeadUserId: leaderMember.user.id,
+      teamMemberCount: claim.members.length,
+    },
+    teamMembersForEmail: claim.members.map((member) => ({
+      name: member.user.name,
+      email: member.user.email,
+      role: member.role,
+    })),
+  });
 
-    issued.push({
-      ticketId: result.ticket.ticketId,
-      userId: member.user.id,
-      created: result.created,
+  const ticketAttendanceModel = (prisma as any).ticketAttendance;
+  if (ticketAttendanceModel) {
+    await ticketAttendanceModel.createMany({
+      data: claim.members.map((member) => ({
+        ticketId: result.ticket.id,
+        claimMemberId: member.id,
+        status: 'NOT_PRESENT',
+      })),
+      skipDuplicates: true,
     });
   }
 
-  return issued;
+  return {
+    ticketId: result.ticket.ticketId,
+    userId: leaderMember.user.id,
+    created: result.created,
+    memberCount: claim.members.length,
+  };
 };
 
 export const verifyAndConsumeTicket = async (ticketId: string, verifiedByUserId?: number) => {
@@ -435,6 +473,10 @@ export const verifyAndConsumeTicket = async (ticketId: string, verifiedByUserId?
 
   if (!ticket) {
     return { ok: false as const, code: 'NOT_FOUND' as const };
+  }
+
+  if (ticket.type !== 'FACILITY_BOOKING') {
+    return { ok: false as const, code: 'WRONG_TICKET_TYPE' as const, ticket };
   }
 
   if (ticket.status === 'CANCELLED') {
@@ -478,4 +520,230 @@ export const verifyAndConsumeTicket = async (ticketId: string, verifiedByUserId?
   });
 
   return { ok: true as const, ticket: updated ?? ticket };
+};
+
+const getHackathonTicketRecord = async (ticketId: string) => {
+  const ticketModel = (prisma as any).ticket;
+  const ticketAttendanceModel = (prisma as any).ticketAttendance;
+
+  let ticket = await ticketModel.findUnique({
+    where: { ticketId },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      claim: {
+        include: {
+          problem: {
+            include: {
+              event: { select: { id: true, title: true } },
+            },
+          },
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      },
+      attendanceRecords: true,
+    },
+  });
+
+  if (!ticket || ticket.type !== 'HACKATHON_SELECTION' || !ticket.claim) {
+    return ticket;
+  }
+
+  if (ticketAttendanceModel && ticket.claim.members.length > 0) {
+    await ticketAttendanceModel.createMany({
+      data: ticket.claim.members.map((member: any) => ({
+        ticketId: ticket.id,
+        claimMemberId: member.id,
+        status: 'NOT_PRESENT',
+      })),
+      skipDuplicates: true,
+    });
+
+    ticket = await ticketModel.findUnique({
+      where: { ticketId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        claim: {
+          include: {
+            problem: {
+              include: {
+                event: { select: { id: true, title: true } },
+              },
+            },
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        },
+        attendanceRecords: true,
+      },
+    });
+  }
+
+  return ticket;
+};
+
+const mapAttendanceMembers = (ticket: any): AttendanceMemberRow[] => {
+  const attendanceByClaimMemberId = new Map<number, any>();
+  for (const record of ticket?.attendanceRecords || []) {
+    attendanceByClaimMemberId.set(record.claimMemberId, record);
+  }
+
+  return (ticket?.claim?.members || []).map((member: any) => {
+    const attendance = attendanceByClaimMemberId.get(member.id);
+    return {
+      claimMemberId: member.id,
+      userId: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+      role: member.role,
+      attendanceStatus: (attendance?.status || 'NOT_PRESENT') as 'NOT_PRESENT' | 'PRESENT',
+      checkedInAt: attendance?.checkedInAt ? new Date(attendance.checkedInAt).toISOString() : null,
+    };
+  });
+};
+
+export const verifyTicketForCheckIn = async (ticketId: string) => {
+  const ticketModel = (prisma as any).ticket;
+  const base = await ticketModel.findUnique({
+    where: { ticketId },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!base) {
+    return { ok: false as const, code: 'NOT_FOUND' as const };
+  }
+
+  if (base.status === 'CANCELLED') {
+    return { ok: false as const, code: 'CANCELLED' as const, ticket: base };
+  }
+
+  if (base.type === 'FACILITY_BOOKING') {
+    return {
+      ok: true as const,
+      mode: 'FACILITY' as const,
+      ticket: base,
+    };
+  }
+
+  const hackathonTicket = await getHackathonTicketRecord(ticketId);
+  if (!hackathonTicket || !hackathonTicket.claim) {
+    return { ok: false as const, code: 'INVALID_HACKATHON_TICKET' as const };
+  }
+
+  const members = mapAttendanceMembers(hackathonTicket);
+  const presentCount = members.filter((member) => member.attendanceStatus === 'PRESENT').length;
+
+  return {
+    ok: true as const,
+    mode: 'HACKATHON' as const,
+    ticket: hackathonTicket,
+    claimId: hackathonTicket.claim.id,
+    teamName: hackathonTicket.claim.teamName || `Team-${hackathonTicket.claim.id}`,
+    eventName: hackathonTicket.claim.problem?.event?.title || 'Hackathon Event',
+    members,
+    presentCount,
+    totalMembers: members.length,
+  };
+};
+
+export const markHackathonTeamMembersPresent = async (
+  ticketId: string,
+  presentClaimMemberIds: number[],
+  checkedInByUserId?: number
+) => {
+  const ticketAttendanceModel = (prisma as any).ticketAttendance;
+  if (!ticketAttendanceModel) {
+    throw new Error('Ticket attendance model is unavailable');
+  }
+
+  const ticket = await getHackathonTicketRecord(ticketId);
+
+  if (!ticket) {
+    return { ok: false as const, code: 'NOT_FOUND' as const };
+  }
+
+  if (ticket.status === 'CANCELLED') {
+    return { ok: false as const, code: 'CANCELLED' as const, ticket };
+  }
+
+  if (ticket.type !== 'HACKATHON_SELECTION' || !ticket.claim) {
+    return { ok: false as const, code: 'WRONG_TICKET_TYPE' as const, ticket };
+  }
+
+  const validMemberIds = new Set<number>((ticket.claim.members || []).map((member: any) => member.id));
+  const selectedUnique = Array.from(
+    new Set(presentClaimMemberIds.filter((claimMemberId) => Number.isInteger(claimMemberId) && validMemberIds.has(claimMemberId)))
+  );
+
+  let newlyMarkedCount = 0;
+  if (selectedUnique.length > 0) {
+    const updateResult = await ticketAttendanceModel.updateMany({
+      where: {
+        ticketId: ticket.id,
+        claimMemberId: { in: selectedUnique },
+        status: 'NOT_PRESENT',
+      },
+      data: {
+        status: 'PRESENT',
+        checkedInAt: new Date(),
+        checkedInByUserId: checkedInByUserId ?? null,
+      },
+    });
+
+    newlyMarkedCount = updateResult.count ?? 0;
+  }
+
+  const updated = await getHackathonTicketRecord(ticketId);
+  if (!updated || !updated.claim) {
+    return { ok: false as const, code: 'NOT_FOUND' as const };
+  }
+
+  const members = mapAttendanceMembers(updated);
+  const presentCount = members.filter((member) => member.attendanceStatus === 'PRESENT').length;
+  const totalMembers = members.length;
+
+  if (totalMembers > 0 && presentCount === totalMembers && updated.status === 'ACTIVE') {
+    await (prisma as any).ticket.update({
+      where: { id: updated.id },
+      data: {
+        status: 'USED',
+        usedAt: new Date(),
+        metadata: {
+          ...((updated.metadata as Record<string, unknown> | null) ?? {}),
+          attendanceCompletedAt: new Date().toISOString(),
+          attendanceCompletedByUserId: checkedInByUserId ?? null,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    updated.status = 'USED';
+  }
+
+  logActivity('HACKATHON_MEMBER_ATTENDANCE_MARKED', {
+    ticketId: updated.ticketId,
+    claimId: updated.claim.id,
+    markedBy: checkedInByUserId ?? null,
+    newlyMarkedCount,
+    presentCount,
+    totalMembers,
+  });
+
+  return {
+    ok: true as const,
+    ticket: updated,
+    claimId: updated.claim.id,
+    teamName: updated.claim.teamName || `Team-${updated.claim.id}`,
+    eventName: updated.claim.problem?.event?.title || 'Hackathon Event',
+    members,
+    presentCount,
+    totalMembers,
+    newlyMarkedCount,
+  };
 };

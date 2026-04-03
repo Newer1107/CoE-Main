@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { HACKATHON_RUBRIC_WEIGHTS } from "@/lib/hackathon-scoring";
 
 type BookingStudent = {
   id: number;
@@ -81,12 +82,35 @@ type ManagedHackathonSubmission = {
   id: number;
   teamName: string | null;
   status: "IN_PROGRESS" | "SUBMITTED" | "SHORTLISTED" | "ACCEPTED" | "REVISION_REQUESTED" | "REJECTED";
-  isAbsent: boolean;
   updatedAt: string;
   feedback: string | null;
+  innovationScore: number | null;
+  technicalScore: number | null;
+  impactScore: number | null;
+  uxScore: number | null;
+  executionScore: number | null;
+  presentationScore: number | null;
+  feasibilityScore: number | null;
   finalScore: number | null;
   submissionUrl: string | null;
   submissionFileUrl: string | null;
+  teamTicket: {
+    ticketId: string;
+    status: "ACTIVE" | "USED" | "CANCELLED";
+  } | null;
+  attendanceSummary: {
+    presentCount: number;
+    totalMembers: number;
+    memberAttendance: Array<{
+      claimMemberId: number;
+      userId: number;
+      name: string;
+      email: string;
+      role: string;
+      attendanceStatus: "NOT_PRESENT" | "PRESENT";
+      checkedInAt: string | null;
+    }>;
+  };
   problem: {
     id: number;
     title: string;
@@ -107,6 +131,27 @@ type HackathonRubrics = {
   execution: number;
   presentation: number;
   feasibility: number;
+};
+
+type HackathonRubricKey = keyof HackathonRubrics;
+
+type StagedHackathonDecision = "SHORTLISTED" | "REJECTED" | "ACCEPTED";
+
+const rubricFieldConfig: Array<{ key: HackathonRubricKey; label: string; weight: number }> = [
+  { key: "innovation", label: "Innovation", weight: HACKATHON_RUBRIC_WEIGHTS.innovation },
+  { key: "technical", label: "Technical", weight: HACKATHON_RUBRIC_WEIGHTS.technical },
+  { key: "impact", label: "Impact", weight: HACKATHON_RUBRIC_WEIGHTS.impact },
+  { key: "ux", label: "UX", weight: HACKATHON_RUBRIC_WEIGHTS.ux },
+  { key: "execution", label: "Execution", weight: HACKATHON_RUBRIC_WEIGHTS.execution },
+  { key: "presentation", label: "Presentation", weight: HACKATHON_RUBRIC_WEIGHTS.presentation },
+  { key: "feasibility", label: "Feasibility", weight: HACKATHON_RUBRIC_WEIGHTS.feasibility },
+];
+
+const clampRubricScore = (value: number) => {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 10) return 10;
+  return Math.round(value);
 };
 
 type EventProblemInput = {
@@ -161,16 +206,32 @@ type EmailQueueSnapshot = {
 };
 
 type TicketVerificationResult = {
+  mode: "FACILITY" | "HACKATHON";
   ticketId: string;
   status: string;
-  usedAt: string | null;
-  user: {
+  title: string;
+  subjectName: string;
+  usedAt?: string | null;
+  user?: {
     id: number;
     name: string;
     email: string;
   };
-  title: string;
-  subjectName: string;
+  teamName?: string;
+  eventName?: string;
+  claimId?: number;
+  presentCount?: number;
+  totalMembers?: number;
+  newlyMarkedCount?: number;
+  members?: Array<{
+    claimMemberId: number;
+    userId: number;
+    name: string;
+    email: string;
+    role: string;
+    attendanceStatus: "NOT_PRESENT" | "PRESENT";
+    checkedInAt: string | null;
+  }>;
 };
 
 type BarcodeDetectionResult = {
@@ -258,8 +319,10 @@ export default function AdminPanelClient({
   const [loadingInnovationLeaderboard, setLoadingInnovationLeaderboard] = useState(false);
   const [managedSubmissions, setManagedSubmissions] = useState<ManagedHackathonSubmission[]>([]);
   const [loadingManagedSubmissions, setLoadingManagedSubmissions] = useState(false);
-  const [busyClaimId, setBusyClaimId] = useState<number | null>(null);
   const [managedSubmissionEventFilter, setManagedSubmissionEventFilter] = useState<number | "ALL">("ALL");
+  const [judgingRubricsByClaimId, setJudgingRubricsByClaimId] = useState<Record<number, HackathonRubrics>>({});
+  const [stagedDecisions, setStagedDecisions] = useState<Record<number, StagedHackathonDecision>>({});
+  const [syncingStage, setSyncingStage] = useState<"SCREENING" | "JUDGING" | null>(null);
 
   const [eventTitle, setEventTitle] = useState("");
   const [eventDescription, setEventDescription] = useState("");
@@ -290,6 +353,7 @@ export default function AdminPanelClient({
   const [ticketVerifying, setTicketVerifying] = useState(false);
   const [ticketVerifyError, setTicketVerifyError] = useState("");
   const [ticketVerifyResult, setTicketVerifyResult] = useState<TicketVerificationResult | null>(null);
+  const [selectedPresentMemberIds, setSelectedPresentMemberIds] = useState<number[]>([]);
   const [ticketScannerOpen, setTicketScannerOpen] = useState(false);
   const [ticketScannerStarting, setTicketScannerStarting] = useState(false);
   const [ticketScannerError, setTicketScannerError] = useState("");
@@ -320,6 +384,51 @@ export default function AdminPanelClient({
     if (managedSubmissionEventFilter === "ALL") return managedSubmissions;
     return managedSubmissions.filter((claim) => claim.problem.event?.id === managedSubmissionEventFilter);
   }, [managedSubmissions, managedSubmissionEventFilter]);
+
+  const screeningSubmissions = useMemo(
+    () => filteredManagedSubmissions.filter((claim) => ["IN_PROGRESS", "SUBMITTED", "REVISION_REQUESTED"].includes(claim.status)),
+    [filteredManagedSubmissions]
+  );
+
+  const judgingSubmissions = useMemo(
+    () => filteredManagedSubmissions.filter((claim) => claim.status === "SHORTLISTED"),
+    [filteredManagedSubmissions]
+  );
+
+  const finalizedSubmissions = useMemo(
+    () => filteredManagedSubmissions.filter((claim) => ["ACCEPTED", "REJECTED"].includes(claim.status)),
+    [filteredManagedSubmissions]
+  );
+
+  const stagedScreeningCount = useMemo(
+    () => screeningSubmissions.filter((claim) => ["SHORTLISTED", "REJECTED"].includes(stagedDecisions[claim.id] || "")).length,
+    [screeningSubmissions, stagedDecisions]
+  );
+
+  const stagedJudgingCount = useMemo(
+    () => judgingSubmissions.filter((claim) => ["ACCEPTED", "REJECTED"].includes(stagedDecisions[claim.id] || "")).length,
+    [judgingSubmissions, stagedDecisions]
+  );
+
+  const getDefaultRubricsForClaim = (claim: ManagedHackathonSubmission): HackathonRubrics => ({
+    innovation: clampRubricScore(claim.innovationScore ?? 7),
+    technical: clampRubricScore(claim.technicalScore ?? 7),
+    impact: clampRubricScore(claim.impactScore ?? 7),
+    ux: clampRubricScore(claim.uxScore ?? 7),
+    execution: clampRubricScore(claim.executionScore ?? 7),
+    presentation: clampRubricScore(claim.presentationScore ?? 7),
+    feasibility: clampRubricScore(claim.feasibilityScore ?? 7),
+  });
+
+  const hydrateRubricDrafts = (claims: ManagedHackathonSubmission[]) => {
+    setJudgingRubricsByClaimId((prev) => {
+      const next: Record<number, HackathonRubrics> = {};
+      for (const claim of claims) {
+        next[claim.id] = prev[claim.id] ?? getDefaultRubricsForClaim(claim);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -359,7 +468,9 @@ export default function AdminPanelClient({
       try {
         setLoadingManagedSubmissions(true);
         const payload = await apiCall("/api/innovation/faculty/submissions", { method: "GET" });
-        setManagedSubmissions((payload?.data || []) as ManagedHackathonSubmission[]);
+        const claims = (payload?.data || []) as ManagedHackathonSubmission[];
+        setManagedSubmissions(claims);
+        hydrateRubricDrafts(claims);
       } catch (err) {
         setManagedSubmissions([]);
         setErrorMessage(err instanceof Error ? err.message : "Could not load hackathon submissions.");
@@ -464,6 +575,7 @@ export default function AdminPanelClient({
     if (normalizedTicketId.length < 8) {
       setTicketVerifyError("Enter a valid ticket ID before verification.");
       setTicketVerifyResult(null);
+      setSelectedPresentMemberIds([]);
       return;
     }
 
@@ -478,10 +590,61 @@ export default function AdminPanelClient({
       });
 
       setTicketIdInput(normalizedTicketId);
-      setTicketVerifyResult((payload?.data || null) as TicketVerificationResult | null);
-      setStatusMessage(`Ticket ${normalizedTicketId} verified.`);
+      const result = (payload?.data || null) as TicketVerificationResult | null;
+      setTicketVerifyResult(result);
+
+      if (result?.mode === "HACKATHON") {
+        setSelectedPresentMemberIds([]);
+        setStatusMessage(`Team ticket ${normalizedTicketId} loaded. Select present members and confirm check-in.`);
+      } else {
+        setSelectedPresentMemberIds([]);
+        setStatusMessage(`Facility ticket ${normalizedTicketId} verified.`);
+      }
     } catch (err) {
       setTicketVerifyError(err instanceof Error ? err.message : "Ticket verification failed.");
+    } finally {
+      setTicketVerifying(false);
+    }
+  };
+
+  const handleTogglePresentSelection = (claimMemberId: number) => {
+    setSelectedPresentMemberIds((prev) =>
+      prev.includes(claimMemberId) ? prev.filter((item) => item !== claimMemberId) : [...prev, claimMemberId]
+    );
+  };
+
+  const handleMarkSelectedMembersPresent = async () => {
+    if (!ticketVerifyResult || ticketVerifyResult.mode !== "HACKATHON") return;
+    if (selectedPresentMemberIds.length === 0) {
+      setTicketVerifyError("Select at least one team member to mark as present.");
+      return;
+    }
+
+    try {
+      setTicketVerifying(true);
+      setTicketVerifyError("");
+
+      const payload = await apiCall("/api/tickets/verify", {
+        method: "POST",
+        body: JSON.stringify({
+          ticketId: ticketVerifyResult.ticketId,
+          presentClaimMemberIds: selectedPresentMemberIds,
+        }),
+      });
+
+      const result = (payload?.data || null) as TicketVerificationResult | null;
+      setTicketVerifyResult(result);
+      setSelectedPresentMemberIds([]);
+
+      if (result?.mode === "HACKATHON") {
+        setStatusMessage(
+          `Marked ${result.newlyMarkedCount ?? 0} member(s) present. ${result.presentCount ?? 0}/${
+            result.totalMembers ?? 0
+          } checked in.`
+        );
+      }
+    } catch (err) {
+      setTicketVerifyError(err instanceof Error ? err.message : "Could not update team attendance.");
     } finally {
       setTicketVerifying(false);
     }
@@ -741,7 +904,9 @@ export default function AdminPanelClient({
 
   const refreshManagedSubmissions = async () => {
     const payload = await apiCall("/api/innovation/faculty/submissions", { method: "GET" });
-    setManagedSubmissions((payload?.data || []) as ManagedHackathonSubmission[]);
+    const claims = (payload?.data || []) as ManagedHackathonSubmission[];
+    setManagedSubmissions(claims);
+    hydrateRubricDrafts(claims);
   };
 
   const handleCreateHackathonEvent = async (event: React.FormEvent) => {
@@ -827,7 +992,7 @@ export default function AdminPanelClient({
         body: JSON.stringify({ registrationOpen: !eventRow.registrationOpen }),
       });
 
-      setStatusMessage(`Registration ${eventRow.registrationOpen ? "closed" : "opened"} for event #${eventRow.id}.`);
+      setStatusMessage(`Submissions ${eventRow.registrationOpen ? "closed" : "opened"} for event #${eventRow.id}.`);
       router.refresh();
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Could not update registration status.");
@@ -836,101 +1001,139 @@ export default function AdminPanelClient({
     }
   };
 
-  const handleMarkAttendance = async (claimId: number, isAbsent: boolean) => {
-    try {
-      setErrorMessage("");
-      setStatusMessage("");
-      setBusyClaimId(claimId);
+  const stageDecision = (claimId: number, status: StagedHackathonDecision) => {
+    setStagedDecisions((prev) => {
+      if (prev[claimId] === status) {
+        const next = { ...prev };
+        delete next[claimId];
+        return next;
+      }
 
-      await apiCall(`/api/innovation/faculty/claims/${claimId}/attendance`, {
-        method: "PATCH",
-        body: JSON.stringify({ isAbsent }),
-      });
-
-      await refreshManagedSubmissions();
-      setStatusMessage(`Claim #${claimId} marked as ${isAbsent ? "absent" : "present"}.`);
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Could not update attendance.");
-    } finally {
-      setBusyClaimId(null);
-    }
+      return {
+        ...prev,
+        [claimId]: status,
+      };
+    });
   };
 
-  const handleScreeningDecision = async (claim: ManagedHackathonSubmission, status: "SHORTLISTED" | "REJECTED") => {
+  const updateJudgingRubric = (claimId: number, key: HackathonRubricKey, rawValue: number) => {
+    setJudgingRubricsByClaimId((prev) => {
+      const base = prev[claimId] || {
+        innovation: 7,
+        technical: 7,
+        impact: 7,
+        ux: 7,
+        execution: 7,
+        presentation: 7,
+        feasibility: 7,
+      };
+
+      return {
+        ...prev,
+        [claimId]: {
+          ...base,
+          [key]: clampRubricScore(rawValue),
+        },
+      };
+    });
+  };
+
+  const getJudgingRubrics = (claim: ManagedHackathonSubmission): HackathonRubrics => {
+    return judgingRubricsByClaimId[claim.id] ?? getDefaultRubricsForClaim(claim);
+  };
+
+  const syncScreeningDecisions = async () => {
+    if (managedSubmissionEventFilter === "ALL") {
+      setErrorMessage("Select a specific event before syncing screening decisions.");
+      return;
+    }
+
+    const decisions = screeningSubmissions
+      .filter((claim) => stagedDecisions[claim.id] === "SHORTLISTED" || stagedDecisions[claim.id] === "REJECTED")
+      .map((claim) => ({
+        claimId: claim.id,
+        status: stagedDecisions[claim.id] as "SHORTLISTED" | "REJECTED",
+      }));
+
+    if (decisions.length === 0) {
+      setErrorMessage("Stage at least one screening decision before syncing.");
+      return;
+    }
+
     try {
       setErrorMessage("");
       setStatusMessage("");
-      setBusyClaimId(claim.id);
+      setSyncingStage("SCREENING");
 
       await apiCall("/api/innovation/faculty/claims/sync", {
         method: "PATCH",
         body: JSON.stringify({
           stage: "SCREENING",
-          eventId: claim.problem.event?.id,
-          decisions: [{ claimId: claim.id, status }],
+          eventId: managedSubmissionEventFilter,
+          decisions,
         }),
       });
 
+      setStagedDecisions((prev) => {
+        const next = { ...prev };
+        for (const row of decisions) delete next[row.claimId];
+        return next;
+      });
+
       await refreshManagedSubmissions();
-      setStatusMessage(`Claim #${claim.id} moved to ${status}.`);
+      setStatusMessage(`Synced ${decisions.length} screening decision(s).`);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Could not save screening decision.");
+      setErrorMessage(err instanceof Error ? err.message : "Could not sync screening decisions.");
     } finally {
-      setBusyClaimId(null);
+      setSyncingStage(null);
     }
   };
 
-  const collectRubrics = (): HackathonRubrics | null => {
-    const labels: Array<keyof HackathonRubrics> = [
-      "innovation",
-      "technical",
-      "impact",
-      "ux",
-      "execution",
-      "presentation",
-      "feasibility",
-    ];
-
-    const result = {} as HackathonRubrics;
-
-    for (const label of labels) {
-      const raw = window.prompt(`Enter ${label} score (0-10):`, "7");
-      if (raw === null) return null;
-      const score = Number(raw);
-      if (!Number.isFinite(score) || score < 0 || score > 10) {
-        window.alert(`Invalid ${label} score. Please enter a number between 0 and 10.`);
-        return null;
-      }
-      result[label] = Math.round(score);
+  const syncJudgingDecisions = async () => {
+    if (managedSubmissionEventFilter === "ALL") {
+      setErrorMessage("Select a specific event before syncing final judging.");
+      return;
     }
 
-    return result;
-  };
+    const decisions = judgingSubmissions
+      .filter((claim) => stagedDecisions[claim.id] === "ACCEPTED" || stagedDecisions[claim.id] === "REJECTED")
+      .map((claim) => ({
+        claimId: claim.id,
+        status: stagedDecisions[claim.id] as "ACCEPTED" | "REJECTED",
+        rubrics: getJudgingRubrics(claim),
+      }));
 
-  const handleJudgingDecision = async (claim: ManagedHackathonSubmission, status: "ACCEPTED" | "REJECTED") => {
-    const rubrics = collectRubrics();
-    if (!rubrics) return;
+    if (decisions.length === 0) {
+      setErrorMessage("Stage at least one final judging decision before syncing.");
+      return;
+    }
 
     try {
       setErrorMessage("");
       setStatusMessage("");
-      setBusyClaimId(claim.id);
+      setSyncingStage("JUDGING");
 
       await apiCall("/api/innovation/faculty/claims/sync", {
         method: "PATCH",
         body: JSON.stringify({
           stage: "JUDGING",
-          eventId: claim.problem.event?.id,
-          decisions: [{ claimId: claim.id, status, rubrics }],
+          eventId: managedSubmissionEventFilter,
+          decisions,
         }),
       });
 
+      setStagedDecisions((prev) => {
+        const next = { ...prev };
+        for (const row of decisions) delete next[row.claimId];
+        return next;
+      });
+
       await refreshManagedSubmissions();
-      setStatusMessage(`Claim #${claim.id} final decision saved as ${status}.`);
+      setStatusMessage(`Synced ${decisions.length} final judging decision(s).`);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Could not save judging decision.");
+      setErrorMessage(err instanceof Error ? err.message : "Could not sync final judging decisions.");
     } finally {
-      setBusyClaimId(null);
+      setSyncingStage(null);
     }
   };
 
@@ -1249,7 +1452,7 @@ export default function AdminPanelClient({
       <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
         <div className="mb-4">
           <h2 className="font-headline text-2xl text-[#002155]">Ticket Verification</h2>
-          <p className="text-sm text-[#434651]">Admin-only ticket check-in verification. Successful verification marks the ticket as USED.</p>
+          <p className="text-sm text-[#434651]">Admin-only check-in: facility tickets consume on verify, while hackathon team tickets support per-member attendance marking.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 mb-4">
@@ -1292,16 +1495,76 @@ export default function AdminPanelClient({
 
         {ticketVerifyResult ? (
           <div className="border border-[#c4c6d3] bg-[#faf9f5] p-4">
-            <p className="text-xs uppercase tracking-widest text-[#0b6b2e] font-bold mb-3">Verification Successful</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <p className="text-xs uppercase tracking-widest text-[#0b6b2e] font-bold mb-3">
+              {ticketVerifyResult.mode === "HACKATHON" ? "Team Ticket Loaded" : "Facility Verification Successful"}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-4">
               <p><span className="text-[#747782]">Ticket ID:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.ticketId}</span></p>
               <p><span className="text-[#747782]">Status:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.status}</span></p>
-              <p><span className="text-[#747782]">User:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.user.name}</span></p>
-              <p><span className="text-[#747782]">Email:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.user.email}</span></p>
               <p><span className="text-[#747782]">Ticket Type:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.title}</span></p>
               <p><span className="text-[#747782]">Subject:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.subjectName}</span></p>
-              <p className="md:col-span-2"><span className="text-[#747782]">Used At:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.usedAt ? new Date(ticketVerifyResult.usedAt).toLocaleString() : "N/A"}</span></p>
+              {ticketVerifyResult.mode === "FACILITY" && ticketVerifyResult.user ? (
+                <>
+                  <p><span className="text-[#747782]">User:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.user.name}</span></p>
+                  <p><span className="text-[#747782]">Email:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.user.email}</span></p>
+                  <p className="md:col-span-2"><span className="text-[#747782]">Used At:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.usedAt ? new Date(ticketVerifyResult.usedAt).toLocaleString() : "N/A"}</span></p>
+                </>
+              ) : null}
             </div>
+
+            {ticketVerifyResult.mode === "HACKATHON" ? (
+              <div className="border border-[#d8d6cf] bg-white p-4">
+                <div className="mb-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                  <p><span className="text-[#747782]">Team:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.teamName || "N/A"}</span></p>
+                  <p><span className="text-[#747782]">Event:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.eventName || "N/A"}</span></p>
+                  <p className="md:col-span-2"><span className="text-[#747782]">Attendance:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.presentCount ?? 0}/{ticketVerifyResult.totalMembers ?? 0} present</span></p>
+                </div>
+
+                <div className="space-y-2 mb-3">
+                  {(ticketVerifyResult.members || []).map((member) => {
+                    const alreadyPresent = member.attendanceStatus === "PRESENT";
+                    return (
+                      <label key={`member-attendance-${member.claimMemberId}`} className={`flex items-start gap-3 border px-3 py-2 ${alreadyPresent ? "border-green-200 bg-green-50" : "border-[#e3e2df] bg-[#faf9f5]"}`}>
+                        <input
+                          type="checkbox"
+                          disabled={alreadyPresent || ticketVerifying}
+                          checked={alreadyPresent || selectedPresentMemberIds.includes(member.claimMemberId)}
+                          onChange={() => handleTogglePresentSelection(member.claimMemberId)}
+                          className="mt-1"
+                        />
+                        <div className="text-sm">
+                          <p className="font-semibold text-[#002155]">{member.name}</p>
+                          <p className="text-xs text-[#434651]">{member.email} • {member.role}</p>
+                          <p className={`text-xs mt-1 ${alreadyPresent ? "text-[#0b6b2e]" : "text-[#8c4f00]"}`}>
+                            {alreadyPresent
+                              ? `PRESENT${member.checkedInAt ? ` at ${new Date(member.checkedInAt).toLocaleString()}` : ""}`
+                              : "NOT PRESENT"}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => void handleMarkSelectedMembersPresent()}
+                    disabled={ticketVerifying || selectedPresentMemberIds.length === 0}
+                    className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                  >
+                    {ticketVerifying ? "Saving..." : "Mark Selected Present"}
+                  </button>
+                  <button
+                    onClick={() => setSelectedPresentMemberIds([])}
+                    disabled={ticketVerifying || selectedPresentMemberIds.length === 0}
+                    className="border border-[#c4c6d3] text-[#434651] px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -1771,8 +2034,10 @@ export default function AdminPanelClient({
                 {innovationEvents.map((event) => (
                   <article key={event.id} className="border border-[#c4c6d3] bg-white p-5">
                     <p className="text-sm font-bold text-[#002155]">#{event.id} • {event.title}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Status: {event.status}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Registration: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Event: {event.status === "CLOSED" ? "CLOSED" : "OPEN"} ({event.status})
+                    </p>
+                    <p className="mt-1 text-xs text-[#434651]">Submissions: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
                     <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
                     <p className="mt-1 text-xs text-[#434651]">
                       Submission lock: {event.submissionLockAt ? new Date(event.submissionLockAt).toLocaleString() : "Not set"}
@@ -1785,7 +2050,7 @@ export default function AdminPanelClient({
                           disabled={busyInnovationEventId === event.id}
                           className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                         >
-                          Mark ACTIVE
+                          Mark OPEN
                         </button>
                       ) : null}
                       {event.status === "ACTIVE" || event.status === "JUDGING" ? (
@@ -1798,22 +2063,12 @@ export default function AdminPanelClient({
                         </button>
                       ) : null}
 
-                      {event.status === "ACTIVE" ? (
-                        <button
-                          onClick={() => handleInnovationEventStatus(event.id, "JUDGING")}
-                          disabled={busyInnovationEventId === event.id}
-                          className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                        >
-                          Mark JUDGING
-                        </button>
-                      ) : null}
-
                       <button
                         onClick={() => void handleToggleEventRegistration(event)}
                         disabled={busyInnovationEventId === event.id}
                         className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                       >
-                        {event.registrationOpen ? "Close Registration" : "Open Registration"}
+                        {event.registrationOpen ? "Close Submissions" : "Open Submissions"}
                       </button>
 
                       <button
@@ -1838,7 +2093,7 @@ export default function AdminPanelClient({
           <section>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Hackathon Submissions Control Center</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={managedSubmissionEventFilter}
                   onChange={(e) => setManagedSubmissionEventFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
@@ -1857,85 +2112,194 @@ export default function AdminPanelClient({
                 >
                   Refresh
                 </button>
+                <button
+                  onClick={() => void syncScreeningDecisions()}
+                  disabled={syncingStage !== null || stagedScreeningCount === 0 || managedSubmissionEventFilter === "ALL"}
+                  className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                >
+                  {syncingStage === "SCREENING" ? "Syncing..." : "Sync Screening"}
+                </button>
+                <button
+                  onClick={() => void syncJudgingDecisions()}
+                  disabled={syncingStage !== null || stagedJudgingCount === 0 || managedSubmissionEventFilter === "ALL"}
+                  className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                >
+                  {syncingStage === "JUDGING" ? "Syncing..." : "Sync Final Judging"}
+                </button>
               </div>
             </div>
+            <p className="text-xs text-[#434651] mb-3">
+              Staged Screening: {stagedScreeningCount}/{screeningSubmissions.length} | Staged Judging: {stagedJudgingCount}/{judgingSubmissions.length}
+            </p>
 
             {loadingManagedSubmissions ? (
               <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading hackathon submissions...</p>
             ) : filteredManagedSubmissions.length === 0 ? (
               <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No hackathon submissions found for this filter.</p>
             ) : (
-              <div className="space-y-3">
-                {filteredManagedSubmissions.map((claim) => (
-                  <article key={claim.id} className="border border-[#c4c6d3] bg-white p-5">
-                    <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Event: {claim.problem.event?.title || "N/A"}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Status: {claim.status} • Attendance: {claim.isAbsent ? "ABSENT" : "PRESENT"}</p>
-                    <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      {claim.submissionUrl ? (
-                        <a href={claim.submissionUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                          Submission URL
-                        </a>
-                      ) : null}
-                      {claim.submissionFileUrl ? (
-                        <a href={claim.submissionFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                          Submission File
-                        </a>
-                      ) : null}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#002155] mb-2">Screening Queue ({screeningSubmissions.length})</h3>
+                  {screeningSubmissions.length === 0 ? (
+                    <p className="border border-dashed border-[#c4c6d3] bg-white p-4 text-sm text-[#434651]">No teams pending PPT screening.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {screeningSubmissions.map((claim) => (
+                        <article key={`screening-${claim.id}`} className="border border-[#c4c6d3] bg-white p-5">
+                          <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Status: {claim.status}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>
+                          <div className="mt-2 flex flex-wrap gap-3">
+                            {claim.submissionUrl ? (
+                              <a href={claim.submissionUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                                Submission URL
+                              </a>
+                            ) : null}
+                            {claim.submissionFileUrl ? (
+                              <a href={claim.submissionFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                                Submission PPT/PDF
+                              </a>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => stageDecision(claim.id, "SHORTLISTED")}
+                              disabled={syncingStage !== null}
+                              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                stagedDecisions[claim.id] === "SHORTLISTED"
+                                  ? "bg-[#002155] text-white border-[#002155]"
+                                  : "bg-white text-[#002155] border-[#002155]"
+                              }`}
+                            >
+                              Shortlist
+                            </button>
+                            <button
+                              onClick={() => stageDecision(claim.id, "REJECTED")}
+                              disabled={syncingStage !== null}
+                              className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                stagedDecisions[claim.id] === "REJECTED"
+                                  ? "bg-[#ba1a1a] text-white border-[#ba1a1a]"
+                                  : "bg-white text-[#ba1a1a] border-[#ba1a1a]"
+                              }`}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                          <p className="mt-2 text-xs text-[#434651]">
+                            Current staged decision: <span className="font-bold">{stagedDecisions[claim.id] || "Not marked"}</span>
+                          </p>
+                        </article>
+                      ))}
                     </div>
+                  )}
+                </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => void handleMarkAttendance(claim.id, !claim.isAbsent)}
-                        disabled={busyClaimId === claim.id}
-                        className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                      >
-                        {claim.isAbsent ? "Mark Present" : "Mark Absent"}
-                      </button>
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#002155] mb-2">Judging Queue ({judgingSubmissions.length})</h3>
+                  {judgingSubmissions.length === 0 ? (
+                    <p className="border border-dashed border-[#c4c6d3] bg-white p-4 text-sm text-[#434651]">No shortlisted teams waiting for judging.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {judgingSubmissions.map((claim) => {
+                        const rubricDraft = getJudgingRubrics(claim);
 
-                      {(claim.status === "IN_PROGRESS" || claim.status === "SUBMITTED" || claim.status === "REVISION_REQUESTED") ? (
-                        <>
-                          <button
-                            onClick={() => void handleScreeningDecision(claim, "SHORTLISTED")}
-                            disabled={busyClaimId === claim.id}
-                            className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                          >
-                            Shortlist
-                          </button>
-                          <button
-                            onClick={() => void handleScreeningDecision(claim, "REJECTED")}
-                            disabled={busyClaimId === claim.id}
-                            className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                          >
-                            Reject (Screening)
-                          </button>
-                        </>
-                      ) : null}
+                        return (
+                          <article key={`judging-${claim.id}`} className="border border-[#c4c6d3] bg-white p-5">
+                            <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
+                            <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
+                            <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
+                            <p className="mt-1 text-xs text-[#434651]">Attendance: {claim.attendanceSummary.presentCount}/{claim.attendanceSummary.totalMembers} present</p>
+                            <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>
+                            <div className="mt-2 flex flex-wrap gap-3">
+                              {claim.submissionUrl ? (
+                                <a href={claim.submissionUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                                  Submission URL
+                                </a>
+                              ) : null}
+                              {claim.submissionFileUrl ? (
+                                <a href={claim.submissionFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                                  Submission PPT/PDF
+                                </a>
+                              ) : null}
+                            </div>
 
-                      {claim.status === "SHORTLISTED" ? (
-                        <>
-                          <button
-                            onClick={() => void handleJudgingDecision(claim, "ACCEPTED")}
-                            disabled={busyClaimId === claim.id}
-                            className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                          >
-                            Final Accept
-                          </button>
-                          <button
-                            onClick={() => void handleJudgingDecision(claim, "REJECTED")}
-                            disabled={busyClaimId === claim.id}
-                            className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                          >
-                            Final Reject
-                          </button>
-                        </>
-                      ) : null}
+                            <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
+                              <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (0-10)</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {rubricFieldConfig.map((field) => (
+                                  <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
+                                    {field.label} ({field.weight}%)
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={10}
+                                      step={1}
+                                      value={rubricDraft[field.key]}
+                                      onChange={(e) => updateJudgingRubric(claim.id, field.key, Number(e.target.value))}
+                                      className="mt-1 w-full border border-[#c4c6d3] px-2 py-2 text-sm"
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => stageDecision(claim.id, "ACCEPTED")}
+                                disabled={syncingStage !== null}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                  stagedDecisions[claim.id] === "ACCEPTED"
+                                    ? "bg-[#0b6b2e] text-white border-[#0b6b2e]"
+                                    : "bg-white text-[#0b6b2e] border-[#0b6b2e]"
+                                }`}
+                              >
+                                Final Select
+                              </button>
+                              <button
+                                onClick={() => stageDecision(claim.id, "REJECTED")}
+                                disabled={syncingStage !== null}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                  stagedDecisions[claim.id] === "REJECTED"
+                                    ? "bg-[#ba1a1a] text-white border-[#ba1a1a]"
+                                    : "bg-white text-[#ba1a1a] border-[#ba1a1a]"
+                                }`}
+                              >
+                                Final Reject
+                              </button>
+                            </div>
+                            <p className="mt-2 text-xs text-[#434651]">
+                              Current staged decision: <span className="font-bold">{stagedDecisions[claim.id] || "Not marked"}</span>
+                            </p>
+                          </article>
+                        );
+                      })}
                     </div>
-                  </article>
-                ))}
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#002155] mb-2">Finalized Teams ({finalizedSubmissions.length})</h3>
+                  {finalizedSubmissions.length === 0 ? (
+                    <p className="border border-dashed border-[#c4c6d3] bg-white p-4 text-sm text-[#434651]">No finalized judging decisions yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {finalizedSubmissions.map((claim) => (
+                        <article key={`finalized-${claim.id}`} className="border border-[#c4c6d3] bg-white p-5">
+                          <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Status: {claim.status}</p>
+                          <p className="mt-1 text-xs text-[#434651]">Final Score: {claim.finalScore ?? "N/A"}</p>
+                          {claim.teamTicket ? (
+                            <p className="mt-1 text-xs text-[#434651]">Team Ticket: {claim.teamTicket.ticketId} ({claim.teamTicket.status})</p>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </section>

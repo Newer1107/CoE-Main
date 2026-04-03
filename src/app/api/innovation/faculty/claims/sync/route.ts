@@ -104,9 +104,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (stage === 'JUDGING') {
-      const invalidJudgingEvent = claims.find((claim) => claim.problem.event?.status !== 'ACTIVE');
+      const invalidJudgingEvent = claims.find((claim) => claim.problem.event?.status === 'UPCOMING');
       if (invalidJudgingEvent) {
-        return errorRes('Invalid event stage', ['Final judging sync is allowed only when event status is ACTIVE'], 400);
+        return errorRes('Invalid event stage', ['Final judging sync is not allowed while event status is UPCOMING'], 400);
       }
 
       const absentClaim = claims.find((claim) => claim.isAbsent);
@@ -179,10 +179,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     const ticketFailures: string[] = [];
-    if (stage === 'JUDGING') {
+    if (stage === 'SCREENING') {
       for (const claim of claims) {
         const decision = unique.get(claim.id);
-        if (!decision || decision.status !== 'ACCEPTED') continue;
+        if (!decision || decision.status !== 'SHORTLISTED') continue;
 
         try {
           await issueHackathonSelectionTicketsForClaim(claim.id);
@@ -205,7 +205,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (ticketFailures.length > 0) {
-      return errorRes('Ticket issuance failed for accepted claims', ticketFailures, 500);
+      return errorRes('Ticket issuance failed for shortlisted claims', ticketFailures, 500);
     }
 
     if (stage === 'SCREENING') {

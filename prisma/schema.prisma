@@ -83,6 +83,11 @@ enum TicketStatus {
   CANCELLED
 }
 
+enum MemberAttendanceStatus {
+  NOT_PRESENT
+  PRESENT
+}
+
 model User {
   id         Int        @id @default(autoincrement())
   name       String
@@ -107,6 +112,7 @@ model User {
   studentProfile    StudentProfile?
   applications      Application[]
   tickets           Ticket[]
+  attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
 
   @@map("users")
 }
@@ -178,6 +184,7 @@ model ClaimMember {
   userId  Int
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   role    String @default("MEMBER")
+  attendanceRecords TicketAttendance[]
 
   @@unique([claimId, userId])
   @@index([claimId])
@@ -320,14 +327,35 @@ model Ticket {
   usedAt      DateTime?
   cancelledAt DateTime?
   metadata    Json?
+  attendanceRecords TicketAttendance[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  @@unique([claimId, userId, type])
+  @@unique([claimId, type])
   @@index([userId, status])
   @@index([type, status])
   @@index([issuedAt])
   @@map("tickets")
+}
+
+model TicketAttendance {
+  id                Int                    @id @default(autoincrement())
+  ticketId          Int
+  ticket            Ticket                 @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  claimMemberId     Int
+  claimMember       ClaimMember            @relation(fields: [claimMemberId], references: [id], onDelete: Cascade)
+  status            MemberAttendanceStatus @default(NOT_PRESENT)
+  checkedInAt       DateTime?
+  checkedInByUserId Int?
+  checkedInBy       User?                  @relation("AttendanceMarker", fields: [checkedInByUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@unique([ticketId, claimMemberId])
+  @@index([ticketId, status])
+  @@index([claimMemberId, status])
+  @@index([checkedInByUserId])
+  @@map("ticket_attendance")
 }
 
 model NewsPost {

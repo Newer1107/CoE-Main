@@ -4,7 +4,7 @@ import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers
 import { processEmailQueue } from '@/lib/email-delivery';
 import { innovationEventStatusSchema } from '@/lib/validators';
 import { canTransitionEventStatus, getEventLeaderboard, getEventParticipantEmails } from '@/lib/innovation';
-import { sendInnovationEventActiveEmail, sendInnovationWinnerEmail } from '@/lib/mailer';
+import { sendInnovationEventActiveEmail, sendInnovationEventClosedScoreEmail } from '@/lib/mailer';
 
 // PATCH /api/innovation/admin/events/[id]/status
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -62,23 +62,47 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     if (nextStatus === 'CLOSED') {
-      const top = (await getEventLeaderboard(prisma, eventId)).slice(0, 3);
-      for (const row of top) {
-        const members = await prisma.claimMember.findMany({
-          where: { claimId: row.claimId },
-          include: { user: { select: { email: true } } },
-        });
-        const emails = Array.from(new Set(members.map((member) => member.user.email)));
-        if (emails.length > 0) {
-          try {
-            await sendInnovationWinnerEmail(emails, {
-              eventTitle: updated.title,
-              rank: row.rank,
-              score: row.score,
-            });
-          } catch (mailErr) {
-            console.error('Innovation winners email failed:', mailErr);
-          }
+      const leaderboard = await getEventLeaderboard(prisma, eventId);
+      const rankByClaimId = new Map<number, number>();
+      for (const row of leaderboard) {
+        rankByClaimId.set(row.claimId, row.rank);
+      }
+
+      const claims = await prisma.claim.findMany({
+        where: {
+          problem: { eventId },
+          members: { some: {} },
+        },
+        select: {
+          id: true,
+          teamName: true,
+          finalScore: true,
+          score: true,
+          members: {
+            select: {
+              user: { select: { email: true } },
+            },
+          },
+        },
+      });
+
+      const baseUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const leaderboardUrl = `${baseUrl}/innovation/events/${eventId}`;
+
+      for (const claim of claims) {
+        const emails = Array.from(new Set(claim.members.map((member) => member.user.email)));
+        if (emails.length === 0) continue;
+
+        try {
+          await sendInnovationEventClosedScoreEmail(emails, {
+            eventTitle: updated.title,
+            teamName: claim.teamName || `Team-${claim.id}`,
+            score: claim.finalScore ?? claim.score ?? null,
+            rank: rankByClaimId.get(claim.id) ?? null,
+            leaderboardUrl,
+          });
+        } catch (mailErr) {
+          console.error('Innovation closed result email failed:', mailErr);
         }
       }
     }
