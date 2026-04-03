@@ -441,3 +441,37 @@ export const sendNewProblemStatementEmail = async (
     category: 'PROBLEM_STATEMENT_NOTIFICATION',
   });
 };
+
+// ─── 16. Ticket Issued ───
+export const sendTicketIssuedEmail = async (
+  email: string,
+  details: {
+    userName: string;
+    ticketTitle: string;
+    ticketId: string;
+    subjectName: string;
+    scheduledAt: string | null;
+    ticketUrl: string;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Your Digital Ticket is Ready</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.userName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">Your <strong>${details.ticketTitle}</strong> has been generated.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Ticket ID</td><td style="padding:8px;color:#002155;">${details.ticketId}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Type</td><td style="padding:8px;color:#002155;">${details.ticketTitle}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Event / Booking</td><td style="padding:8px;color:#002155;">${details.subjectName}</td></tr>
+      <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Date & Time</td><td style="padding:8px;color:#002155;">${details.scheduledAt || 'N/A'}</td></tr>
+    </table>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${details.ticketUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;display:inline-block;">Download Ticket PDF</a>
+    </div>
+    <p style="color:#747782;font-size:12px;">Present this ticket at entry. Each ticket is valid for one successful verification only.</p>`;
+
+  await send(email, `${details.ticketTitle} Issued — ${details.ticketId}`, body, {
+    mode: 'immediate',
+    category: 'TICKET_ISSUED',
+    dedupeKey: `ticket-issued:${details.ticketId}:${email.toLowerCase()}`,
+  });
+};

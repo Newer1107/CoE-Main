@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { successRes, errorRes, authenticate, authorize } from '@/lib/api-helpers';
 import { sendBookingRejectionEmail } from '@/lib/mailer';
+import { logActivity } from '@/lib/activity-log';
 
 // PATCH /api/admin/bookings/[id]/reject
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +27,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data: { status: 'REJECTED', adminNote },
     });
 
+    const cancelledTickets = await (prisma as any).ticket?.updateMany?.({
+      where: {
+        bookingId: booking.id,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+      },
+    }).catch(() => ({ count: 0 }));
+
     try {
       await sendBookingRejectionEmail(booking.student.email, {
         id: booking.id,
@@ -37,6 +49,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } catch (emailErr) {
       console.error('Booking rejection email failed:', emailErr);
     }
+
+    logActivity('BOOKING_REJECTED', {
+      bookingId: booking.id,
+      studentId: booking.student.id,
+      rejectedBy: user.id,
+      cancelledTicketCount: cancelledTickets?.count ?? 0,
+    });
 
     return successRes(null, 'Booking rejected.');
   } catch (err) {

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { successRes, errorRes, authenticate, authorize } from '@/lib/api-helpers';
+import { logActivity } from '@/lib/activity-log';
 
 // DELETE /api/bookings/[id] — student cancels own pending booking
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +21,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await prisma.booking.update({
       where: { id: bookingId },
       data: { status: 'CANCELLED' },
+    });
+
+    const cancelledTickets = await (prisma as any).ticket?.updateMany?.({
+      where: {
+        bookingId,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+      },
+    }).catch(() => ({ count: 0 }));
+
+    logActivity('BOOKING_CANCELLED', {
+      bookingId,
+      studentId: user.id,
+      cancelledTicketCount: cancelledTickets?.count ?? 0,
     });
 
     return successRes(null, 'Booking cancelled successfully.');

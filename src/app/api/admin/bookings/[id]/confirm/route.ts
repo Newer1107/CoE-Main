@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { successRes, errorRes, authenticate, authorize } from '@/lib/api-helpers';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
+import { issueFacilityBookingTicket } from '@/lib/tickets';
+import { logActivity } from '@/lib/activity-log';
 
 // PATCH /api/admin/bookings/[id]/confirm
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +25,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data: { status: 'CONFIRMED' },
     });
 
+    let ticketId: string | null = null;
+    try {
+      const ticketResult = await issueFacilityBookingTicket(booking.id);
+      ticketId = ticketResult.ticket.ticketId;
+    } catch (ticketErr) {
+      console.error('Booking ticket issuance failed:', ticketErr);
+      logActivity('BOOKING_TICKET_ISSUE_FAILED', {
+        bookingId: booking.id,
+        studentId: booking.student.id,
+        error: ticketErr instanceof Error ? ticketErr.message : 'UNKNOWN_ERROR',
+      });
+      return errorRes(
+        'Booking confirmed but ticket issuance failed.',
+        ['Ticket generation failed. Please retry ticket issuance.'],
+        500
+      );
+    }
+
     try {
       await sendBookingConfirmationEmail(booking.student.email, {
         id: booking.id,
@@ -36,7 +56,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       console.error('Booking confirmation email failed:', emailErr);
     }
 
-    return successRes(null, 'Booking confirmed.');
+    logActivity('BOOKING_CONFIRMED_WITH_TICKET', {
+      bookingId: booking.id,
+      studentId: booking.student.id,
+      ticketId,
+      confirmedBy: user.id,
+    });
+
+    return successRes({ ticketId }, 'Booking confirmed.');
   } catch (err) {
     console.error('Booking confirm error:', err);
     return errorRes('Internal server error', [], 500);

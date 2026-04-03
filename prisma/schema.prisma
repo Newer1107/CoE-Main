@@ -72,6 +72,17 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum TicketType {
+  FACILITY_BOOKING
+  HACKATHON_SELECTION
+}
+
+enum TicketStatus {
+  ACTIVE
+  USED
+  CANCELLED
+}
+
 model User {
   id         Int        @id @default(autoincrement())
   name       String
@@ -95,6 +106,7 @@ model User {
   problemsAuthored  Problem[]        @relation("ProblemAuthor")
   studentProfile    StudentProfile?
   applications      Application[]
+  tickets           Ticket[]
 
   @@map("users")
 }
@@ -149,6 +161,7 @@ model Claim {
   badges            String?
   isAbsent          Boolean       @default(false)
   reminderSent      Boolean       @default(false)
+  tickets           Ticket[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -280,10 +293,41 @@ model Booking {
   status       BookingStatus @default(PENDING)
   adminNote    String?       @db.Text
   reminderSent Boolean       @default(false)
+  ticket       Ticket?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@map("bookings")
+}
+
+model Ticket {
+  id          Int          @id @default(autoincrement())
+  ticketId    String       @unique
+  type        TicketType
+  status      TicketStatus @default(ACTIVE)
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingId   Int?         @unique
+  booking     Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  claimId     Int?
+  claim       Claim?       @relation(fields: [claimId], references: [id], onDelete: SetNull)
+  title       String
+  subjectName String
+  scheduledAt DateTime?
+  pdfObjectKey String
+  qrValue     String
+  issuedAt    DateTime     @default(now())
+  usedAt      DateTime?
+  cancelledAt DateTime?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([claimId, userId, type])
+  @@index([userId, status])
+  @@index([type, status])
+  @@index([issuedAt])
+  @@map("tickets")
 }
 
 model NewsPost {

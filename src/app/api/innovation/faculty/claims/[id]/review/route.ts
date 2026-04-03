@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationClaimReviewSchema } from '@/lib/validators';
 import { sendInnovationClaimReviewEmail } from '@/lib/mailer';
+import { issueHackathonSelectionTicketsForClaim } from '@/lib/tickets';
+import { logActivity } from '@/lib/activity-log';
 
 // PATCH /api/innovation/faculty/claims/[id]/review
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -57,6 +59,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       return result;
     });
+
+    if (parsed.data.status === 'ACCEPTED' && claim.problem.eventId) {
+      try {
+        await issueHackathonSelectionTicketsForClaim(claim.id);
+      } catch (ticketErr) {
+        console.error('Hackathon ticket issuance failed after claim acceptance:', ticketErr);
+        logActivity('HACKATHON_TICKET_ISSUE_FAILED', {
+          claimId: claim.id,
+          problemId: claim.problemId,
+          reviewerId: user.id,
+          error: ticketErr instanceof Error ? ticketErr.message : 'UNKNOWN_ERROR',
+        });
+        return errorRes(
+          'Claim accepted but ticket issuance failed.',
+          ['Ticket generation failed for one or more participants.'],
+          500
+        );
+      }
+    }
 
     const recipientEmails = Array.from(new Set(claim.members.map((member) => member.user.email)));
     if (recipientEmails.length > 0) {

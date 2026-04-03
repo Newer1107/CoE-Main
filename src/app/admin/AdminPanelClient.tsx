@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -160,6 +160,31 @@ type EmailQueueSnapshot = {
   counts: Record<EmailQueueStatus, number>;
 };
 
+type TicketVerificationResult = {
+  ticketId: string;
+  status: string;
+  usedAt: string | null;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  title: string;
+  subjectName: string;
+};
+
+type BarcodeDetectionResult = {
+  rawValue?: string;
+};
+
+type BarcodeDetectorLike = {
+  detect: (source: ImageBitmapSource) => Promise<BarcodeDetectionResult[]>;
+};
+
+type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDetectorLike;
+
+type OperationsTab = "overview" | "bookings" | "faculty" | "tickets" | "content" | "emails";
+
 const apiCall = async (url: string, options?: RequestInit) => {
   const res = await fetch(url, {
     ...options,
@@ -231,6 +256,21 @@ export default function AdminPanelClient({
   const [emailCategoryFilter, setEmailCategoryFilter] = useState("");
   const [emailPage, setEmailPage] = useState(1);
   const [emailPageSize, setEmailPageSize] = useState(25);
+  const [emailFailedBadgeCount, setEmailFailedBadgeCount] = useState<number | null>(null);
+
+  const [ticketIdInput, setTicketIdInput] = useState("");
+  const [ticketVerifying, setTicketVerifying] = useState(false);
+  const [ticketVerifyError, setTicketVerifyError] = useState("");
+  const [ticketVerifyResult, setTicketVerifyResult] = useState<TicketVerificationResult | null>(null);
+  const [ticketScannerOpen, setTicketScannerOpen] = useState(false);
+  const [ticketScannerStarting, setTicketScannerStarting] = useState(false);
+  const [ticketScannerError, setTicketScannerError] = useState("");
+  const [operationsTab, setOperationsTab] = useState<OperationsTab>("overview");
+
+  const scannerVideoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerStreamRef = useRef<MediaStream | null>(null);
+  const scannerFrameRef = useRef<number | null>(null);
+  const scannerRunningRef = useRef(false);
 
   const recentUsers = useMemo(() => users.slice(0, 12), [users]);
   const prepBookings = useMemo(() => {
@@ -255,6 +295,19 @@ export default function AdminPanelClient({
 
   useEffect(() => {
     const tab = searchParams.get("tab");
+    const ops = searchParams.get("ops");
+
+    if (
+      ops === "overview" ||
+      ops === "bookings" ||
+      ops === "faculty" ||
+      ops === "tickets" ||
+      ops === "content" ||
+      ops === "emails"
+    ) {
+      setOperationsTab(ops);
+    }
+
     if (tab === "innovation") {
       setActiveView("innovation");
       return;
@@ -284,7 +337,7 @@ export default function AdminPanelClient({
   }, [activeView]);
 
   useEffect(() => {
-    if (activeView !== "operations") return;
+    if (activeView !== "operations" || operationsTab !== "emails") return;
 
     const loadEmailSnapshot = async () => {
       try {
@@ -297,7 +350,9 @@ export default function AdminPanelClient({
         if (emailCategoryFilter.trim()) params.set("category", emailCategoryFilter.trim());
 
         const payload = await apiCall(`/api/admin/emails?${params.toString()}`, { method: "GET" });
-        setEmailSnapshot((payload?.data || null) as EmailQueueSnapshot | null);
+        const snapshot = (payload?.data || null) as EmailQueueSnapshot | null;
+        setEmailSnapshot(snapshot);
+        setEmailFailedBadgeCount(snapshot?.counts?.FAILED ?? 0);
       } catch (err) {
         setEmailSnapshot(null);
         setErrorMessage(err instanceof Error ? err.message : "Could not load email monitor data.");
@@ -307,7 +362,7 @@ export default function AdminPanelClient({
     };
 
     void loadEmailSnapshot();
-  }, [activeView, emailStatusFilter, emailModeFilter, emailCategoryFilter, emailPage, emailPageSize]);
+  }, [activeView, operationsTab, emailStatusFilter, emailModeFilter, emailCategoryFilter, emailPage, emailPageSize]);
 
   const handleRefreshEmailSnapshot = async () => {
     try {
@@ -321,7 +376,9 @@ export default function AdminPanelClient({
       if (emailCategoryFilter.trim()) params.set("category", emailCategoryFilter.trim());
 
       const payload = await apiCall(`/api/admin/emails?${params.toString()}`, { method: "GET" });
-      setEmailSnapshot((payload?.data || null) as EmailQueueSnapshot | null);
+      const snapshot = (payload?.data || null) as EmailQueueSnapshot | null;
+      setEmailSnapshot(snapshot);
+      setEmailFailedBadgeCount(snapshot?.counts?.FAILED ?? 0);
       setStatusMessage("Email monitor refreshed.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Could not refresh email monitor.");
@@ -329,6 +386,181 @@ export default function AdminPanelClient({
       setLoadingEmailSnapshot(false);
     }
   };
+
+  useEffect(() => {
+    if (activeView !== "operations") return;
+
+    const loadEmailBadge = async () => {
+      try {
+        const payload = await apiCall("/api/admin/emails?page=1&pageSize=1", { method: "GET" });
+        const snapshot = (payload?.data || null) as EmailQueueSnapshot | null;
+        setEmailFailedBadgeCount(snapshot?.counts?.FAILED ?? 0);
+      } catch {
+        setEmailFailedBadgeCount(null);
+      }
+    };
+
+    void loadEmailBadge();
+  }, [activeView]);
+
+  const stopTicketScanner = () => {
+    scannerRunningRef.current = false;
+    setTicketScannerOpen(false);
+
+    if (scannerFrameRef.current !== null) {
+      cancelAnimationFrame(scannerFrameRef.current);
+      scannerFrameRef.current = null;
+    }
+
+    if (scannerStreamRef.current) {
+      for (const track of scannerStreamRef.current.getTracks()) {
+        track.stop();
+      }
+      scannerStreamRef.current = null;
+    }
+
+    if (scannerVideoRef.current) {
+      scannerVideoRef.current.srcObject = null;
+    }
+  };
+
+  const verifyTicketById = async (ticketIdRaw: string) => {
+    const normalizedTicketId = ticketIdRaw.trim();
+    if (normalizedTicketId.length < 8) {
+      setTicketVerifyError("Enter a valid ticket ID before verification.");
+      setTicketVerifyResult(null);
+      return;
+    }
+
+    try {
+      setTicketVerifying(true);
+      setTicketVerifyError("");
+      setTicketVerifyResult(null);
+
+      const payload = await apiCall("/api/tickets/verify", {
+        method: "POST",
+        body: JSON.stringify({ ticketId: normalizedTicketId }),
+      });
+
+      setTicketVerifyResult((payload?.data || null) as TicketVerificationResult | null);
+      setStatusMessage(`Ticket ${normalizedTicketId} verified.`);
+    } catch (err) {
+      setTicketVerifyError(err instanceof Error ? err.message : "Ticket verification failed.");
+    } finally {
+      setTicketVerifying(false);
+    }
+  };
+
+  const handleVerifyTicket = async () => {
+    await verifyTicketById(ticketIdInput);
+  };
+
+  const handleToggleTicketScanner = async () => {
+    if (ticketScannerOpen || scannerRunningRef.current) {
+      stopTicketScanner();
+      setTicketScannerError("");
+      return;
+    }
+
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices?.getUserMedia) {
+      setTicketScannerError("Camera access is not available in this browser.");
+      return;
+    }
+
+    const scopedWindow = window as Window & { BarcodeDetector?: BarcodeDetectorCtor };
+    const Detector = scopedWindow.BarcodeDetector;
+    if (!Detector) {
+      setTicketScannerError("QR camera scanning is not supported in this browser. Use manual ticket ID entry.");
+      return;
+    }
+
+    try {
+      setTicketScannerStarting(true);
+      setTicketScannerError("");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+        },
+        audio: false,
+      });
+
+      const videoEl = scannerVideoRef.current;
+      if (!videoEl) {
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
+        throw new Error("Scanner preview is not ready.");
+      }
+
+      scannerStreamRef.current = stream;
+      videoEl.srcObject = stream;
+      await videoEl.play();
+
+      const detector = new Detector({ formats: ["qr_code"] });
+      scannerRunningRef.current = true;
+      setTicketScannerOpen(true);
+
+      const scanFrame = async () => {
+        if (!scannerRunningRef.current) return;
+
+        const activeVideo = scannerVideoRef.current;
+        if (!activeVideo || activeVideo.readyState < 2) {
+          scannerFrameRef.current = requestAnimationFrame(() => {
+            void scanFrame();
+          });
+          return;
+        }
+
+        try {
+          const detections = await detector.detect(activeVideo as unknown as ImageBitmapSource);
+          const scannedValue = detections
+            .find((item) => typeof item.rawValue === "string" && item.rawValue.trim().length > 0)
+            ?.rawValue?.trim();
+
+          if (scannedValue) {
+            setTicketIdInput(scannedValue);
+            stopTicketScanner();
+            await verifyTicketById(scannedValue);
+            return;
+          }
+        } catch {
+          // Ignore per-frame scanner detection failures and continue scanning.
+        }
+
+        scannerFrameRef.current = requestAnimationFrame(() => {
+          void scanFrame();
+        });
+      };
+
+      scannerFrameRef.current = requestAnimationFrame(() => {
+        void scanFrame();
+      });
+    } catch (err) {
+      stopTicketScanner();
+      setTicketScannerError(err instanceof Error ? err.message : "Could not start ticket scanner.");
+    } finally {
+      setTicketScannerStarting(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopTicketScanner();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (operationsTab !== "tickets") {
+      stopTicketScanner();
+    }
+  }, [operationsTab]);
+
+  useEffect(() => {
+    if (activeView !== "operations") {
+      stopTicketScanner();
+    }
+  }, [activeView]);
 
   const handleConfirmBooking = async (id: number) => {
     try {
@@ -709,6 +941,87 @@ export default function AdminPanelClient({
       {activeView === "operations" ? (
         <>
 
+      <section className="mb-6">
+        <div className="mb-2 flex flex-wrap gap-2">
+          <button
+            onClick={() => setOperationsTab("overview")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "overview" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setOperationsTab("bookings")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "bookings" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              Bookings
+              <span className={`px-2 py-[1px] rounded-full text-[10px] font-bold ${pendingBookings.length > 0 ? "bg-[#8c4f00] text-white" : "bg-[#e8e6e0] text-[#434651]"}`}>
+                {pendingBookings.length}
+              </span>
+            </span>
+          </button>
+          <button
+            onClick={() => setOperationsTab("faculty")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "faculty" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              Faculty
+              <span className={`px-2 py-[1px] rounded-full text-[10px] font-bold ${pendingFaculty.length > 0 ? "bg-[#8c4f00] text-white" : "bg-[#e8e6e0] text-[#434651]"}`}>
+                {pendingFaculty.length}
+              </span>
+            </span>
+          </button>
+          <button
+            onClick={() => setOperationsTab("tickets")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "tickets" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            Tickets
+          </button>
+          <button
+            onClick={() => setOperationsTab("content")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "content" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            Content
+          </button>
+          <button
+            onClick={() => setOperationsTab("emails")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "emails" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              Emails
+              <span
+                className={`px-2 py-[1px] rounded-full text-[10px] font-bold ${
+                  (emailFailedBadgeCount ?? 0) > 0 ? "bg-[#ba1a1a] text-white" : "bg-[#e8e6e0] text-[#434651]"
+                }`}
+              >
+                {emailFailedBadgeCount ?? "-"}
+              </span>
+            </span>
+          </button>
+        </div>
+        <p className="text-sm text-[#434651]">
+          {operationsTab === "overview" ? "Platform summary and high-level counts." : null}
+          {operationsTab === "bookings" ? "Manage incoming booking requests and prep upcoming lab sessions." : null}
+          {operationsTab === "faculty" ? "Approve faculty accounts and review recent users." : null}
+          {operationsTab === "tickets" ? "Verify tickets manually or by camera QR scan." : null}
+          {operationsTab === "content" ? "Upload and review homepage hero slides." : null}
+          {operationsTab === "emails" ? "Monitor delivery queue health and retry patterns." : null}
+        </p>
+      </section>
+
+      {operationsTab === "overview" ? (
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <div className="border border-[#c4c6d3] bg-white p-5">
           <p className="text-xs uppercase tracking-widest text-[#434651] font-label">Total Students</p>
@@ -735,7 +1048,9 @@ export default function AdminPanelClient({
           <p className="mt-2 text-3xl font-bold text-[#002155]">{stats.newsCount}</p>
         </div>
       </section>
+      ) : null}
 
+      {operationsTab === "emails" ? (
       <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div>
@@ -891,7 +1206,71 @@ export default function AdminPanelClient({
           </>
         )}
       </section>
+      ) : null}
 
+      {operationsTab === "tickets" ? (
+      <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
+        <div className="mb-4">
+          <h2 className="font-headline text-2xl text-[#002155]">Ticket Verification</h2>
+          <p className="text-sm text-[#434651]">Admin-only ticket check-in verification. Successful verification marks the ticket as USED.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 mb-4">
+          <input
+            value={ticketIdInput}
+            onChange={(e) => setTicketIdInput(e.target.value)}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            placeholder="Enter or paste ticket ID"
+          />
+          <button
+            onClick={() => void handleVerifyTicket()}
+            disabled={ticketVerifying}
+            className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+          >
+            {ticketVerifying ? "Verifying..." : "Verify Ticket"}
+          </button>
+          <button
+            onClick={() => void handleToggleTicketScanner()}
+            disabled={ticketVerifying || ticketScannerStarting}
+            className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+          >
+            {ticketScannerOpen ? "Stop Camera" : ticketScannerStarting ? "Starting..." : "Scan from Camera"}
+          </button>
+        </div>
+
+        {ticketScannerOpen ? (
+          <div className="mb-3 border border-[#c4c6d3] bg-[#faf9f5] p-3">
+            <p className="text-xs text-[#434651] mb-2">Point camera at the ticket QR code. Verification runs automatically after scan.</p>
+            <video ref={scannerVideoRef} className="w-full max-w-md border border-[#c4c6d3] bg-black" autoPlay muted playsInline />
+          </div>
+        ) : null}
+
+        {ticketScannerError ? (
+          <p className="mb-3 border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 text-sm">{ticketScannerError}</p>
+        ) : null}
+
+        {ticketVerifyError ? (
+          <p className="mb-3 border border-red-300 bg-red-50 text-red-700 px-3 py-2 text-sm">{ticketVerifyError}</p>
+        ) : null}
+
+        {ticketVerifyResult ? (
+          <div className="border border-[#c4c6d3] bg-[#faf9f5] p-4">
+            <p className="text-xs uppercase tracking-widest text-[#0b6b2e] font-bold mb-3">Verification Successful</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <p><span className="text-[#747782]">Ticket ID:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.ticketId}</span></p>
+              <p><span className="text-[#747782]">Status:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.status}</span></p>
+              <p><span className="text-[#747782]">User:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.user.name}</span></p>
+              <p><span className="text-[#747782]">Email:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.user.email}</span></p>
+              <p><span className="text-[#747782]">Ticket Type:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.title}</span></p>
+              <p><span className="text-[#747782]">Subject:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.subjectName}</span></p>
+              <p className="md:col-span-2"><span className="text-[#747782]">Used At:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.usedAt ? new Date(ticketVerifyResult.usedAt).toLocaleString() : "N/A"}</span></p>
+            </div>
+          </div>
+        ) : null}
+      </section>
+      ) : null}
+
+      {operationsTab === "content" ? (
       <section className="mb-10 grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="border border-[#c4c6d3] bg-white p-5">
           <h2 className="font-headline text-2xl text-[#002155] mb-4">Homepage Hero Upload</h2>
@@ -968,6 +1347,11 @@ export default function AdminPanelClient({
           )}
         </div>
       </section>
+
+      ) : null}
+
+      {operationsTab === "bookings" ? (
+      <>
 
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
@@ -1061,6 +1445,13 @@ export default function AdminPanelClient({
         )}
       </section>
 
+      </>
+
+      ) : null}
+
+      {operationsTab === "faculty" ? (
+      <>
+
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-headline text-2xl text-[#002155]">Pending Faculty Approvals</h2>
@@ -1138,6 +1529,10 @@ export default function AdminPanelClient({
           </table>
         </div>
       </section>
+
+      </>
+
+      ) : null}
 
       </>
       ) : null}

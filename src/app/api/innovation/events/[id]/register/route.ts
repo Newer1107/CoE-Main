@@ -4,6 +4,7 @@ import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers
 import { innovationEventRegisterSchema } from '@/lib/validators';
 import { parseStringList, sanitizeFilename } from '@/lib/innovation';
 import { uploadFileWithObjectKey } from '@/lib/minio';
+import { logActivity } from '@/lib/activity-log';
 
 // POST /api/innovation/events/[id]/register
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +16,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const eventId = Number(id);
     if (!Number.isInteger(eventId) || eventId <= 0) return errorRes('Invalid event id', [], 400);
+    logActivity('INNOVATION_HACKATHON_REGISTER_ATTEMPT', {
+      userId: user.id,
+      eventId,
+    });
 
     const formData = await req.formData();
     const teamName = ((formData.get('teamName') as string) || '').trim();
@@ -107,6 +112,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     if (existingInEvent) {
+      logActivity('INNOVATION_HACKATHON_REGISTER_REJECTED', {
+        userId: user.id,
+        eventId,
+        problemId: problem.id,
+        reason: 'DUPLICATE_MEMBER_IN_PROBLEM',
+      });
       return errorRes('Registration conflict', ['A team member is already registered for this problem statement in this hackathon'], 400);
     }
 
@@ -159,9 +170,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     });
 
+    logActivity('INNOVATION_HACKATHON_REGISTER_SUBMITTED', {
+      userId: user.id,
+      eventId,
+      claimId: updated.id,
+      problemId: updated.problemId,
+      teamSize: updated.members.length,
+    });
+
     return successRes(updated, 'Event registration successful.', 201);
   } catch (err) {
     console.error('Innovation event register POST error:', err);
+    logActivity('INNOVATION_HACKATHON_REGISTER_ERROR', {
+      error: err instanceof Error ? err.message : 'UNKNOWN_ERROR',
+    });
     return errorRes('Internal server error', [], 500);
   }
 }

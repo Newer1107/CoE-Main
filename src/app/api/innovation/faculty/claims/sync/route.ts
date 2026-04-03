@@ -6,6 +6,8 @@ import { processEmailQueue } from '@/lib/email-delivery';
 import { innovationBulkClaimDecisionSchema } from '@/lib/validators';
 import { sendInnovationRubricScoreEmail, sendInnovationScreeningResultEmail } from '@/lib/mailer';
 import { calculateWeightedHackathonScore, HackathonRubricScores } from '@/lib/hackathon-scoring';
+import { issueHackathonSelectionTicketsForClaim } from '@/lib/tickets';
+import { logActivity } from '@/lib/activity-log';
 
 // PATCH /api/innovation/faculty/claims/sync
 export async function PATCH(req: NextRequest) {
@@ -176,10 +178,34 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    const ticketFailures: string[] = [];
+    if (stage === 'JUDGING') {
+      for (const claim of claims) {
+        const decision = unique.get(claim.id);
+        if (!decision || decision.status !== 'ACCEPTED') continue;
+
+        try {
+          await issueHackathonSelectionTicketsForClaim(claim.id);
+        } catch (ticketErr) {
+          const msg = ticketErr instanceof Error ? ticketErr.message : 'UNKNOWN_ERROR';
+          ticketFailures.push(`Claim #${claim.id}: ${msg}`);
+          logActivity('HACKATHON_TICKET_ISSUE_FAILED', {
+            claimId: claim.id,
+            reviewerId: user.id,
+            error: msg,
+          });
+        }
+      }
+    }
+
     try {
       await processEmailQueue(50);
     } catch (queueErr) {
       console.error('Email queue drain after claim sync failed:', queueErr);
+    }
+
+    if (ticketFailures.length > 0) {
+      return errorRes('Ticket issuance failed for accepted claims', ticketFailures, 500);
     }
 
     if (stage === 'SCREENING') {

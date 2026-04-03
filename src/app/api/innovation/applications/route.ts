@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
+import { logActivity } from '@/lib/activity-log';
 import { z } from 'zod';
 
 const applicationSchema = z.object({
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
     if (!authorize(user, 'STUDENT')) return errorRes('Forbidden', ['Student access required'], 403);
+    logActivity('INNOVATION_OPEN_APPLICATION_ATTEMPT', { userId: user.id });
 
     const body = await req.json();
     const parsed = applicationSchema.safeParse(body);
@@ -33,10 +35,18 @@ export async function POST(req: NextRequest) {
     });
 
     if (!profile) {
+      logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
+        userId: user.id,
+        reason: 'PROFILE_MISSING',
+      });
       return errorRes('Profile not found', ['You must create a student profile before applying'], 404);
     }
 
     if (!profile.isComplete) {
+      logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
+        userId: user.id,
+        reason: 'PROFILE_INCOMPLETE',
+      });
       return errorRes('Incomplete profile', ['Your profile must be complete (all fields + resume) before applying'], 400);
     }
 
@@ -52,6 +62,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (!problem) {
+      logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
+        userId: user.id,
+        problemId: parsed.data.problemId,
+        reason: 'PROBLEM_NOT_OPEN',
+      });
       return errorRes('Problem not found', ['Open problem not found or closed for applications'], 404);
     }
 
@@ -66,6 +81,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingApplication) {
+      logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
+        userId: user.id,
+        problemId: parsed.data.problemId,
+        reason: 'DUPLICATE_APPLICATION',
+      });
       return errorRes('Duplicate application', ['You have already applied to this problem'], 400);
     }
 
@@ -119,9 +139,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    logActivity('INNOVATION_OPEN_APPLICATION_SUBMITTED', {
+      userId: user.id,
+      applicationId: application.id,
+      problemId: parsed.data.problemId,
+      answerCount: parsed.data.answers.length,
+    });
+
     return successRes(application, 'Application submitted successfully.', 201);
   } catch (err) {
     console.error('Applications POST error:', err);
+    logActivity('INNOVATION_OPEN_APPLICATION_ERROR', {
+      error: err instanceof Error ? err.message : 'UNKNOWN_ERROR',
+    });
     return errorRes('Internal server error', [], 500);
   }
 }
