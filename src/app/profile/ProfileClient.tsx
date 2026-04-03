@@ -16,6 +16,18 @@ interface StudentProfile {
   updatedAt: string;
 }
 
+interface TicketItem {
+  ticketId: string;
+  type: 'FACILITY_BOOKING' | 'HACKATHON_SELECTION';
+  status: 'ACTIVE' | 'USED' | 'CANCELLED';
+  title: string;
+  subjectName: string;
+  scheduledAt: string | null;
+  issuedAt: string;
+  usedAt: string | null;
+  downloadUrl: string;
+}
+
 export default function ProfileClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -23,6 +35,9 @@ export default function ProfileClient() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     skills: '',
@@ -57,7 +72,31 @@ export default function ProfileClient() {
       }
     };
 
+    const fetchTickets = async () => {
+      try {
+        setTicketsLoading(true);
+        setTicketsError(null);
+        const res = await fetch('/api/tickets/my', {
+          credentials: 'include',
+        });
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.message || 'Failed to load tickets');
+        }
+
+        const data = await res.json();
+        setTickets((data?.data || []) as TicketItem[]);
+      } catch (err) {
+        setTickets([]);
+        setTicketsError(err instanceof Error ? err.message : 'Error loading tickets');
+      } finally {
+        setTicketsLoading(false);
+      }
+    };
+
     fetchProfile();
+    fetchTickets();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,6 +159,7 @@ export default function ProfileClient() {
 
   const daysAgoUpdated = profile?.updatedAt ? Math.floor((Date.now() - new Date(profile.updatedAt).getTime()) / (1000 * 60 * 60 * 24)) : null;
   const isProfileStale = daysAgoUpdated !== null && daysAgoUpdated > 30;
+  const availableTickets = tickets.filter((ticket) => ticket.status === 'ACTIVE');
 
   return (
     <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
@@ -260,6 +300,46 @@ export default function ProfileClient() {
             </Link>
           </div>
         </form>
+
+        <section className="bg-white border border-[#c4c6d3] p-6 md:p-8">
+          <div className="mb-4">
+            <h2 className="font-headline text-2xl text-[#002155]">My Tickets</h2>
+            <p className="text-sm text-[#434651] mt-1">
+              Download your existing unclaimed tickets. Claimed or cancelled tickets are hidden here.
+            </p>
+          </div>
+
+          {ticketsLoading ? (
+            <p className="text-sm text-[#434651]">Loading tickets...</p>
+          ) : ticketsError ? (
+            <p className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{ticketsError}</p>
+          ) : availableTickets.length === 0 ? (
+            <p className="text-sm text-[#434651] border border-dashed border-[#c4c6d3] p-4">
+              No unclaimed tickets available right now.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {availableTickets.map((ticket) => (
+                <article key={ticket.ticketId} className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                  <p className="text-sm font-bold text-[#002155]">{ticket.title}</p>
+                  <p className="text-xs text-[#434651] mt-1">{ticket.subjectName}</p>
+                  <p className="text-xs text-[#747782] mt-1">Ticket ID: {ticket.ticketId}</p>
+                  <p className="text-xs text-[#747782] mt-1">
+                    Scheduled: {ticket.scheduledAt ? new Date(ticket.scheduledAt).toLocaleString() : 'N/A'}
+                  </p>
+                  <div className="mt-3">
+                    <a
+                      href={ticket.downloadUrl}
+                      className="inline-flex items-center px-4 py-2 bg-[#002155] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#00163b]"
+                    >
+                      Download Ticket
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
