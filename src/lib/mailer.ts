@@ -1,16 +1,5 @@
-import { dispatchEmail } from '@/lib/email-delivery';
-import nodemailer from 'nodemailer';
+import { dispatchEmail, sendEmail } from '@/lib/email-delivery';
 import prisma from '@/lib/prisma';
-
-const attachmentTransporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
 
 const brandHeader = `
   <div style="background:#002155;padding:16px 24px;text-align:center;">
@@ -531,8 +520,7 @@ export const sendTicketIssuedEmail = async (
   const wrappedHtml = wrap(body);
 
   try {
-    const result = await attachmentTransporter.sendMail({
-      from: process.env.SMTP_FROM || '"TCET CoE" <noreply@tcetmumbai.in>',
+    const result = await sendEmail({
       to: email,
       subject,
       html: wrappedHtml,

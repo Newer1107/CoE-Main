@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import type Mail from 'nodemailer/lib/mailer';
 import prisma from '@/lib/prisma';
 
 export type EmailDeliveryMode = 'immediate' | 'bulk';
@@ -18,15 +19,112 @@ type EmailJobStatus = 'PENDING' | 'PROCESSING' | 'RETRY' | 'SENT' | 'FAILED';
 
 const EMAIL_JOB_STATUSES: EmailJobStatus[] = ['PENDING', 'PROCESSING', 'RETRY', 'SENT', 'FAILED'];
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const OAUTH_ENV_KEYS = ['SMTP_USER', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'] as const;
+
+type MailTransporter = ReturnType<typeof nodemailer.createTransport>;
+
+const globalForMail = globalThis as typeof globalThis & {
+  __coeOAuth2Transporter?: MailTransporter;
+};
+
+const getMissingOAuthEnvVars = () => {
+  return OAUTH_ENV_KEYS.filter((key) => {
+    const value = process.env[key];
+    return !value || value.trim().length === 0;
+  });
+};
+
+const getTransporter = () => {
+  if (globalForMail.__coeOAuth2Transporter) {
+    return globalForMail.__coeOAuth2Transporter;
+  }
+
+  const missing = getMissingOAuthEnvVars();
+  if (missing.length > 0) {
+    throw new Error(`Missing SMTP OAuth2 environment variables: ${missing.join(', ')}`);
+  }
+
+  globalForMail.__coeOAuth2Transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      type: 'OAuth2',
+      user: process.env.SMTP_USER,
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+    },
+  });
+
+  return globalForMail.__coeOAuth2Transporter;
+};
+
+const isAuthOrTokenError = (err: unknown) => {
+  if (!(err instanceof Error)) return false;
+
+  const text = `${err.message}`.toLowerCase();
+  const errorCode = (err as any)?.code;
+  const responseCode = (err as any)?.responseCode;
+  const command = `${(err as any)?.command || ''}`.toLowerCase();
+
+  if (errorCode === 'EAUTH' || responseCode === 534 || responseCode === 535) {
+    return true;
+  }
+
+  if (command.includes('xoauth2') || command.includes('auth')) {
+    return true;
+  }
+
+  return (
+    text.includes('oauth') ||
+    text.includes('token') ||
+    text.includes('invalid_grant') ||
+    text.includes('auth') ||
+    text.includes('login') ||
+    text.includes('smtp oauth2')
+  );
+};
+
+const logAuthOrTokenError = (err: unknown, context: { to: string | string[]; subject: string }) => {
+  console.error('[EMAIL_AUTH_ERROR] OAuth2 token/auth failure while sending email', {
+    to: context.to,
+    subject: context.subject,
+    message: err instanceof Error ? err.message : String(err),
+    code: (err as any)?.code ?? null,
+    responseCode: (err as any)?.responseCode ?? null,
+    command: (err as any)?.command ?? null,
+  });
+};
+
+export type SendEmailInput = {
+  to: string | string[];
+  subject: string;
+  html: string;
+  attachments?: Mail.Attachment[];
+};
+
+export const sendEmail = async ({ to, subject, html, attachments }: SendEmailInput) => {
+  try {
+    const transporter = getTransporter();
+    return await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"TCET CoE" <noreply@tcetmumbai.in>',
+      to,
+      subject,
+      html,
+      attachments,
+    });
+  } catch (err) {
+    if (isAuthOrTokenError(err)) {
+      logAuthOrTokenError(err, { to, subject });
+    } else {
+      console.error('[EMAIL_SEND_ERROR] SMTP send failed', {
+        to,
+        subject,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    throw err;
+  }
+};
 
 const now = () => new Date();
 
@@ -97,8 +195,7 @@ const createEmailJob = async (input: {
 };
 
 const smtpSend = async (toEmail: string, subject: string, htmlBody: string) => {
-  const result = await transporter.sendMail({
-    from: process.env.SMTP_FROM || '"TCET CoE" <noreply@tcetmumbai.in>',
+  const result = await sendEmail({
     to: toEmail,
     subject,
     html: htmlBody,
