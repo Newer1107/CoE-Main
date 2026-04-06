@@ -1205,10 +1205,10 @@ ADMIN_EMAIL="admin@tcetmumbai.in"
 ADMIN_PASSWORD="AdminPassword123"
 ADMIN_NAME="CoE Admin"
 
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
-SMTP_PASS="app-password"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_REFRESH_TOKEN="your-google-refresh-token"
 SMTP_FROM="TCET CoE <noreply@tcetmumbai.in>"
 
 CRON_SECRET="change-me-cron-secret"
@@ -1225,6 +1225,11 @@ MINIO_BUCKET="coe-assets"
 
 NEXT_PUBLIC_GA_ID="G-XXXXXXXXXX"
 ```
+
+OAuth2 mail security notes:
+- Configure `SMTP_USER`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_TOKEN` in your local `.env`/`.env.local` only.
+- Do not commit client secrets, refresh tokens, or access tokens into `README.md` or any tracked file.
+- Nodemailer automatically generates and refreshes access tokens from `GOOGLE_REFRESH_TOKEN`; no manual `access_token` variable is required.
 
 Optional variables:
 - `NEXT_PUBLIC_APP_URL`
