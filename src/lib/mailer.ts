@@ -95,7 +95,7 @@ interface BookingDetails {
 export const sendBookingConfirmationEmail = async (email: string, b: BookingDetails) => {
   const facilities = Array.isArray(b.facilities) ? b.facilities.join(', ') : b.facilities;
   const body = `
-    <h2 style="color:#002155;margin:0 0 8px;">Your CoE Facility Booking is Confirmed ✅</h2>
+    <h2 style="color:#002155;margin:0 0 8px;">Your CoE Facility Booking is Confirmed</h2>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Booking ID</td><td style="padding:8px;color:#002155;">${b.id}</td></tr>
       <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Name</td><td style="padding:8px;color:#002155;">${b.studentName}</td></tr>
@@ -104,7 +104,7 @@ export const sendBookingConfirmationEmail = async (email: string, b: BookingDeta
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Lab</td><td style="padding:8px;color:#002155;">${b.lab}</td></tr>
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Facilities</td><td style="padding:8px;color:#002155;">${facilities}</td></tr>
     </table>`;
-  await send(email, 'Your CoE Facility Booking is Confirmed ✅', body, {
+  await send(email, 'Your CoE Facility Booking is Confirmed', body, {
     mode: 'immediate',
     category: 'BOOKING_CONFIRMED',
   });
@@ -164,13 +164,13 @@ export const sendFacultyPendingNotification = async (adminEmail: string, f: { na
 // ─── 6. Faculty Approved ───
 export const sendFacultyApprovalEmail = async (email: string, name: string) => {
   const body = `
-    <h2 style="color:#002155;margin:0 0 8px;">Account Approved ✅</h2>
+    <h2 style="color:#002155;margin:0 0 8px;">Account Approved</h2>
     <p style="color:#434651;font-size:14px;">Dear <strong>${name}</strong>,</p>
     <p style="color:#434651;font-size:14px;">Your CoE faculty account has been approved. You may now log in and access all faculty features.</p>
     <div style="text-align:center;margin:24px 0;">
       <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/facility-booking" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;">LOG IN NOW</a>
     </div>`;
-  await send(email, 'Your CoE Faculty Account is Approved ✅', body, {
+  await send(email, 'Your CoE Faculty Account is Approved', body, {
     mode: 'immediate',
     category: 'FACULTY_APPROVED',
   });
