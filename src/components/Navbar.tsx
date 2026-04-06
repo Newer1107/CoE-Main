@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 type NavbarProps = {
@@ -17,8 +17,19 @@ type NavbarProps = {
 export default function Navbar({ user }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const onScroll = () => {
+      setIsScrolled(window.scrollY > 24);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const currentPathWithSearch = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const loginHref = `/login?next=${encodeURIComponent(currentPathWithSearch)}`;
@@ -57,7 +68,9 @@ export default function Navbar({ user }: NavbarProps) {
   return (
     <>
       {/* TopNoticeTicker */}
-      <div className="bg-[#705e49] flex items-center px-4 md:px-6 py-2 w-full z-[60] fixed top-0 border-none font-['Inter'] text-xs font-bold uppercase tracking-wider text-white marquee-scroll cursor-pointer">
+      <div
+        className={`bg-[#705e49] flex items-center px-4 md:px-6 py-2 w-full z-[60] fixed top-0 border-none font-['Inter'] text-xs font-bold uppercase tracking-wider text-white marquee-scroll cursor-pointer transition-all duration-300 ${isScrolled ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
+      >
         <span className="whitespace-nowrap flex items-center gap-2"></span>
         <div className="marquee-content ml-2 sm:ml-4">
           <span>Solve real-world industry problems and gain recognition</span>
@@ -68,7 +81,12 @@ export default function Navbar({ user }: NavbarProps) {
       </div>
 
       {/* TopNavBar */}
-      <nav className="bg-[#002155] flex justify-between items-center w-full px-4 md:px-8 py-4 z-50 fixed top-[32px] sm:top-[32px] border-none shadow-md">
+      <nav
+        className={`flex justify-between items-center w-full px-4 md:px-8 z-50 fixed border-none transition-all duration-300 ${isScrolled
+          ? "top-0 bg-[#001a42]/92 backdrop-blur-md py-3 shadow-[0_8px_24px_rgba(0,24,61,0.25)]"
+          : "top-[32px] sm:top-[32px] bg-[#002155] py-4 shadow-md"
+          }`}
+      >
         {/* LEFT SIDE: CoE Logo and Brand Name */}
         <div className="flex items-center gap-4 md:gap-5 z-50">
           <Link
