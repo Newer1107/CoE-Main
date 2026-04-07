@@ -329,6 +329,26 @@ export const sendInnovationEventActiveEmail = async (
   });
 };
 
+// ─── 11a. Innovation: Upcoming Event Broadcast (All Active Students) ───
+export const sendInnovationEventUpcomingBroadcastEmail = async (
+  recipients: string[],
+  details: {
+    eventTitle: string;
+    startTime: string;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">New Upcoming Hackathon</h2>
+    <p style="color:#434651;font-size:14px;">A new hackathon is now open for participation: <strong>${details.eventTitle}</strong>.</p>
+    <p style="color:#434651;font-size:14px;">Scheduled start time: <strong>${details.startTime}</strong></p>
+    <p style="color:#434651;font-size:14px;">Log in to the Innovation portal to view details and register your team.</p>`;
+
+  await send(recipients, `Upcoming Hackathon: ${details.eventTitle}`, body, {
+    mode: 'bulk',
+    category: 'HACKATHON_EVENT_UPCOMING_ALL',
+  });
+};
+
 // Backward-compatible alias for older imports.
 export const sendInnovationEventJudgingEmail = sendInnovationEventActiveEmail;
 

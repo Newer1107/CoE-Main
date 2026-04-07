@@ -1087,6 +1087,10 @@ Event stage controls and review:
 - `POST /api/seed`
 - `GET /api/cron/reminder`
 - `GET /api/cron/innovation-reminder`
+  - optional query params:
+    - `mode=ALL|UPCOMING_ALL_STUDENTS|ACTIVATE_REGISTERED|ENDING_REMINDER`
+    - `eventId=<hackathonEventId>`
+  - default (`mode=ALL`) runs all innovation cron paths in one call
 
 ### 7.7 API Request/Response Flow & Error Handling
 
@@ -1586,11 +1590,13 @@ graph TD
 
   INNOV_TRIGGER["⏰ External Scheduler<br/>GET /api/cron/innovation-reminder"]
   INNOV_JOB["Innovation Job<br/>Handler"]
+  CHECK_UPCOMING_BROADCAST["Find UPCOMING<br/>future events"]
+  SEND_UPCOMING_BROADCAST["Send Upcoming Email<br/>to ALL ACTIVE students"]
   CHECK_EVENTS["Find Events<br/>Ready to start"]
   TRANSITION_ACTIVE["Transition<br/>UPCOMING→ACTIVE"]
-  SEND_ACTIVE_EMAIL["Send Active<br/>Phase Email"]
+  SEND_ACTIVE_EMAIL["Send Active Email<br/>to registered participants"]
   CHECK_ENDING["Find Events<br/>About to end"]
-  SEND_ENDING_REMINDER["Send Ending<br/>Reminder"]
+  SEND_ENDING_REMINDER["Send Ending Reminder<br/>to registered participants"]
 
   CRON_TRIGGER --> REMINDER_JOB
   REMINDER_JOB --> CHECK_BOOKINGS
@@ -1600,7 +1606,9 @@ graph TD
   CLEANUP_OTP --> COMPLETE1["✅ Complete"]
 
   INNOV_TRIGGER --> INNOV_JOB
-  INNOV_JOB --> CHECK_EVENTS
+  INNOV_JOB --> CHECK_UPCOMING_BROADCAST
+  CHECK_UPCOMING_BROADCAST --> SEND_UPCOMING_BROADCAST
+  SEND_UPCOMING_BROADCAST --> CHECK_EVENTS
   CHECK_EVENTS --> TRANSITION_ACTIVE
   TRANSITION_ACTIVE --> SEND_ACTIVE_EMAIL
   SEND_ACTIVE_EMAIL --> CHECK_ENDING
@@ -1621,10 +1629,20 @@ Booking reminder job:
 Innovation reminder job:
 - Endpoint: `GET /api/cron/innovation-reminder`
 - Behavior:
+  - broadcasts UPCOMING future-event announcements to all ACTIVE students
   - transitions `UPCOMING -> ACTIVE` when start time is reached
-  - sends active-phase participant notifications at activation
-  - sends event ending reminders
+  - sends active-phase notifications to registered participants at activation
+  - sends ending reminders to registered participants
   - does not auto-close events; closure is a manual status control
+- Optional targeting:
+  - `mode=UPCOMING_ALL_STUDENTS` for upcoming broadcasts only
+  - `mode=ACTIVATE_REGISTERED` for activation + registered participant active emails only
+  - `mode=ENDING_REMINDER` for ending reminders only
+  - `eventId=<id>` to scope any mode to one hackathon event
+- Examples:
+  - `GET /api/cron/innovation-reminder?mode=UPCOMING_ALL_STUDENTS`
+  - `GET /api/cron/innovation-reminder?mode=UPCOMING_ALL_STUDENTS&eventId=12`
+  - `GET /api/cron/innovation-reminder?mode=ACTIVATE_REGISTERED&eventId=12`
 
 Operational health:
 - `GET /api/health`
