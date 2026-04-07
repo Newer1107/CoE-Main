@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, TokenPayload } from './jwt';
 
+export const useSecureCookies = (): boolean => {
+  return process.env.COOKIE_SECURE === 'true';
+};
+
 export const successRes = (data: unknown = null, message = 'Success', status = 200) => {
   return NextResponse.json({ success: true, message, data }, { status });
 };

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { successRes, errorRes } from '@/lib/api-helpers';
+import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
 import { verifyRefreshToken, generateAccessToken, TokenPayload } from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
@@ -19,11 +19,12 @@ export async function POST(req: NextRequest) {
     };
 
     const accessToken = generateAccessToken(payload);
+    const secureCookies = useSecureCookies();
 
     const response = successRes({ accessToken }, 'Token refreshed successfully.');
     response.cookies.set('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: secureCookies,
       sameSite: 'lax',
       maxAge: 15 * 60,
       path: '/',

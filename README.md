@@ -1219,6 +1219,7 @@ CRON_SECRET="change-me-cron-secret"
 EMAIL_MAX_ATTEMPTS="5"
 EMAIL_PRIORITY_IMMEDIATE="100"
 EMAIL_PRIORITY_BULK="20"
+COOKIE_SECURE="false"
 
 MINIO_ENDPOINT="localhost"
 MINIO_PORT=9000
@@ -1239,6 +1240,7 @@ Optional variables:
 - `NEXT_PUBLIC_APP_URL`
 - `FRONTEND_URL`
 - `MINIO_USE_PROXY=true|false`
+- `COOKIE_SECURE=true|false` (set `false` for HTTP development, `true` for HTTPS production)
 
 ## 9) Local Development
 

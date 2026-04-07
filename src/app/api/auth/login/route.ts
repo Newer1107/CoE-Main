@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { successRes, errorRes } from '@/lib/api-helpers';
+import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
 import { loginSchema } from '@/lib/validators';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '@/lib/jwt';
 
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
 
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
+    const secureCookies = useSecureCookies();
 
     const response = NextResponse.json({
       success: true,
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     response.cookies.set('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: secureCookies,
       sameSite: 'lax',
       maxAge: 15 * 60,
       path: '/',
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     // Set refresh token in httpOnly cookie
     response.cookies.set('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: secureCookies,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60,
       path: '/',
