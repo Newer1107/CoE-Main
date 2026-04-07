@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import jsQR from "jsqr";
 import { HACKATHON_RUBRIC_WEIGHTS } from "@/lib/hackathon-scoring";
 
 type BookingStudent = {
@@ -233,16 +234,6 @@ type TicketVerificationResult = {
     checkedInAt: string | null;
   }>;
 };
-
-type BarcodeDetectionResult = {
-  rawValue?: string;
-};
-
-type BarcodeDetectorLike = {
-  detect: (source: ImageBitmapSource) => Promise<BarcodeDetectionResult[]>;
-};
-
-type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDetectorLike;
 
 type OperationsTab = "overview" | "bookings" | "faculty" | "tickets" | "content" | "emails";
 
@@ -666,23 +657,36 @@ export default function AdminPanelClient({
       return;
     }
 
-    const scopedWindow = window as Window & { BarcodeDetector?: BarcodeDetectorCtor };
-    const Detector = scopedWindow.BarcodeDetector;
-    if (!Detector) {
-      setTicketScannerError("QR camera scanning is not supported in this browser. Use manual ticket ID entry.");
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      setTicketScannerError("Camera scanning requires HTTPS on this domain. Open the admin panel over HTTPS and try again.");
       return;
     }
 
     try {
       setTicketScannerStarting(true);
       setTicketScannerError("");
+      setTicketScannerOpen(true);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-        },
-        audio: false,
+      // Ensure the preview video element is mounted before attaching stream.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
       });
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+          },
+          audio: false,
+        });
+      } catch {
+        // Fallback to default camera when strict environment preference is unavailable.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       const videoEl = scannerVideoRef.current;
       if (!videoEl) {
@@ -696,26 +700,55 @@ export default function AdminPanelClient({
       videoEl.srcObject = stream;
       await videoEl.play();
 
-      const detector = new Detector({ formats: ["qr_code"] });
       scannerRunningRef.current = true;
-      setTicketScannerOpen(true);
 
-      const scanFrame = async () => {
+      const canvasEl = document.createElement("canvas");
+      const ctx = canvasEl.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        throw new Error("Could not initialize scanner canvas.");
+      }
+
+      let lastScanAt = 0;
+
+      const scanFrame = async (ts: number) => {
         if (!scannerRunningRef.current) return;
 
         const activeVideo = scannerVideoRef.current;
         if (!activeVideo || activeVideo.readyState < 2) {
-          scannerFrameRef.current = requestAnimationFrame(() => {
-            void scanFrame();
+          scannerFrameRef.current = requestAnimationFrame((nextTs) => {
+            void scanFrame(nextTs);
           });
           return;
         }
 
         try {
-          const detections = await detector.detect(activeVideo as unknown as ImageBitmapSource);
-          const scannedValue = detections
-            .find((item) => typeof item.rawValue === "string" && item.rawValue.trim().length > 0)
-            ?.rawValue?.trim();
+          if (ts - lastScanAt < 110) {
+            scannerFrameRef.current = requestAnimationFrame((nextTs) => {
+              void scanFrame(nextTs);
+            });
+            return;
+          }
+
+          lastScanAt = ts;
+
+          const width = activeVideo.videoWidth;
+          const height = activeVideo.videoHeight;
+          if (!width || !height) {
+            scannerFrameRef.current = requestAnimationFrame((nextTs) => {
+              void scanFrame(nextTs);
+            });
+            return;
+          }
+
+          canvasEl.width = width;
+          canvasEl.height = height;
+          ctx.drawImage(activeVideo, 0, 0, width, height);
+
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const qrResult = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "attemptBoth",
+          });
+          const scannedValue = qrResult?.data?.trim();
 
           if (scannedValue) {
             const normalizedScannedTicketId = extractTicketIdFromInput(scannedValue);
@@ -728,17 +761,23 @@ export default function AdminPanelClient({
           // Ignore per-frame scanner detection failures and continue scanning.
         }
 
-        scannerFrameRef.current = requestAnimationFrame(() => {
-          void scanFrame();
+        scannerFrameRef.current = requestAnimationFrame((nextTs) => {
+          void scanFrame(nextTs);
         });
       };
 
-      scannerFrameRef.current = requestAnimationFrame(() => {
-        void scanFrame();
+      scannerFrameRef.current = requestAnimationFrame((nextTs) => {
+        void scanFrame(nextTs);
       });
     } catch (err) {
       stopTicketScanner();
-      setTicketScannerError(err instanceof Error ? err.message : "Could not start ticket scanner.");
+      if (err instanceof Error && err.name === "NotAllowedError") {
+        setTicketScannerError("Camera permission was denied. Allow camera access in browser settings and try again.");
+      } else if (err instanceof Error && err.name === "NotFoundError") {
+        setTicketScannerError("No camera device was found on this browser/device.");
+      } else {
+        setTicketScannerError(err instanceof Error ? err.message : "Could not start ticket scanner.");
+      }
     } finally {
       setTicketScannerStarting(false);
     }
