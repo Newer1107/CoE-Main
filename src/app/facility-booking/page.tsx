@@ -16,6 +16,17 @@ type BookingItem = {
 export default function FacilityBookingPage() {
   const { pushToast } = useToast();
   const bookingAuthHref = "/login?next=%2Ffacility-booking&reason=booking-auth-required";
+  const formatDateForInput = (value: Date) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const today = new Date();
+  const maxBookingDate = new Date(today);
+  maxBookingDate.setMonth(maxBookingDate.getMonth() + 1);
+  const minBookingDateStr = formatDateForInput(today);
+  const maxBookingDateStr = formatDateForInput(maxBookingDate);
   const [step, setStep] = useState(1);
   const [checkingSession, setCheckingSession] = useState(true);
   const [redirectingToLogin, setRedirectingToLogin] = useState(false);
@@ -627,7 +638,17 @@ export default function FacilityBookingPage() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="font-['Inter'] text-xs font-bold uppercase tracking-wider text-[#434651]">Date of Visit <span className="text-red-500">*</span></label>
-                    <input type="date" className="w-full bg-white border border-[#747782] p-3 text-sm outline-none" value={date} onChange={(e) => setDate(e.target.value)} required style={{ borderRadius: 0 }} />
+                    <input
+                      type="date"
+                      className="w-full bg-white border border-[#747782] p-3 text-sm outline-none"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      min={minBookingDateStr}
+                      max={maxBookingDateStr}
+                      required
+                      style={{ borderRadius: 0 }}
+                    />
+                    <p className="text-[11px] text-[#434651]">Booking date must be from today up to 1 month ahead.</p>
                   </div>
                 </div>
 

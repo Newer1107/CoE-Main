@@ -16,12 +16,31 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((e: any) => e.message), 400);
 
     const { purpose, date, timeSlot, facilities, lab } = parsed.data;
+    const [yearStr, monthStr, dayStr] = date.split('-');
+    const bookingDate = new Date(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
+
+    if (Number.isNaN(bookingDate.getTime())) {
+      return errorRes('Validation failed', ['Invalid booking date.'], 400);
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const maxDate = new Date(today);
+    maxDate.setMonth(maxDate.getMonth() + 1);
+
+    if (bookingDate < today) {
+      return errorRes('Validation failed', ['Booking date cannot be in the past.'], 400);
+    }
+
+    if (bookingDate > maxDate) {
+      return errorRes('Validation failed', ['Booking date cannot be more than 1 month from today.'], 400);
+    }
 
     const booking = await prisma.booking.create({
       data: {
         studentId: user.id,
         purpose,
-        date: new Date(date),
+        date: bookingDate,
         timeSlot,
         facilities: facilities as unknown as string[],
         lab,
