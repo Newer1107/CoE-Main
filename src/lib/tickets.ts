@@ -29,6 +29,7 @@ type AttendanceMemberRow = {
   userId: number;
   name: string;
   email: string;
+  uid: string | null;
   role: string;
   attendanceStatus: 'NOT_PRESENT' | 'PRESENT';
   checkedInAt: string | null;
@@ -539,7 +540,7 @@ const getHackathonTicketRecord = async (ticketId: string) => {
           },
           members: {
             include: {
-              user: { select: { id: true, name: true, email: true } },
+              user: { select: { id: true, name: true, email: true, uid: true } },
             },
           },
         },
@@ -575,7 +576,7 @@ const getHackathonTicketRecord = async (ticketId: string) => {
             },
             members: {
               include: {
-                user: { select: { id: true, name: true, email: true } },
+                user: { select: { id: true, name: true, email: true, uid: true } },
               },
             },
           },
@@ -601,6 +602,7 @@ const mapAttendanceMembers = (ticket: any): AttendanceMemberRow[] => {
       userId: member.user.id,
       name: member.user.name,
       email: member.user.email,
+      uid: member.user.uid ?? null,
       role: member.role,
       attendanceStatus: (attendance?.status || 'NOT_PRESENT') as 'NOT_PRESENT' | 'PRESENT',
       checkedInAt: attendance?.checkedInAt ? new Date(attendance.checkedInAt).toISOString() : null,

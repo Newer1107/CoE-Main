@@ -24,6 +24,12 @@ type Booking = {
   status: string;
   adminNote: string | null;
   createdAt: string;
+  ticket: {
+    id: number;
+    ticketId: string;
+    status: string;
+    usedAt: string | null;
+  } | null;
   student: BookingStudent;
 };
 
@@ -229,6 +235,7 @@ type TicketVerificationResult = {
     userId: number;
     name: string;
     email: string;
+    uid?: string | null;
     role: string;
     attendanceStatus: "NOT_PRESENT" | "PRESENT";
     checkedInAt: string | null;
@@ -280,6 +287,45 @@ const extractTicketIdFromInput = (raw: string) => {
   }
 
   return trimmed;
+};
+
+const parseTimeSlotPart = (raw: string) => {
+  const match = raw.trim().match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+  return { hours, minutes };
+};
+
+const getBookingScheduleDateTime = (booking: Booking, boundary: "start" | "end") => {
+  const base = new Date(booking.date);
+  const [startRaw = "", endRaw = ""] = booking.timeSlot.split("-").map((part) => part.trim());
+  const targetRaw = boundary === "end" ? endRaw || startRaw : startRaw || endRaw;
+  const parsed = parseTimeSlotPart(targetRaw);
+
+  if (parsed) {
+    base.setHours(parsed.hours, parsed.minutes, 0, 0);
+    return base;
+  }
+
+  if (boundary === "end") {
+    base.setHours(23, 59, 59, 999);
+  } else {
+    base.setHours(0, 0, 0, 0);
+  }
+
+  return base;
+};
+
+const compareBookingsByScheduleAsc = (a: Booking, b: Booking) => {
+  const aTime = getBookingScheduleDateTime(a, "start").getTime();
+  const bTime = getBookingScheduleDateTime(b, "start").getTime();
+  if (aTime !== bTime) return aTime - bTime;
+  return a.timeSlot.localeCompare(b.timeSlot);
 };
 
 export default function AdminPanelClient({
@@ -357,19 +403,31 @@ export default function AdminPanelClient({
 
   const recentUsers = useMemo(() => users.slice(0, 12), [users]);
   const prepBookings = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const now = new Date();
 
     return upcomingConfirmedBookings
-      .filter((booking) => new Date(booking.date) >= todayStart)
-      .sort((a, b) => {
-        const aTime = new Date(a.date).getTime();
-        const bTime = new Date(b.date).getTime();
-        if (aTime !== bTime) return aTime - bTime;
-        return a.timeSlot.localeCompare(b.timeSlot);
-      })
+      .filter((booking) => getBookingScheduleDateTime(booking, "end").getTime() >= now.getTime())
+      .sort(compareBookingsByScheduleAsc)
       .slice(0, 20);
   }, [upcomingConfirmedBookings]);
+
+  const completedConfirmedBookings = useMemo(() => {
+    const now = new Date();
+
+    return upcomingConfirmedBookings
+      .filter((booking) => getBookingScheduleDateTime(booking, "end").getTime() < now.getTime())
+      .sort((a, b) => compareBookingsByScheduleAsc(b, a));
+  }, [upcomingConfirmedBookings]);
+
+  const attendedCompletedBookings = useMemo(
+    () => completedConfirmedBookings.filter((booking) => Boolean(booking.ticket?.usedAt)),
+    [completedConfirmedBookings]
+  );
+
+  const unattendedCompletedBookings = useMemo(
+    () => completedConfirmedBookings.filter((booking) => !booking.ticket?.usedAt),
+    [completedConfirmedBookings]
+  );
 
   const filteredManagedSubmissions = useMemo(() => {
     if (managedSubmissionEventFilter === "ALL") return managedSubmissions;
@@ -1292,7 +1350,7 @@ export default function AdminPanelClient({
         </div>
         <p className="text-sm text-[#434651]">
           {operationsTab === "overview" ? "Platform summary and high-level counts." : null}
-          {operationsTab === "bookings" ? "Manage incoming booking requests and prep upcoming lab sessions." : null}
+          {operationsTab === "bookings" ? "Manage incoming booking requests, prep upcoming sessions, and review attendance outcomes." : null}
           {operationsTab === "faculty" ? "Approve faculty accounts and review recent users." : null}
           {operationsTab === "tickets" ? "Verify tickets manually or by camera QR scan." : null}
           {operationsTab === "content" ? "Upload and review homepage hero slides." : null}
@@ -1574,7 +1632,7 @@ export default function AdminPanelClient({
                         />
                         <div className="text-sm">
                           <p className="font-semibold text-[#002155]">{member.name}</p>
-                          <p className="text-xs text-[#434651]">{member.email} • {member.role}</p>
+                          <p className="text-xs text-[#434651]">{member.email} • UID: {member.uid || "N/A"} • {member.role}</p>
                           <p className={`text-xs mt-1 ${alreadyPresent ? "text-[#0b6b2e]" : "text-[#8c4f00]"}`}>
                             {alreadyPresent
                               ? `PRESENT${member.checkedInAt ? ` at ${new Date(member.checkedInAt).toLocaleString()}` : ""}`
@@ -1714,6 +1772,11 @@ export default function AdminPanelClient({
                     <p className="mt-1 text-xs text-[#434651]">
                       Student: {booking.student.name} ({booking.student.email})
                     </p>
+                    <p className="mt-1 text-xs text-[#434651]">UID: {booking.student.uid || "Not provided"}</p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Ticket: {booking.ticket?.ticketId || "Not issued yet"}
+                      {booking.ticket ? ` (${booking.ticket.status})` : ""}
+                    </p>
                     <p className="mt-1 text-sm text-[#434651]">{booking.purpose}</p>
                     {booking.facilities?.length ? (
                       <p className="mt-1 text-xs text-[#434651]">Preparation checklist: {booking.facilities.join(", ")}</p>
@@ -1728,6 +1791,90 @@ export default function AdminPanelClient({
               </article>
             ))}
           </div>
+        )}
+      </section>
+
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-headline text-2xl text-[#002155]">Attendance for Completed Bookings</h2>
+          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+            {completedConfirmedBookings.length} completed
+          </span>
+        </div>
+
+        {completedConfirmedBookings.length === 0 ? (
+          <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No completed confirmed bookings yet.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <div className="border border-[#c4c6d3] bg-white p-4">
+                <p className="text-xs uppercase tracking-widest text-[#434651] font-label">Completed</p>
+                <p className="mt-2 text-2xl font-bold text-[#002155]">{completedConfirmedBookings.length}</p>
+              </div>
+              <div className="border border-green-200 bg-green-50 p-4">
+                <p className="text-xs uppercase tracking-widest text-[#0b6b2e] font-label">Came</p>
+                <p className="mt-2 text-2xl font-bold text-[#0b6b2e]">{attendedCompletedBookings.length}</p>
+              </div>
+              <div className="border border-red-200 bg-red-50 p-4">
+                <p className="text-xs uppercase tracking-widest text-[#ba1a1a] font-label">Did Not Come</p>
+                <p className="mt-2 text-2xl font-bold text-[#ba1a1a]">{unattendedCompletedBookings.length}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="border border-[#c4c6d3] bg-white p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-headline text-xl text-[#002155]">Came (Attendance Marked)</h3>
+                  <span className="text-xs uppercase tracking-widest text-[#0b6b2e] font-label">{attendedCompletedBookings.length}</span>
+                </div>
+
+                {attendedCompletedBookings.length === 0 ? (
+                  <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No completed booking has been checked in yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {attendedCompletedBookings.map((booking) => (
+                      <article key={`attended-booking-${booking.id}`} className="border border-green-200 bg-green-50 p-3">
+                        <p className="text-sm font-bold text-[#002155]">
+                          #{booking.id} • {booking.lab} • {new Date(booking.date).toLocaleDateString()} • {booking.timeSlot}
+                        </p>
+                        <p className="mt-1 text-xs text-[#434651]">Student: {booking.student.name} ({booking.student.email})</p>
+                        <p className="mt-1 text-xs text-[#434651]">UID: {booking.student.uid || "Not provided"}</p>
+                        <p className="mt-1 text-xs text-[#434651]">Ticket: {booking.ticket?.ticketId || "N/A"}</p>
+                        <p className="mt-1 text-xs font-semibold text-[#0b6b2e]">
+                          Came at: {booking.ticket?.usedAt ? new Date(booking.ticket.usedAt).toLocaleString() : "N/A"}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border border-[#c4c6d3] bg-white p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-headline text-xl text-[#002155]">Did Not Come</h3>
+                  <span className="text-xs uppercase tracking-widest text-[#ba1a1a] font-label">{unattendedCompletedBookings.length}</span>
+                </div>
+
+                {unattendedCompletedBookings.length === 0 ? (
+                  <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Everyone from completed bookings has attendance marked.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {unattendedCompletedBookings.map((booking) => (
+                      <article key={`absent-booking-${booking.id}`} className="border border-red-200 bg-red-50 p-3">
+                        <p className="text-sm font-bold text-[#002155]">
+                          #{booking.id} • {booking.lab} • {new Date(booking.date).toLocaleDateString()} • {booking.timeSlot}
+                        </p>
+                        <p className="mt-1 text-xs text-[#434651]">Student: {booking.student.name} ({booking.student.email})</p>
+                        <p className="mt-1 text-xs text-[#434651]">UID: {booking.student.uid || "Not provided"}</p>
+                        <p className="mt-1 text-xs text-[#434651]">Ticket: {booking.ticket?.ticketId || "N/A"}</p>
+                        <p className="mt-1 text-xs font-semibold text-[#ba1a1a]">Attendance: NOT MARKED (did not come)</p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </section>
 
@@ -1754,6 +1901,7 @@ export default function AdminPanelClient({
                     <p className="mt-2 text-xs text-[#434651]">
                       Student: {booking.student.name} ({booking.student.email})
                     </p>
+                    <p className="mt-1 text-xs text-[#434651]">UID: {booking.student.uid || "Not provided"}</p>
                     {booking.facilities?.length ? (
                       <p className="mt-1 text-xs text-[#434651]">
                         Facilities: {booking.facilities.join(", ")}

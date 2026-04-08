@@ -27,6 +27,12 @@ type Booking = {
   status: string;
   adminNote: string | null;
   createdAt: string;
+  ticket: {
+    id: number;
+    ticketId: string;
+    status: string;
+    usedAt: string | null;
+  } | null;
   student: BookingStudent;
 };
 
