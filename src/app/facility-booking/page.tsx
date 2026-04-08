@@ -455,7 +455,7 @@ export default function FacilityBookingPage() {
         // analytics must never break booking flow
       }
       
-      setBookingRef(`COE-2024-${data.data.id}-B`);
+      setBookingRef(`COE-2026-${data.data.id}-B`);
       setStep(4);
       await loadMyBookings();
       pushToast("Booking submitted successfully.", "success");

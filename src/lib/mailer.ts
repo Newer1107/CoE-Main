@@ -11,7 +11,7 @@ const brandHeader = `
 const brandFooter = `
   <div style="background:#f5f4f0;padding:16px 24px;text-align:center;font-size:11px;color:#747782;font-family:Arial,sans-serif;">
     <p style="margin:0;">Thakur College of Engineering &amp; Technology, Kandivali (E), Mumbai - 400101</p>
-    <p style="margin:4px 0 0;">&copy; 2024 TCET Center of Excellence. All Rights Reserved.</p>
+    <p style="margin:4px 0 0;">&copy; 2026 TCET Center of Excellence. All Rights Reserved.</p>
   </div>
 `;
 

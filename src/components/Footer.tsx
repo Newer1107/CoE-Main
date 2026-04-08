@@ -37,7 +37,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="bg-[#002155] text-white/70 py-4 md:py-6 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4 text-[9px] md:text-[10px] font-bold uppercase tracking-widest">
-        <span>© 2024 TCET Center of Excellence. All Rights Reserved. Designed for Academic Integrity.</span>
+        <span>© 2026 TCET Center of Excellence. All Rights Reserved. Designed for Academic Integrity.</span>
         <div className="flex gap-4 md:gap-8">
           <a className="hover:text-white transition-colors" href="#">Accessibility</a>
           <a className="hover:text-white transition-colors" href="#">Legal Archives</a>
