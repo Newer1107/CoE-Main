@@ -5,6 +5,64 @@ import { innovationEventRegisterSchema } from '@/lib/validators';
 import { parseStringList, sanitizeFilename } from '@/lib/innovation';
 import { uploadFileWithObjectKey } from '@/lib/minio';
 import { logActivity } from '@/lib/activity-log';
+import { getSignedUrl } from '@/lib/minio';
+
+type ClaimSummaryInput = {
+  id: number;
+  teamName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  submissionFileKey: string | null;
+  problem: {
+    id: number;
+    title: string;
+  };
+  members: Array<{
+    role: string;
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      uid: string | null;
+    };
+  }>;
+};
+
+const buildRegistrationSummary = async (claim: ClaimSummaryInput) => {
+  const teamLeader = claim.members.find((member) => member.role === 'LEAD') || claim.members[0] || null;
+  const submissionFileUrl = claim.submissionFileKey
+    ? await getSignedUrl(claim.submissionFileKey).catch(() => null)
+    : null;
+
+  return {
+    claimId: claim.id,
+    teamName: claim.teamName || `Team-${claim.id}`,
+    problem: {
+      id: claim.problem.id,
+      title: claim.problem.title,
+    },
+    teamLeader: teamLeader
+      ? {
+          id: teamLeader.user.id,
+          name: teamLeader.user.name,
+          email: teamLeader.user.email,
+          uid: teamLeader.user.uid,
+        }
+      : null,
+    members: claim.members.map((member) => ({
+      role: member.role,
+      user: {
+        id: member.user.id,
+        name: member.user.name,
+        email: member.user.email,
+        uid: member.user.uid,
+      },
+    })),
+    submissionFileUrl,
+    submittedAt: claim.updatedAt.toISOString(),
+    createdAt: claim.createdAt.toISOString(),
+  };
+};
 
 // POST /api/innovation/events/[id]/register
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -105,20 +163,54 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       where: {
         userId: { in: memberIds },
         claim: {
-          problemId: problem.id,
+          problem: { eventId },
         },
       },
-      select: { id: true },
+      include: {
+        claim: {
+          include: {
+            problem: { select: { id: true, title: true } },
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true, uid: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (existingInEvent) {
+      const existingSummary = await buildRegistrationSummary({
+        id: existingInEvent.claim.id,
+        teamName: existingInEvent.claim.teamName,
+        createdAt: existingInEvent.claim.createdAt,
+        updatedAt: existingInEvent.claim.updatedAt,
+        submissionFileKey: existingInEvent.claim.submissionFileKey,
+        problem: {
+          id: existingInEvent.claim.problem.id,
+          title: existingInEvent.claim.problem.title,
+        },
+        members: existingInEvent.claim.members,
+      });
+
       logActivity('INNOVATION_HACKATHON_REGISTER_REJECTED', {
         userId: user.id,
         eventId,
         problemId: problem.id,
-        reason: 'DUPLICATE_MEMBER_IN_PROBLEM',
+        reason: 'DUPLICATE_MEMBER_IN_EVENT',
+        conflictingClaimId: existingInEvent.claim.id,
       });
-      return errorRes('Registration conflict', ['A team member is already registered for this problem statement in this hackathon'], 400);
+
+      return Response.json(
+        {
+          success: false,
+          message: 'Already registered for this event. A selected member already belongs to an existing team.',
+          data: existingSummary,
+          errors: ['A selected member already belongs to an existing team for this hackathon event.'],
+        },
+        { status: 409 }
+      );
     }
 
     const claim = await prisma.claim.create({
@@ -135,7 +227,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true, email: true, uid: true } },
           },
         },
         problem: { select: { id: true, title: true } },
@@ -159,7 +251,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true, email: true, uid: true } },
           },
         },
         problem: {
@@ -178,7 +270,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       teamSize: updated.members.length,
     });
 
-    return successRes(updated, 'Event registration successful.', 201);
+    const registrationSummary = await buildRegistrationSummary({
+      id: updated.id,
+      teamName: updated.teamName,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+      submissionFileKey: updated.submissionFileKey,
+      problem: {
+        id: updated.problem.id,
+        title: updated.problem.title,
+      },
+      members: updated.members,
+    });
+
+    return successRes(
+      {
+        claimId: updated.id,
+        registration: registrationSummary,
+      },
+      'Event registration successful.',
+      201
+    );
   } catch (err) {
     console.error('Innovation event register POST error:', err);
     logActivity('INNOVATION_HACKATHON_REGISTER_ERROR', {

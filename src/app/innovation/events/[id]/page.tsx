@@ -5,6 +5,33 @@ import prisma from '@/lib/prisma';
 import { getSignedUrl } from '@/lib/minio';
 import InnovationEventClient from './InnovationEventClient';
 
+type ExistingRegistrationSummary = {
+  claimId: number;
+  teamName: string;
+  problem: {
+    id: number;
+    title: string;
+  };
+  teamLeader: {
+    id: number;
+    name: string;
+    email: string;
+    uid: string | null;
+  } | null;
+  members: Array<{
+    role: string;
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      uid: string | null;
+    };
+  }>;
+  submissionFileUrl: string | null;
+  submittedAt: string;
+  createdAt: string;
+};
+
 export default async function InnovationEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const eventId = Number(id);
@@ -35,6 +62,8 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
     : null;
 
   let viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null = null;
+  let viewerUserId: number | null = null;
+  let existingRegistration: ExistingRegistrationSummary | null = null;
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('accessToken')?.value;
@@ -42,10 +71,85 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
       const payload = verifyAccessToken(token);
       if (['STUDENT', 'FACULTY', 'ADMIN'].includes(payload.role)) {
         viewerRole = payload.role as 'STUDENT' | 'FACULTY' | 'ADMIN';
+        viewerUserId = payload.id;
       }
     }
   } catch {
     viewerRole = null;
+    viewerUserId = null;
+  }
+
+  if (viewerRole === 'STUDENT' && viewerUserId) {
+    const existingClaimMember = await prisma.claimMember.findFirst({
+      where: {
+        userId: viewerUserId,
+        claim: {
+          problem: {
+            eventId: event.id,
+          },
+        },
+      },
+      include: {
+        claim: {
+          include: {
+            problem: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    uid: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (existingClaimMember) {
+      const leader = existingClaimMember.claim.members.find((member) => member.role === 'LEAD') || existingClaimMember.claim.members[0] || null;
+      const submissionFileUrl = existingClaimMember.claim.submissionFileKey
+        ? await getSignedUrl(existingClaimMember.claim.submissionFileKey).catch(() => null)
+        : null;
+
+      existingRegistration = {
+        claimId: existingClaimMember.claim.id,
+        teamName: existingClaimMember.claim.teamName || `Team-${existingClaimMember.claim.id}`,
+        problem: {
+          id: existingClaimMember.claim.problem.id,
+          title: existingClaimMember.claim.problem.title,
+        },
+        teamLeader: leader
+          ? {
+              id: leader.user.id,
+              name: leader.user.name,
+              email: leader.user.email,
+              uid: leader.user.uid,
+            }
+          : null,
+        members: existingClaimMember.claim.members.map((member) => ({
+          role: member.role,
+          user: {
+            id: member.user.id,
+            name: member.user.name,
+            email: member.user.email,
+            uid: member.user.uid,
+          },
+        })),
+        submissionFileUrl,
+        submittedAt: existingClaimMember.claim.updatedAt.toISOString(),
+        createdAt: existingClaimMember.claim.createdAt.toISOString(),
+      };
+    }
   }
 
   return (
@@ -72,6 +176,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
         eventBriefUrl={eventBriefUrl}
         problems={event.problems}
         viewerRole={viewerRole}
+        initialRegistration={existingRegistration}
       />
     </main>
   );

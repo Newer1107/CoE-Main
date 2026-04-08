@@ -77,6 +77,33 @@ type UidLookupRow = {
   isVerified: boolean | null;
 };
 
+type ExistingRegistrationSummary = {
+  claimId: number;
+  teamName: string;
+  problem: {
+    id: number;
+    title: string;
+  };
+  teamLeader: {
+    id: number;
+    name: string;
+    email: string;
+    uid: string | null;
+  } | null;
+  members: Array<{
+    role: string;
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      uid: string | null;
+    };
+  }>;
+  submissionFileUrl: string | null;
+  submittedAt: string;
+  createdAt: string;
+};
+
 type InnovationEventClientProps = {
   eventId: number;
   title: string;
@@ -90,6 +117,7 @@ type InnovationEventClientProps = {
   eventBriefUrl: string | null;
   problems: ProblemLite[];
   viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null;
+  initialRegistration: ExistingRegistrationSummary | null;
 };
 
 export default function InnovationEventClient({
@@ -105,6 +133,7 @@ export default function InnovationEventClient({
   eventBriefUrl,
   problems,
   viewerRole,
+  initialRegistration,
 }: InnovationEventClientProps) {
   const [selectedProblem, setSelectedProblem] = useState<ProblemLite | null>(null);
   const [selectedProblemIndex, setSelectedProblemIndex] = useState<number | null>(null);
@@ -124,6 +153,7 @@ export default function InnovationEventClient({
   const [uidLookupMessage, setUidLookupMessage] = useState('');
   const [uidLookupRows, setUidLookupRows] = useState<UidLookupRow[]>([]);
   const [verifiedUidSnapshot, setVerifiedUidSnapshot] = useState('');
+  const [registrationSummary, setRegistrationSummary] = useState<ExistingRegistrationSummary | null>(initialRegistration);
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -299,7 +329,11 @@ export default function InnovationEventClient({
   };
 
   const registrationClosed = !registrationOpen || status === 'CLOSED' || new Date() > new Date(registrationCloseISO);
-  const canShowRegistrationForm = viewerRole === 'STUDENT' && !registrationClosed && problems.length > 0;
+  const canShowRegistrationForm =
+    viewerRole === 'STUDENT' &&
+    !registrationClosed &&
+    problems.length > 0 &&
+    !registrationSummary;
 
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -368,8 +402,36 @@ export default function InnovationEventClient({
         credentials: 'include',
       });
 
-      const payload = (await res.json()) as { success: boolean; message: string };
-      if (!res.ok || !payload.success) throw new Error(payload.message || 'Registration failed');
+      const payload = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: {
+          claimId?: number;
+          registration?: ExistingRegistrationSummary;
+        } | ExistingRegistrationSummary | null;
+      };
+
+      const dataObject = payload?.data ?? null;
+      const registrationFromData =
+        dataObject && typeof dataObject === 'object' && 'registration' in dataObject
+          ? (dataObject.registration as ExistingRegistrationSummary | null)
+          : (dataObject as ExistingRegistrationSummary | null);
+
+      if (!res.ok || !payload.success) {
+        if (registrationFromData?.claimId) {
+          setRegistrationSummary(registrationFromData);
+          setStatusMessage('You are already registered for this event. Team details are shown below.');
+          setErrorMessage('');
+          pushToast('Already registered for this event.', 'success');
+          return;
+        }
+
+        throw new Error(payload.message || 'Registration failed');
+      }
+
+      if (registrationFromData?.claimId) {
+        setRegistrationSummary(registrationFromData);
+      }
 
       trackSafe('hackathon_register', {
         event_id: String(eventId),
@@ -377,7 +439,7 @@ export default function InnovationEventClient({
         team_size: teamSize,
       });
 
-      setStatusMessage('Team registered successfully.');
+      setStatusMessage('Team registered successfully. Your registration details are shown below.');
       pushToast("Team registered successfully!", "success");
       setTeamName('');
       setTeamSize(1);
@@ -515,6 +577,55 @@ export default function InnovationEventClient({
         </div>
       ) : null}
 
+      {registrationSummary ? (
+        <section className="mb-8 border border-[#0b6b2e] bg-[#f2fbf4] p-5">
+          <p className="text-xs uppercase tracking-widest text-[#0b6b2e] font-bold">Already Registered</p>
+          <h3 className="mt-1 font-headline text-2xl text-[#002155]">{registrationSummary.teamName}</h3>
+          <p className="mt-2 text-sm text-[#434651]">
+            Problem: <span className="font-semibold text-[#002155]">{registrationSummary.problem.title}</span>
+          </p>
+          <p className="mt-1 text-sm text-[#434651]">
+            Team Leader:{' '}
+            <span className="font-semibold text-[#002155]">
+              {registrationSummary.teamLeader
+                ? `${registrationSummary.teamLeader.name} (${registrationSummary.teamLeader.email})${registrationSummary.teamLeader.uid ? ` - UID: ${registrationSummary.teamLeader.uid}` : ''}`
+                : 'Not available'}
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-[#434651]">Registered on: {new Date(registrationSummary.submittedAt).toLocaleString()}</p>
+
+          <div className="mt-4">
+            <p className="text-xs uppercase tracking-widest text-[#002155] font-bold mb-2">Team Members</p>
+            <div className="space-y-2">
+              {registrationSummary.members.map((member) => (
+                <div key={`${registrationSummary.claimId}-${member.user.id}`} className="border border-[#c4c6d3] bg-white px-3 py-2 text-sm">
+                  <p className="font-semibold text-[#002155]">
+                    {member.user.name} ({member.user.email})
+                  </p>
+                  <p className="text-xs text-[#434651]">
+                    Role: {member.role}
+                    {member.user.uid ? ` | UID: ${member.user.uid}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {registrationSummary.submissionFileUrl ? (
+            <a
+              href={registrationSummary.submissionFileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex mt-4 text-xs font-bold uppercase tracking-wider text-[#002155] underline"
+            >
+              Open Uploaded PPT/PDF
+            </a>
+          ) : (
+            <p className="mt-4 text-xs text-[#8c4f00]">PPT/PDF link is currently unavailable.</p>
+          )}
+        </section>
+      ) : null}
+
       {canShowRegistrationForm ? (
         <section id="register-team" className="mb-8 border border-[#c4c6d3] bg-white p-5">
           <h3 className="font-headline text-2xl text-[#002155] mb-4">Register Team</h3>
@@ -609,7 +720,7 @@ export default function InnovationEventClient({
         </section>
       ) : null}
 
-      {!canShowRegistrationForm ? (
+      {!canShowRegistrationForm && !registrationSummary ? (
         <p className="mb-8 border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">
           {viewerRole === null
             ? 'Login as a student to register for this event.'

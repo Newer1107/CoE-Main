@@ -77,7 +77,6 @@ export async function GET(req: NextRequest) {
           where: {
             userId: { in: userIds },
             claim: {
-              problemId,
               problem: { eventId },
             },
           },
@@ -136,7 +135,7 @@ export async function GET(req: NextRequest) {
       } else if (alreadyParticipated) {
         reason =
           registrationTypeRaw === 'hackathon'
-            ? 'This user has already participated in this hackathon in this problem statement.'
+            ? 'This user is already registered in a team for this hackathon event.'
             : 'This user has already participated in this open problem statement.';
       }
 
