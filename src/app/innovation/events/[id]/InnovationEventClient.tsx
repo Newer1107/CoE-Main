@@ -1,10 +1,50 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
+
+const descriptionUrlRegex = /((https?:\/\/|www\.)[^\s<>"]+)/gi;
+
+const renderTextWithClickableLinks = (text: string): ReactNode[] => {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(descriptionUrlRegex)) {
+    const matchedUrl = match[0];
+    const startIndex = match.index ?? 0;
+
+    if (startIndex > lastIndex) {
+      nodes.push(text.slice(lastIndex, startIndex));
+    }
+
+    const href = matchedUrl.startsWith('http://') || matchedUrl.startsWith('https://')
+      ? matchedUrl
+      : `https://${matchedUrl}`;
+
+    nodes.push(
+      <a
+        key={`desc-link-${startIndex}-${matchedUrl}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline text-[#002155] font-semibold break-all"
+      >
+        {matchedUrl}
+      </a>
+    );
+
+    lastIndex = startIndex + matchedUrl.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+};
 
 type ProblemLite = {
   id: number;
@@ -402,7 +442,7 @@ export default function InnovationEventClient({
       <section className="mb-8 border border-[#c4c6d3] bg-white p-5">
         <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{status}</p>
         <h2 className="text-2xl font-headline text-[#002155] mt-1">{title}</h2>
-        {description ? <p className="mt-2 text-sm text-[#434651]">{description}</p> : null}
+        {description ? <p className="mt-2 text-sm text-[#434651] whitespace-pre-wrap break-words">{renderTextWithClickableLinks(description)}</p> : null}
         <p className="mt-2 text-xs text-[#434651]">Starts: {new Date(startTimeISO).toLocaleString()}</p>
         <p className="mt-1 text-xs text-[#434651]">Ends: {new Date(endTimeISO).toLocaleString()}</p>
         <p className="mt-1 text-xs text-[#434651]">
@@ -470,7 +510,7 @@ export default function InnovationEventClient({
                 Close
               </button>
             </div>
-            <p className="mt-4 text-sm text-[#434651] whitespace-pre-wrap">{selectedProblem.description}</p>
+            <p className="mt-4 text-sm text-[#434651] whitespace-pre-wrap break-words">{renderTextWithClickableLinks(selectedProblem.description)}</p>
           </div>
         </div>
       ) : null}
