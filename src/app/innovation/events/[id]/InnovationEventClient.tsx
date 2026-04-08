@@ -852,16 +852,18 @@ export default function InnovationEventClient({
           <p className="mb-3 text-xs text-[#434651]">UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28). Enter valid UIDs for all team members. First fetch user details to verify the team, then submit registration.</p>
           <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleRegister}>
             <input className="border border-[#747782] p-3 text-sm" placeholder="Team name" value={teamName} onChange={(e) => setTeamName(e.target.value)} required />
-            <input
-              type="number"
-              min={1}
-              max={10}
+            <select
               className="border border-[#747782] p-3 text-sm"
-              placeholder="Total team size (including lead)"
               value={teamSize}
-              onChange={(e) => setTeamSize(Math.max(1, Number(e.target.value) || 1))}
+              onChange={(e) => setTeamSize(Number(e.target.value))}
               required
-            />
+            >
+              <option value={1}>Total team size: 1 (Lead only)</option>
+              <option value={2}>Total team size: 2</option>
+              <option value={3}>Total team size: 3</option>
+              <option value={4}>Total team size: 4</option>
+              <option value={5}>Total team size: 5</option>
+            </select>
             <select className="border border-[#747782] p-3 text-sm" value={problemId} onChange={(e) => setProblemId(Number(e.target.value))} required>
               {problems.map((problem) => (
                 <option key={problem.id} value={problem.id}>

@@ -287,7 +287,7 @@ export const innovationEventUpdateSchema = z.object({
 
 export const innovationEventRegisterSchema = z.object({
   teamName: z.string().min(2),
-  teamSize: z.coerce.number().int().min(1).max(10),
+  teamSize: z.coerce.number().int().min(1).max(5),
   teamLeadUid: tcetUidSchema,
   memberUids: z.array(tcetUidSchema),
   problemId: z.coerce.number().int().positive(),
