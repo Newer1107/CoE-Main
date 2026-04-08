@@ -13,6 +13,15 @@ type BookingItem = {
   purpose: string;
 };
 
+type ParsedUidDetails = {
+  normalizedUid: string;
+  startYear: string;
+  endYear: string;
+  branch: string;
+  division: string;
+  rollNo: string;
+};
+
 export default function FacilityBookingPage() {
   const { pushToast } = useToast();
   const bookingAuthHref = "/login?next=%2Ffacility-booking&reason=booking-auth-required";
@@ -44,6 +53,7 @@ export default function FacilityBookingPage() {
   
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
+  const [uidPreview, setUidPreview] = useState<ParsedUidDetails | null>(null);
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -233,37 +243,42 @@ export default function FacilityBookingPage() {
     e.preventDefault();
     setAuthError("");
     setAuthSuccess("");
+
+    const parseUidForPreview = (rawUid: string): ParsedUidDetails | null => {
+      const normalizedUid = rawUid.trim().toUpperCase();
+      const match = normalizedUid.match(/^(\d{2})-([A-Z]+)([A-Z])(\d{2,3})-(\d{2})$/);
+      if (!match) return null;
+
+      const [, startYearShort, branchPart, division, rollNo, endYearShort] = match;
+
+      return {
+        normalizedUid,
+        startYear: `20${startYearShort}`,
+        endYear: `20${endYearShort}`,
+        branch: branchPart,
+        division,
+        rollNo,
+      };
+    };
+
+    const parsedUidPreview = role === "STUDENT" ? parseUidForPreview(uid) : null;
+    if (role === "STUDENT" && !parsedUidPreview) {
+      const message = "Invalid UID format. Use STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).";
+      setAuthError(message);
+      pushToast(message, "error");
+      return;
+    }
+
+    if (role === "STUDENT" && parsedUidPreview) {
+      setUid(parsedUidPreview.normalizedUid);
+      setUidPreview(parsedUidPreview);
+      return;
+    }
+
     setLoading(true);
     let trackedSignUpFailure = false;
     try {
-      if (role === "STUDENT") {
-        const res = await fetch("/api/auth/register/student", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name, phone, uid })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          const reason = res.status >= 500 ? "server_error" : "validation";
-          try {
-            trackEvent("sign_up_failed", { reason });
-          } catch {
-            // analytics must never break auth flow
-          }
-          trackedSignUpFailure = true;
-          throw new Error(data.message || "Registration failed");
-        }
-
-        try {
-          trackEvent("sign_up", { method: "email", role: "STUDENT" });
-        } catch {
-          // analytics must never break auth flow
-        }
-
-        setOtpSent(true);
-        setAuthSuccess("OTP sent to your email!");
-        pushToast("Registration successful. OTP sent to your email.", "success");
-      } else {
+      if (role === "FACULTY") {
         const res = await fetch("/api/auth/register/faculty", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -292,6 +307,60 @@ export default function FacilityBookingPage() {
         setEmail(""); setPassword(""); setName(""); setPhone("");
         setTimeout(() => setIsLogin(true), 3000);
       }
+    } catch (err: unknown) {
+      if (!trackedSignUpFailure) {
+        try {
+          trackEvent("sign_up_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break auth flow
+        }
+      }
+
+      const message = err instanceof Error ? err.message : "Registration failed";
+      setAuthError(message);
+      pushToast(message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmUidAndRegister = async () => {
+    if (!uidPreview) return;
+
+    setAuthError("");
+    setAuthSuccess("");
+    setLoading(true);
+    let trackedSignUpFailure = false;
+
+    try {
+      const res = await fetch("/api/auth/register/student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name, phone, uid: uidPreview.normalizedUid })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const reason = res.status >= 500 ? "server_error" : "validation";
+        try {
+          trackEvent("sign_up_failed", { reason });
+        } catch {
+          // analytics must never break auth flow
+        }
+        trackedSignUpFailure = true;
+        throw new Error(data.message || "Registration failed");
+      }
+
+      try {
+        trackEvent("sign_up", { method: "email", role: "STUDENT" });
+      } catch {
+        // analytics must never break auth flow
+      }
+
+      setUid(uidPreview.normalizedUid);
+      setUidPreview(null);
+      setOtpSent(true);
+      setAuthSuccess("OTP sent to your email!");
+      pushToast("Registration successful. OTP sent to your email.", "success");
     } catch (err: unknown) {
       if (!trackedSignUpFailure) {
         try {
@@ -754,6 +823,49 @@ export default function FacilityBookingPage() {
           </div>
         </aside>
       </div>
+
+      {uidPreview ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-xl border border-[#c4c6d3] bg-white p-6 md:p-8 shadow-xl">
+            <h3 className="font-headline text-2xl text-[#002155]">Confirm UID Details</h3>
+            <p className="mt-2 text-sm text-[#434651]">
+              Please verify the extracted information before sending OTP.
+            </p>
+
+            <div className="mt-5 border border-[#c4c6d3] bg-[#f5f4f0] p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#747782]">Entered UID</p>
+              <p className="mt-1 text-sm font-bold text-[#002155]">{uidPreview.normalizedUid}</p>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <p><span className="text-[#747782]">Start Year:</span> <span className="font-bold text-[#002155]">{uidPreview.startYear}</span></p>
+                <p><span className="text-[#747782]">End Year:</span> <span className="font-bold text-[#002155]">{uidPreview.endYear}</span></p>
+                <p><span className="text-[#747782]">Branch:</span> <span className="font-bold text-[#002155]">{uidPreview.branch}</span></p>
+                <p><span className="text-[#747782]">Division:</span> <span className="font-bold text-[#002155]">{uidPreview.division}</span></p>
+                <p className="sm:col-span-2"><span className="text-[#747782]">Roll No:</span> <span className="font-bold text-[#002155]">{uidPreview.rollNo}</span></p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setUidPreview(null)}
+                disabled={loading}
+                className="border border-[#c4c6d3] px-5 py-3 text-xs font-bold uppercase tracking-wider text-[#434651] disabled:opacity-60"
+              >
+                Edit UID
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmUidAndRegister()}
+                disabled={loading}
+                className="bg-[#002155] px-5 py-3 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
+              >
+                {loading ? "Processing..." : "Confirm & Send OTP"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

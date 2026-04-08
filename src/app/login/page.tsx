@@ -6,6 +6,15 @@ import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
 import { trackEvent } from "@/lib/analytics";
 
+type ParsedUidDetails = {
+  normalizedUid: string;
+  startYear: string;
+  endYear: string;
+  branch: string;
+  division: string;
+  rollNo: string;
+};
+
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const { pushToast } = useToast();
@@ -25,18 +34,19 @@ export default function LoginPage() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [needsOtp, setNeedsOtp] = useState(false);
+  const [uidPreview, setUidPreview] = useState<ParsedUidDetails | null>(null);
   const [showFacultyWarningModal, setShowFacultyWarningModal] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    if (!needsOtp && !showFacultyWarningModal) return;
+    if (!needsOtp && !showFacultyWarningModal && !uidPreview) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [needsOtp, showFacultyWarningModal]);
+  }, [needsOtp, showFacultyWarningModal, uidPreview]);
 
   useEffect(() => {
     if (!needsOtp || otpLoading) return;
@@ -240,9 +250,27 @@ export default function LoginPage() {
   const confirmFacultyRegistrationIntent = () => {
     setShowFacultyWarningModal(false);
     setNeedsOtp(false);
+    setUidPreview(null);
     setActiveAuthMode("register-faculty");
     setError("");
     setStatus("Faculty onboarding requests are audited. Proceed with authentic institutional details only.");
+  };
+
+  const parseUidForPreview = (rawUid: string): ParsedUidDetails | null => {
+    const normalizedUid = rawUid.trim().toUpperCase();
+    const match = normalizedUid.match(/^(\d{2})-([A-Z]+)([A-Z])(\d{2,3})-(\d{2})$/);
+    if (!match) return null;
+
+    const [, startYearShort, branchPart, division, rollNo, endYearShort] = match;
+
+    return {
+      normalizedUid,
+      startYear: `20${startYearShort}`,
+      endYear: `20${endYearShort}`,
+      branch: branchPart,
+      division,
+      rollNo,
+    };
   };
 
   const handleRegister = async (event: React.FormEvent) => {
@@ -254,41 +282,14 @@ export default function LoginPage() {
 
     try {
       if (activeAuthMode === "register-student") {
-        const res = await fetch("/api/auth/register/student", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: registerName,
-            email: registerEmail,
-            phone: registerPhone,
-            password: registerPassword,
-            uid: registerUid,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          const reason = res.status >= 500 ? "server_error" : "validation";
-          try {
-            trackEvent("sign_up_failed", { reason });
-          } catch {
-            // analytics must never break auth flow
-          }
-          trackedSignUpFailure = true;
-          throw new Error(data?.message || "Student registration failed.");
+        const parsedUid = parseUidForPreview(registerUid);
+        if (!parsedUid) {
+          throw new Error("Invalid UID format. Use STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).");
         }
 
-        try {
-          trackEvent("sign_up", { method: "email", role: "STUDENT" });
-        } catch {
-          // analytics must never break auth flow
-        }
-
-        setVerificationEmail(registerEmail.trim().toLowerCase());
-        setNeedsOtp(true);
-        setStatus("Student registration successful. Verify your email with OTP.");
-        pushToast("Registration successful. OTP sent to your email.", "success");
-        setActiveAuthMode("login");
+        setRegisterUid(parsedUid.normalizedUid);
+        setUidPreview(parsedUid);
+        return;
       } else {
         const res = await fetch("/api/auth/register/faculty", {
           method: "POST",
@@ -323,7 +324,68 @@ export default function LoginPage() {
         pushToast("Faculty registration submitted successfully.", "success");
         setActiveAuthMode("login");
       }
+    } catch (err) {
+      if (!trackedSignUpFailure) {
+        try {
+          trackEvent("sign_up_failed", { reason: "server_error" });
+        } catch {
+          // analytics must never break auth flow
+        }
+      }
 
+      const message = err instanceof Error ? err.message : "Registration failed.";
+      setError(message);
+      pushToast(message, "error");
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const handleConfirmUidAndRegister = async () => {
+    if (!uidPreview) return;
+
+    setError("");
+    setStatus("");
+    setRegisterLoading(true);
+    let trackedSignUpFailure = false;
+
+    try {
+        const res = await fetch("/api/auth/register/student", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: registerName,
+            email: registerEmail,
+            phone: registerPhone,
+            password: registerPassword,
+            uid: uidPreview.normalizedUid,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          const reason = res.status >= 500 ? "server_error" : "validation";
+          try {
+            trackEvent("sign_up_failed", { reason });
+          } catch {
+            // analytics must never break auth flow
+          }
+          trackedSignUpFailure = true;
+          throw new Error(data?.message || "Student registration failed.");
+        }
+
+        try {
+          trackEvent("sign_up", { method: "email", role: "STUDENT" });
+        } catch {
+          // analytics must never break auth flow
+        }
+
+        setVerificationEmail(registerEmail.trim().toLowerCase());
+        setNeedsOtp(true);
+        setUidPreview(null);
+        setStatus("Student registration successful. Verify your email with OTP.");
+        pushToast("Registration successful. OTP sent to your email.", "success");
+        setActiveAuthMode("login");
       setRegisterName("");
       setRegisterEmail("");
       setRegisterPhone("");
@@ -395,7 +457,10 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveAuthMode("register-student")}
+              onClick={() => {
+                setUidPreview(null);
+                setActiveAuthMode("register-student");
+              }}
               className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "register-student" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
                 }`}
             >
@@ -569,6 +634,52 @@ export default function LoginPage() {
                 className="border border-[#7a0000] bg-[#7a0000] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-[#5f0000]"
               >
                 I Am Authorized Faculty, Proceed
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {uidPreview ? (
+        <div className="fixed inset-0 z-[98] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-[#00122f]/60" onClick={() => setUidPreview(null)} />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm student UID"
+            className="relative w-full max-w-lg border border-[#c4c6d3] bg-white p-6 md:p-7 shadow-2xl"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">Verify UID Details</p>
+            <h3 className="mt-1 font-headline text-2xl text-[#002155]">Confirm Before Sending OTP</h3>
+            <p className="mt-3 text-sm text-[#434651]">Please verify the extracted details from your UID.</p>
+
+            <div className="mt-4 rounded border border-[#d9dbe5] bg-[#f8f9fc] p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#747782]">Normalized UID</p>
+              <p className="mt-1 text-sm font-bold text-[#002155]">{uidPreview.normalizedUid}</p>
+              <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                <p><span className="text-[#747782]">Start Year:</span> <span className="font-bold text-[#002155]">{uidPreview.startYear}</span></p>
+                <p><span className="text-[#747782]">End Year:</span> <span className="font-bold text-[#002155]">{uidPreview.endYear}</span></p>
+                <p><span className="text-[#747782]">Branch:</span> <span className="font-bold text-[#002155]">{uidPreview.branch}</span></p>
+                <p><span className="text-[#747782]">Division:</span> <span className="font-bold text-[#002155]">{uidPreview.division}</span></p>
+                <p className="sm:col-span-2"><span className="text-[#747782]">Roll No:</span> <span className="font-bold text-[#002155]">{uidPreview.rollNo}</span></p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setUidPreview(null)}
+                className="border border-[#c4c6d3] bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#434651] hover:border-[#002155] hover:text-[#002155]"
+              >
+                Edit UID
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmUidAndRegister()}
+                disabled={registerLoading}
+                className="border border-[#002155] bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-[#1a438e] disabled:opacity-70"
+              >
+                {registerLoading ? "Sending OTP..." : "Looks Correct, Send OTP"}
               </button>
             </div>
           </section>

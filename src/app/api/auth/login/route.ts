@@ -3,7 +3,13 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
 import { loginSchema } from '@/lib/validators';
-import { generateAccessToken, generateRefreshToken, TokenPayload } from '@/lib/jwt';
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  REFRESH_TOKEN_TTL_SECONDS,
+  generateAccessToken,
+  generateRefreshToken,
+  TokenPayload,
+} from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,7 +76,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: secureCookies,
       sameSite: 'lax',
-      maxAge: 15 * 60,
+      maxAge: ACCESS_TOKEN_TTL_SECONDS,
       path: '/',
     });
 
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: secureCookies,
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60,
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
       path: '/',
     });
 

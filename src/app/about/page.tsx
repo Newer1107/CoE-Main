@@ -37,7 +37,7 @@ export default function AboutPage() {
               />
               <div className="mt-4 border-l-2 border-[#8c4f00] pl-4 py-2 bg-[#f5f4f0]">
                 <p className="text-sm italic font-headline text-[#434651]">
-                  &quot;The pursuit of knowledge is a structural endeavor, requiring both the foundation of tradition and the scaffolding of innovation.&quot; — Founding Dean
+                  &quot;The pursuit of knowledge is a structural endeavor, requiring both the foundation of tradition and the scaffolding of innovation.&quot; — Dr. B.K. Mishra
                 </p>
               </div>
             </div>
@@ -121,27 +121,27 @@ export default function AboutPage() {
                   <tbody>
                     {[
                       {
-                        year: "2012",
-                        title: "Foundation and Chartering",
-                        desc: "Official ratification of the Center of Excellence by the Governing Body. Initiation of the first specialized research wing focusing on VLSI and Embedded Systems.",
+                        year: "April 2026",
+                        title: "Execution Phase",
+                        desc: "Kicked off the first hackathon, launched project development cycles, and opened registrations for wider participation.",
                         alt: false,
                       },
                       {
-                        year: "2015",
-                        title: "Research Grant Acquisition",
-                        desc: "Awarded the MODROB grant for laboratory modernization. Established the state-of-the-art Center for AI and Machine Learning research.",
+                        year: "March 2026",
+                        title: "Orientation & Activation",
+                        desc: "Introduced students to opportunities, conducted orientations, and onboarded participants into active teams.",
                         alt: true,
                       },
                       {
-                        year: "2018",
-                        title: "Global Institutional Partnership",
-                        desc: "Signed Memorandums of Understanding (MoU) with leading international technical universities for faculty exchange and collaborative patent filing.",
+                        year: "January 2026",
+                        title: "Setup & Development",
+                        desc: "Completed operational readiness, aligned internal processes, and began development of the website and platform.",
                         alt: false,
                       },
                       {
-                        year: "2023",
-                        title: "Patenting and IP Leadership",
-                        desc: "Achieved a milestone of 50+ published patents and 200+ indexed research citations in Q1 journals under the CoE banner.",
+                        year: "December 2025",
+                        title: "Foundation Phase",
+                        desc: "Set up the Centre of Excellence, built the core infrastructure, and formed the initial team with a clear execution plan.",
                         alt: true,
                       },
                     ].map((item) => (

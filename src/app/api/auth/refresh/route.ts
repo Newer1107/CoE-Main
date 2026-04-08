@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
-import { verifyRefreshToken, generateAccessToken, TokenPayload } from '@/lib/jwt';
+import { ACCESS_TOKEN_TTL_SECONDS, verifyRefreshToken, generateAccessToken, TokenPayload } from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: secureCookies,
       sameSite: 'lax',
-      maxAge: 15 * 60,
+      maxAge: ACCESS_TOKEN_TTL_SECONDS,
       path: '/',
     });
 
