@@ -7,8 +7,7 @@ export default function Footer() {
           <div className="font-body leading-relaxed opacity-70 text-xs md:text-sm space-y-1">
             <p>Thakur Village, Kandivali (E), Mumbai - 400101.</p>
             <p>Maharashtra, India.</p>
-            <p className="pt-2">Email: coe@tcetmumbai.in</p>
-            <p>Phone: +91 22 6730 8000</p>
+            <p className="pt-2">Email: tcet.cercd@tcetmumbai.in</p>
           </div>
           <div className="flex gap-4 mt-6">
             <span className="material-symbols-outlined text-[#002155] cursor-pointer hover:text-[#fd9923] transition-colors">social_leaderboard</span>

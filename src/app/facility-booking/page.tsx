@@ -722,12 +722,12 @@ export default function FacilityBookingPage() {
             <div className="space-y-5">
               <div>
                 <p className="font-bold text-sm text-[#002155]">Lab Superintendent</p>
-                <p className="text-[11px] md:text-xs text-[#434651] italic">coe.support@tcetmumbai.in</p>
+                <p className="text-[11px] md:text-xs text-[#434651] italic">tcet.cercd@tcetmumbai.in</p>
                 <p className="text-[11px] md:text-xs font-bold text-[#8c4f00] mt-1">+91 22 6730 8000 (Ext: 104)</p>
               </div>
               <div className="pt-4 border-t border-[#dbdad6]">
                 <p className="font-bold text-sm text-[#002155]">System Administrator</p>
-                <p className="text-[11px] md:text-xs text-[#434651] italic">sysadmin.coe@tcetmumbai.in</p>
+                <p className="text-[11px] md:text-xs text-[#434651] italic">tcet.cercd@tcetmumbai.in</p>
               </div>
             </div>
           </div>

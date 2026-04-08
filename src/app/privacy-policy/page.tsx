@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-lg md:text-2xl font-headline font-bold text-[#002155] mb-2">8. Contact</h2>
             <p>
-              For privacy-related queries, contact: <span className="font-semibold">coe@tcetmumbai.in</span>
+              For privacy-related queries, contact: <span className="font-semibold">tcet.cercd@tcetmumbai.in</span>
             </p>
           </section>
         </div>
