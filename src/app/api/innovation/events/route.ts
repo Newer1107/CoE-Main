@@ -19,17 +19,28 @@ export async function GET() {
   try {
     const events = await prisma.hackathonEvent.findMany({
       include: {
-        _count: { select: { problems: true } },
+        _count: { select: { problems: true, interests: true } },
         createdBy: { select: { id: true, name: true, email: true } },
+        interests: { select: { hasDetails: true } },
       },
       orderBy: [{ startTime: 'asc' }],
     });
 
     const payload = await Promise.all(
-      events.map(async (event) => ({
-        ...event,
-        pptFileUrl: event.pptFileKey ? await getSignedUrl(event.pptFileKey).catch(() => null) : null,
-      }))
+      events.map(async (event) => {
+        const { interests, ...eventData } = event;
+        const totalWithDetails = interests.reduce(
+          (count, interest) => count + (interest.hasDetails ? 1 : 0),
+          0,
+        );
+
+        return {
+          ...eventData,
+          totalInterested: event._count.interests,
+          totalInterestedWithDetails: totalWithDetails,
+          pptFileUrl: event.pptFileKey ? await getSignedUrl(event.pptFileKey).catch(() => null) : null,
+        };
+      })
     );
 
     return successRes(payload, 'Hackathon events retrieved.');

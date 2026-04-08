@@ -104,6 +104,13 @@ type ExistingRegistrationSummary = {
   createdAt: string;
 };
 
+type ViewerInterestSummary = {
+  id: number;
+  hasDetails: boolean;
+  teamName: string | null;
+  teamSize: number | null;
+};
+
 type InnovationEventClientProps = {
   eventId: number;
   title: string;
@@ -118,6 +125,7 @@ type InnovationEventClientProps = {
   problems: ProblemLite[];
   viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null;
   initialRegistration: ExistingRegistrationSummary | null;
+  initialInterest: ViewerInterestSummary | null;
 };
 
 export default function InnovationEventClient({
@@ -134,6 +142,7 @@ export default function InnovationEventClient({
   problems,
   viewerRole,
   initialRegistration,
+  initialInterest,
 }: InnovationEventClientProps) {
   const [selectedProblem, setSelectedProblem] = useState<ProblemLite | null>(null);
   const [selectedProblemIndex, setSelectedProblemIndex] = useState<number | null>(null);
@@ -154,6 +163,11 @@ export default function InnovationEventClient({
   const [uidLookupRows, setUidLookupRows] = useState<UidLookupRow[]>([]);
   const [verifiedUidSnapshot, setVerifiedUidSnapshot] = useState('');
   const [registrationSummary, setRegistrationSummary] = useState<ExistingRegistrationSummary | null>(initialRegistration);
+  const [interestRecord, setInterestRecord] = useState<ViewerInterestSummary | null>(initialInterest);
+  const [interestBusy, setInterestBusy] = useState(false);
+  const [interestDetailsBusy, setInterestDetailsBusy] = useState(false);
+  const [interestTeamName, setInterestTeamName] = useState(initialInterest?.teamName || '');
+  const [interestTeamSize, setInterestTeamSize] = useState<number>(initialInterest?.teamSize ?? 1);
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -334,6 +348,141 @@ export default function InnovationEventClient({
     !registrationClosed &&
     problems.length > 0 &&
     !registrationSummary;
+  const isInterested = Boolean(interestRecord);
+
+  const parseInterestRecord = (value: unknown): ViewerInterestSummary | null => {
+    if (!value || typeof value !== 'object') return null;
+
+    const payload = value as {
+      id?: unknown;
+      hasDetails?: unknown;
+      teamName?: unknown;
+      teamSize?: unknown;
+    };
+
+    if (typeof payload.id !== 'number' || typeof payload.hasDetails !== 'boolean') return null;
+
+    return {
+      id: payload.id,
+      hasDetails: payload.hasDetails,
+      teamName: typeof payload.teamName === 'string' ? payload.teamName : null,
+      teamSize: typeof payload.teamSize === 'number' ? payload.teamSize : null,
+    };
+  };
+
+  const handleMarkInterested = async () => {
+    if (viewerRole !== 'STUDENT' || interestBusy || isInterested) return;
+
+    setErrorMessage('');
+    setStatusMessage('');
+    setInterestBusy(true);
+
+    try {
+      const res = await fetch('/api/innovation/interest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ eventId }),
+      });
+
+      const payload = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: {
+          created?: boolean;
+          interest?: unknown;
+        };
+      };
+
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.message || 'Could not mark interest');
+      }
+
+      const nextInterest = parseInterestRecord(payload?.data?.interest);
+      if (nextInterest) {
+        setInterestRecord(nextInterest);
+        setInterestTeamName(nextInterest.teamName || '');
+        setInterestTeamSize(nextInterest.teamSize ?? 1);
+      }
+
+      setStatusMessage(payload.message || "You're marked as interested.");
+      pushToast("You're marked as interested", 'success');
+      trackSafe('hackathon_interest_marked', {
+        event_id: String(eventId),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not mark interest';
+      setErrorMessage(message);
+      pushToast(message, 'error');
+      trackSafe('hackathon_interest_mark_failed', {
+        event_id: String(eventId),
+      });
+    } finally {
+      setInterestBusy(false);
+    }
+  };
+
+  const handleSaveInterestDetails = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (viewerRole !== 'STUDENT' || !interestRecord) return;
+
+    setErrorMessage('');
+    setStatusMessage('');
+    setInterestDetailsBusy(true);
+
+    try {
+      const res = await fetch('/api/innovation/interest', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId,
+          teamName: interestTeamName,
+          teamSize: interestTeamSize,
+        }),
+      });
+
+      const payload = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: {
+          interest?: unknown;
+        };
+      };
+
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.message || 'Could not save interest details');
+      }
+
+      const nextInterest = parseInterestRecord(payload?.data?.interest);
+
+      if (nextInterest) {
+        setInterestRecord(nextInterest);
+        setInterestTeamName(nextInterest.teamName || '');
+        setInterestTeamSize(nextInterest.teamSize ?? 1);
+      }
+
+      setStatusMessage(payload.message || 'Optional team details saved.');
+      pushToast('Optional team details saved', 'success');
+      trackSafe('hackathon_interest_details_saved', {
+        event_id: String(eventId),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not save team details';
+      setErrorMessage(message);
+      pushToast(message, 'error');
+      trackSafe('hackathon_interest_details_failed', {
+        event_id: String(eventId),
+      });
+    } finally {
+      setInterestDetailsBusy(false);
+    }
+  };
 
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -516,6 +665,77 @@ export default function InnovationEventClient({
           <a href={eventBriefUrl} target="_blank" rel="noreferrer" className="inline-flex mt-3 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
             Open Event Brief (PPT/PDF)
           </a>
+        ) : null}
+      </section>
+
+      <section className="mb-8 border border-[#c4c6d3] bg-white p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h3 className="font-headline text-2xl text-[#002155]">Show Interest</h3>
+
+          {viewerRole === 'STUDENT' ? (
+            <button
+              type="button"
+              onClick={() => void handleMarkInterested()}
+              disabled={interestBusy || isInterested}
+              className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+            >
+              {interestBusy ? 'Saving...' : isInterested ? "You're Interested" : "I'm Interested"}
+            </button>
+          ) : viewerRole === null ? (
+            <Link
+              href={`/login?next=${encodeURIComponent(`/innovation/events/${eventId}`)}`}
+              className="border border-[#002155] text-[#002155] px-4 py-3 text-xs font-bold uppercase tracking-wider"
+            >
+              Login To Mark Interest
+            </Link>
+          ) : (
+            <p className="text-xs text-[#434651]">Only student accounts can mark interest.</p>
+          )}
+        </div>
+
+        {isInterested ? (
+          <div className="mt-4 border border-[#e3e2df] bg-[#faf9f5] p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">Add Team Details (Optional)</p>
+            <p className="mt-1 text-xs text-[#434651]">
+              This does not register your team. It only shares early planning details.
+            </p>
+            <p className="mt-1 text-xs text-[#8c4f00]">
+              {interestRecord?.hasDetails
+                ? 'You already added details. You can update them below.'
+                : 'Optional details are currently missing for your interest record.'}
+            </p>
+
+            <form className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3" onSubmit={handleSaveInterestDetails}>
+              <input
+                value={interestTeamName}
+                onChange={(e) => setInterestTeamName(e.target.value)}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm md:col-span-2"
+                placeholder="Team name (optional)"
+              />
+              <select
+                value={interestTeamSize}
+                onChange={(e) => setInterestTeamSize(Number(e.target.value))}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={4}>4</option>
+                <option value={5}>5</option>
+              </select>
+              <button
+                type="submit"
+                disabled={interestDetailsBusy}
+                className="bg-[#0b6b2e] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-60"
+              >
+                {interestDetailsBusy
+                  ? 'Saving...'
+                  : interestRecord?.hasDetails
+                    ? 'Update Optional Details'
+                    : 'Save Optional Details'}
+              </button>
+            </form>
+          </div>
         ) : null}
       </section>
 

@@ -32,6 +32,13 @@ type ExistingRegistrationSummary = {
   createdAt: string;
 };
 
+type ViewerInterestSummary = {
+  id: number;
+  hasDetails: boolean;
+  teamName: string | null;
+  teamSize: number | null;
+};
+
 export default async function InnovationEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const eventId = Number(id);
@@ -64,6 +71,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
   let viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null = null;
   let viewerUserId: number | null = null;
   let existingRegistration: ExistingRegistrationSummary | null = null;
+  let viewerInterest: ViewerInterestSummary | null = null;
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('accessToken')?.value;
@@ -80,40 +88,65 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
   }
 
   if (viewerRole === 'STUDENT' && viewerUserId) {
-    const existingClaimMember = await prisma.claimMember.findFirst({
-      where: {
-        userId: viewerUserId,
-        claim: {
-          problem: {
-            eventId: event.id,
+    const [existingClaimMember, existingInterest] = await Promise.all([
+      prisma.claimMember.findFirst({
+        where: {
+          userId: viewerUserId,
+          claim: {
+            problem: {
+              eventId: event.id,
+            },
           },
         },
-      },
-      include: {
-        claim: {
-          include: {
-            problem: {
-              select: {
-                id: true,
-                title: true,
+        include: {
+          claim: {
+            include: {
+              problem: {
+                select: {
+                  id: true,
+                  title: true,
+                },
               },
-            },
-            members: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    uid: true,
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      uid: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.hackathonInterest.findUnique({
+        where: {
+          userId_eventId: {
+            userId: viewerUserId,
+            eventId: event.id,
+          },
+        },
+        select: {
+          id: true,
+          hasDetails: true,
+          teamName: true,
+          teamSize: true,
+        },
+      }),
+    ]);
+
+    if (existingInterest) {
+      viewerInterest = {
+        id: existingInterest.id,
+        hasDetails: existingInterest.hasDetails,
+        teamName: existingInterest.teamName,
+        teamSize: existingInterest.teamSize,
+      };
+    }
 
     if (existingClaimMember) {
       const leader = existingClaimMember.claim.members.find((member) => member.role === 'LEAD') || existingClaimMember.claim.members[0] || null;
@@ -177,6 +210,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
         problems={event.problems}
         viewerRole={viewerRole}
         initialRegistration={existingRegistration}
+        initialInterest={viewerInterest}
       />
     </main>
   );

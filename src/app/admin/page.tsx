@@ -89,6 +89,31 @@ type InnovationEvent = {
   startTime: string;
   endTime: string;
   submissionLockAt: string | null;
+  totalInterested: number;
+  totalInterestedWithDetails: number;
+};
+
+type InnovationEventInterest = {
+  eventId: number;
+  eventTitle: string;
+  eventStatus: 'UPCOMING' | 'ACTIVE' | 'JUDGING' | 'CLOSED';
+  totalInterested: number;
+  totalWithDetails: number;
+  interestedStudents: Array<{
+    id: number;
+    userId: number;
+    hasDetails: boolean;
+    teamName: string | null;
+    teamSize: number | null;
+    createdAt: string;
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      uid: string | null;
+      phone: string | null;
+    };
+  }>;
 };
 
 function getRequestBaseUrl(headerStore: Headers): string {
@@ -174,9 +199,20 @@ export default async function AdminPage() {
   let heroSlides: HeroSlide[];
   let innovationSubmissions: InnovationSubmission[];
   let innovationEvents: InnovationEvent[];
+  let innovationEventInterests: InnovationEventInterest[];
 
   try {
-    [stats, pendingBookings, upcomingConfirmedBookings, pendingFaculty, users, heroSlides, innovationSubmissions, innovationEvents] = await Promise.all([
+    [
+      stats,
+      pendingBookings,
+      upcomingConfirmedBookings,
+      pendingFaculty,
+      users,
+      heroSlides,
+      innovationSubmissions,
+      innovationEvents,
+      innovationEventInterests,
+    ] = await Promise.all([
       fetchAdmin<Stats>(baseUrl, "/api/admin/stats", token),
       fetchAdmin<Booking[]>(baseUrl, "/api/admin/bookings?status=PENDING", token),
       fetchAdmin<Booking[]>(baseUrl, "/api/admin/bookings?status=CONFIRMED", token),
@@ -185,6 +221,7 @@ export default async function AdminPage() {
       fetchAdmin<HeroSlide[]>(baseUrl, "/api/hero-slides", token),
       fetchAdmin<InnovationSubmission[]>(baseUrl, "/api/innovation/admin/submissions", token),
       fetchAdmin<InnovationEvent[]>(baseUrl, "/api/innovation/events", token),
+      fetchAdmin<InnovationEventInterest[]>(baseUrl, "/api/innovation/admin/interests", token),
     ]);
   } catch (err) {
     return (
@@ -209,6 +246,7 @@ export default async function AdminPage() {
       heroSlides={heroSlides}
       innovationSubmissions={innovationSubmissions}
       innovationEvents={innovationEvents}
+      innovationEventInterests={innovationEventInterests}
     />
   );
 }

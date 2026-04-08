@@ -83,6 +83,31 @@ type InnovationEvent = {
   startTime: string;
   endTime: string;
   submissionLockAt: string | null;
+  totalInterested: number;
+  totalInterestedWithDetails: number;
+};
+
+type InnovationEventInterest = {
+  eventId: number;
+  eventTitle: string;
+  eventStatus: "UPCOMING" | "ACTIVE" | "JUDGING" | "CLOSED";
+  totalInterested: number;
+  totalWithDetails: number;
+  interestedStudents: Array<{
+    id: number;
+    userId: number;
+    hasDetails: boolean;
+    teamName: string | null;
+    teamSize: number | null;
+    createdAt: string;
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      uid: string | null;
+      phone: string | null;
+    };
+  }>;
 };
 
 type ManagedHackathonSubmission = {
@@ -184,6 +209,7 @@ type AdminPanelClientProps = {
   heroSlides: HeroSlide[];
   innovationSubmissions: InnovationSubmission[];
   innovationEvents: InnovationEvent[];
+  innovationEventInterests: InnovationEventInterest[];
 };
 
 type EmailQueueStatus = "PENDING" | "PROCESSING" | "RETRY" | "SENT" | "FAILED";
@@ -337,6 +363,7 @@ export default function AdminPanelClient({
   heroSlides,
   innovationSubmissions,
   innovationEvents,
+  innovationEventInterests,
 }: AdminPanelClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -448,6 +475,14 @@ export default function AdminPanelClient({
     () => filteredManagedSubmissions.filter((claim) => ["ACCEPTED", "REJECTED"].includes(claim.status)),
     [filteredManagedSubmissions]
   );
+
+  const eventInterestById = useMemo(() => {
+    const map = new Map<number, InnovationEventInterest>();
+    for (const item of innovationEventInterests) {
+      map.set(item.eventId, item);
+    }
+    return map;
+  }, [innovationEventInterests]);
 
   const stagedScreeningCount = useMemo(
     () => screeningSubmissions.filter((claim) => ["SHORTLISTED", "REJECTED"].includes(stagedDecisions[claim.id] || "")).length,
@@ -2218,61 +2253,109 @@ export default function AdminPanelClient({
               <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No innovation events found.</p>
             ) : (
               <div className="space-y-3">
-                {innovationEvents.map((event) => (
-                  <article key={event.id} className="border border-[#c4c6d3] bg-white p-5">
-                    <p className="text-sm font-bold text-[#002155]">#{event.id} • {event.title}</p>
-                    <p className="mt-1 text-xs text-[#434651]">
-                      Event: {event.status === "CLOSED" ? "CLOSED" : "OPEN"} ({event.status})
-                    </p>
-                    <p className="mt-1 text-xs text-[#434651]">Submissions: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
-                    <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
-                    <p className="mt-1 text-xs text-[#434651]">
-                      Submission lock: {event.submissionLockAt ? new Date(event.submissionLockAt).toLocaleString() : "Not set"}
-                    </p>
+                {innovationEvents.map((event) => {
+                  const eventInterest = eventInterestById.get(event.id);
+                  const totalInterested = eventInterest?.totalInterested ?? event.totalInterested;
+                  const totalWithDetails = eventInterest?.totalWithDetails ?? event.totalInterestedWithDetails;
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {event.status === "UPCOMING" ? (
+                  return (
+                    <article key={event.id} className="border border-[#c4c6d3] bg-white p-5">
+                      <p className="text-sm font-bold text-[#002155]">#{event.id} • {event.title}</p>
+                      <p className="mt-1 text-xs text-[#434651]">
+                        Event: {event.status === "CLOSED" ? "CLOSED" : "OPEN"} ({event.status})
+                      </p>
+                      <p className="mt-1 text-xs text-[#434651]">Submissions: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
+                      <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
+                      <p className="mt-1 text-xs text-[#434651]">
+                        Submission lock: {event.submissionLockAt ? new Date(event.submissionLockAt).toLocaleString() : "Not set"}
+                      </p>
+                      <p className="mt-1 text-xs text-[#434651]">Interest: {totalInterested} students ({totalWithDetails} with team details)</p>
+
+                      <details className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-3">
+                        <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#002155]">
+                          Interested Students ({eventInterest?.interestedStudents.length || 0})
+                        </summary>
+                        {eventInterest?.interestedStudents.length ? (
+                          <div className="mt-3 overflow-x-auto border border-[#d8d6cf] bg-white">
+                            <table className="w-full text-xs">
+                              <thead className="bg-[#f5f4f0] text-[#434651] uppercase tracking-wider">
+                                <tr>
+                                  <th className="text-left px-3 py-2">Name</th>
+                                  <th className="text-left px-3 py-2">UID</th>
+                                  <th className="text-left px-3 py-2">Phone</th>
+                                  <th className="text-left px-3 py-2">Team Details</th>
+                                  <th className="text-left px-3 py-2">Marked At</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {eventInterest.interestedStudents.map((entry) => (
+                                  <tr key={`interest-student-${event.id}-${entry.id}`} className="border-t border-[#e3e2df]">
+                                    <td className="px-3 py-2">
+                                      <p className="font-semibold text-[#002155]">{entry.user.name}</p>
+                                      <p className="text-[11px] text-[#747782]">{entry.user.email}</p>
+                                    </td>
+                                    <td className="px-3 py-2">{entry.user.uid || "N/A"}</td>
+                                    <td className="px-3 py-2">{entry.user.phone || "N/A"}</td>
+                                    <td className="px-3 py-2">
+                                      {entry.hasDetails
+                                        ? `${entry.teamName || "No team name"} | Size ${entry.teamSize || "N/A"}`
+                                        : "Not added"}
+                                    </td>
+                                    <td className="px-3 py-2">{new Date(entry.createdAt).toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-xs text-[#434651]">No interested students yet.</p>
+                        )}
+                      </details>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {event.status === "UPCOMING" ? (
+                          <button
+                            onClick={() => handleInnovationEventStatus(event.id, "ACTIVE")}
+                            disabled={busyInnovationEventId === event.id}
+                            className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            Mark OPEN
+                          </button>
+                        ) : null}
+                        {event.status === "ACTIVE" || event.status === "JUDGING" ? (
+                          <button
+                            onClick={() => handleInnovationEventStatus(event.id, "CLOSED")}
+                            disabled={busyInnovationEventId === event.id}
+                            className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            Mark CLOSED
+                          </button>
+                        ) : null}
+
                         <button
-                          onClick={() => handleInnovationEventStatus(event.id, "ACTIVE")}
+                          onClick={() => void handleToggleEventRegistration(event)}
                           disabled={busyInnovationEventId === event.id}
-                          className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                         >
-                          Mark OPEN
+                          {event.registrationOpen ? "Close Submissions" : "Open Submissions"}
                         </button>
-                      ) : null}
-                      {event.status === "ACTIVE" || event.status === "JUDGING" ? (
+
                         <button
-                          onClick={() => handleInnovationEventStatus(event.id, "CLOSED")}
-                          disabled={busyInnovationEventId === event.id}
-                          className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          onClick={() => void handleLoadInnovationLeaderboard(event.id)}
+                          className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
                         >
-                          Mark CLOSED
+                          Leaderboard
                         </button>
-                      ) : null}
-
-                      <button
-                        onClick={() => void handleToggleEventRegistration(event)}
-                        disabled={busyInnovationEventId === event.id}
-                        className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-                      >
-                        {event.registrationOpen ? "Close Submissions" : "Open Submissions"}
-                      </button>
-
-                      <button
-                        onClick={() => void handleLoadInnovationLeaderboard(event.id)}
-                        className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
-                      >
-                        Leaderboard
-                      </button>
-                      <Link
-                        href={`/innovation/events/${event.id}`}
-                        className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider"
-                      >
-                        View Event Page
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+                        <Link
+                          href={`/innovation/events/${event.id}`}
+                          className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                        >
+                          View Event Page
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>

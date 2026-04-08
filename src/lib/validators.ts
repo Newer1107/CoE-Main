@@ -293,6 +293,16 @@ export const innovationEventRegisterSchema = z.object({
   problemId: z.coerce.number().int().positive(),
 });
 
+export const innovationInterestCreateSchema = z.object({
+  eventId: z.coerce.number().int().positive(),
+});
+
+export const innovationInterestUpdateSchema = z.object({
+  eventId: z.coerce.number().int().positive(),
+  teamName: z.string().trim().max(120, 'Team name must be at most 120 characters').optional().or(z.literal('')),
+  teamSize: z.coerce.number().int().min(1).max(5),
+});
+
 export const innovationEventStatusSchema = z.object({
   status: z.enum(['UPCOMING', 'ACTIVE', 'JUDGING', 'CLOSED']),
 });

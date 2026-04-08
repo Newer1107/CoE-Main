@@ -112,6 +112,7 @@ model User {
   studentProfile    StudentProfile?
   applications      Application[]
   tickets           Ticket[]
+  hackathonInterests HackathonInterest[]
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
 
   @@map("users")
@@ -267,6 +268,7 @@ model HackathonEvent {
   createdById Int
   createdBy   User        @relation("HackathonCreator", fields: [createdById], references: [id], onDelete: Cascade)
   problems    Problem[]
+  interests   HackathonInterest[]
   pptFileKey  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -276,6 +278,24 @@ model HackathonEvent {
   @@index([endTime])
   @@index([createdById])
   @@map("hackathon_events")
+}
+
+model HackathonInterest {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  eventId    Int
+  hasDetails Boolean  @default(false)
+  teamName   String?
+  teamSize   Int?
+  createdAt  DateTime @default(now())
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event      HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([eventId, hasDetails])
+  @@index([eventId, createdAt])
+  @@map("hackathon_interests")
 }
 
 model Otp {
