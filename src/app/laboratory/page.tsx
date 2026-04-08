@@ -27,6 +27,21 @@ export default function LaboratoryPage() {
   const equipment: Equipment[] = [
     {
       id: 1,
+      name: "Dell Pro Max with GB10",
+      category: "Computing",
+      imageAlt:
+        "Dell Pro Max with GB10 compact AI workstation connected to peripherals in a professional workspace",
+      imageUrl:
+        "https://media.assettype.com/deccanherald%2F2025-10-24%2Fvbpaz8hr%2FDell-Pro-Max-with-GB10-2.jpg?w=undefined",
+      specs: [
+        { key: "CPU", value: "NVIDIA GB10 Grace (20-core ARM)" },
+        { key: "GPU", value: "NVIDIA GB10 Blackwell (integrated AI accelerator)" },
+        { key: "RAM", value: "128 GB LPDDR5X (unified memory)" },
+        { key: "Storage", value: "4 TB M.2 NVMe SSD" },
+      ],
+    },
+    {
+      id: 2,
       name: "Dell Pro Tower QCT 1250",
       category: "Computing",
       imageAlt:
@@ -43,7 +58,7 @@ export default function LaboratoryPage() {
       ],
     },
     {
-      id: 2,
+      id: 3,
       name: "Dell Vostro 3910",
       category: "Computing",
       imageAlt:
@@ -60,7 +75,7 @@ export default function LaboratoryPage() {
       ],
     },
     {
-      id: 3,
+      id: 4,
       name: "EPSON LQ-310 Printer",
       category: "Electronics",
       imageAlt: "EPSON LQ-310 dot matrix printer in a lab computer bay",
