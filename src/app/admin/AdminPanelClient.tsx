@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -198,6 +198,192 @@ type InnovationLeaderboardRow = {
   teamName: string;
   score: number;
   members: { id: number; name: string; email: string; role: string }[];
+};
+
+type InnovationStatus = ManagedHackathonSubmission["status"];
+
+type InnovationTab = "events" | "review" | "leaderboard" | "analytics";
+type InnovationAnalyticsTab = "participants" | "teams" | "attendance" | "insights";
+
+type AnalyticsStage = "SCREENING" | "JUDGING" | "CLOSED";
+type AnalyticsStageFilter = "ALL" | AnalyticsStage;
+type AnalyticsStatusFilter = "ALL" | "IN_PROGRESS" | "SUBMITTED" | "SHORTLISTED" | "ACCEPTED" | "REVISION_REQUESTED" | "REJECTED";
+
+type ParticipantAnalyticsRow = {
+  id: number;
+  teamId: number;
+  teamName: string;
+  teamIdentifier: string;
+  memberName: string;
+  role: "Leader" | "Member";
+  email: string;
+  phone: string | null;
+  uid: string | null;
+  problemId: number;
+  problemStatement: string;
+  eventId: number | null;
+  eventName: string;
+  submissionStatus: InnovationStatus;
+  stage: AnalyticsStage;
+  finalScore: number | null;
+  updatedAt: string;
+};
+
+type ParticipantAnalyticsData = {
+  items: ParticipantAnalyticsRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: {
+    totalParticipants: number;
+    totalTeams: number;
+    averageScore: number | null;
+  };
+  options: {
+    events: Array<{ id: number; title: string; status: InnovationEvent["status"] }>;
+    problems: Array<{ id: number; title: string; eventId: number | null }>;
+    teams: Array<{ id: number; name: string; problemId: number; eventId: number | null }>;
+  };
+};
+
+type TeamAnalyticsData = {
+  summary: {
+    totalTeamsRegistered: number;
+    shortlistedTeamsCount: number;
+    acceptedTeamsCount: number;
+    rejectedTeamsCount: number;
+    averageTeamScore: number | null;
+  };
+  acceptedVsRejected: {
+    accepted: number;
+    rejected: number;
+  };
+  teamsPerProblem: Array<{
+    problemId: number;
+    problemTitle: string;
+    count: number;
+    eventId: number | null;
+  }>;
+  leaderboard: Array<{
+    rank: number;
+    teamId: number;
+    teamName: string;
+    score: number;
+    status: InnovationStatus;
+    problemTitle: string;
+    eventTitle: string;
+  }>;
+  teams: {
+    items: Array<{
+      teamId: number;
+      teamName: string;
+      status: InnovationStatus;
+      stage: AnalyticsStage;
+      finalScore: number | null;
+      updatedAt: string;
+      problemId: number;
+      problemTitle: string;
+      eventId: number | null;
+      eventTitle: string;
+      memberCount: number;
+      attendance: {
+        presentCount: number;
+        totalMembers: number;
+        attendancePercentage: number;
+      };
+      ticket: {
+        id: number;
+        ticketId: string;
+        status: "ACTIVE" | "USED" | "CANCELLED";
+      } | null;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+type AttendanceAnalyticsData = {
+  items: Array<{
+    teamId: number;
+    teamName: string;
+    submissionStatus: InnovationStatus;
+    stage: AnalyticsStage;
+    updatedAt: string;
+    problemId: number;
+    problemTitle: string;
+    eventId: number | null;
+    eventTitle: string;
+    ticket: {
+      id: number;
+      ticketId: string;
+      status: "ACTIVE" | "USED" | "CANCELLED";
+    } | null;
+    attendance: {
+      presentCount: number;
+      totalMembers: number;
+      attendancePercentage: number;
+    };
+    members: Array<{
+      claimMemberId: number;
+      userId: number;
+      name: string;
+      email: string;
+      phone: string | null;
+      uid: string | null;
+      role: "Leader" | "Member";
+      attendanceStatus: "PRESENT" | "NOT_PRESENT";
+      markedTime: string | null;
+      markedBy: {
+        id: number;
+        name: string;
+        email: string;
+      } | null;
+    }>;
+  }>;
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: {
+    totalPresent: number;
+    totalMembers: number;
+    attendancePercentage: number;
+  };
+};
+
+type InsightsAnalyticsData = {
+  participationTrends: Array<{ date: string; teams: number }>;
+  problemPopularity: Array<{ problemId: number; problemTitle: string; teams: number }>;
+  dropOffRate: {
+    registered: number;
+    submitted: number;
+    shortlisted: number;
+    accepted: number;
+    percentages: {
+      submittedFromRegistered: number;
+      shortlistedFromRegistered: number;
+      acceptedFromRegistered: number;
+    };
+  };
+  averageScoresByProblem: Array<{
+    problemId: number;
+    problemTitle: string;
+    averageScore: number;
+    scoredTeams: number;
+  }>;
+  judgeScoringDistribution: {
+    scoreBins: Array<{ range: string; teams: number }>;
+    rubricAverages: Array<{ rubric: string; average: number | null; count: number }>;
+  };
+  attendanceVsPerformance: {
+    correlation: number | null;
+    sampleSize: number;
+    bucketAverages: {
+      lowAttendance: { range: string; averageScore: number | null; teams: number };
+      mediumAttendance: { range: string; averageScore: number | null; teams: number };
+      highAttendance: { range: string; averageScore: number | null; teams: number };
+    };
+  };
 };
 
 type AdminPanelClientProps = {
@@ -422,6 +608,40 @@ export default function AdminPanelClient({
   const [ticketScannerStarting, setTicketScannerStarting] = useState(false);
   const [ticketScannerError, setTicketScannerError] = useState("");
   const [operationsTab, setOperationsTab] = useState<OperationsTab>("overview");
+  const [innovationTab, setInnovationTab] = useState<InnovationTab>("events");
+  const [innovationAnalyticsTab, setInnovationAnalyticsTab] = useState<InnovationAnalyticsTab>("participants");
+
+  const [analyticsEventFilter, setAnalyticsEventFilter] = useState<number | "ALL">("ALL");
+  const [analyticsProblemFilter, setAnalyticsProblemFilter] = useState<number | "ALL">("ALL");
+  const [analyticsTeamFilter, setAnalyticsTeamFilter] = useState<number | "ALL">("ALL");
+  const [analyticsStageFilter, setAnalyticsStageFilter] = useState<AnalyticsStageFilter>("ALL");
+  const [analyticsStartDate, setAnalyticsStartDate] = useState("");
+  const [analyticsEndDate, setAnalyticsEndDate] = useState("");
+
+  const [participantSearch, setParticipantSearch] = useState("");
+  const [participantStatusFilter, setParticipantStatusFilter] = useState<AnalyticsStatusFilter>("ALL");
+  const [participantPage, setParticipantPage] = useState(1);
+  const [participantPageSize, setParticipantPageSize] = useState(25);
+  const [participantData, setParticipantData] = useState<ParticipantAnalyticsData | null>(null);
+  const [loadingParticipantData, setLoadingParticipantData] = useState(false);
+
+  const [teamAnalyticsPage, setTeamAnalyticsPage] = useState(1);
+  const [teamAnalyticsPageSize, setTeamAnalyticsPageSize] = useState(15);
+  const [teamData, setTeamData] = useState<TeamAnalyticsData | null>(null);
+  const [loadingTeamData, setLoadingTeamData] = useState(false);
+
+  const [attendanceSearch, setAttendanceSearch] = useState("");
+  const [attendancePage, setAttendancePage] = useState(1);
+  const [attendancePageSize, setAttendancePageSize] = useState(8);
+  const [attendanceData, setAttendanceData] = useState<AttendanceAnalyticsData | null>(null);
+  const [loadingAttendanceData, setLoadingAttendanceData] = useState(false);
+  const [attendanceUpdateKey, setAttendanceUpdateKey] = useState<string | null>(null);
+
+  const [insightsData, setInsightsData] = useState<InsightsAnalyticsData | null>(null);
+  const [loadingInsightsData, setLoadingInsightsData] = useState(false);
+
+  const [debouncedParticipantSearch, setDebouncedParticipantSearch] = useState("");
+  const [debouncedAttendanceSearch, setDebouncedAttendanceSearch] = useState("");
 
   const scannerVideoRef = useRef<HTMLVideoElement | null>(null);
   const scannerStreamRef = useRef<MediaStream | null>(null);
@@ -494,7 +714,58 @@ export default function AdminPanelClient({
     [judgingSubmissions, stagedDecisions]
   );
 
-  const getDefaultRubricsForClaim = (claim: ManagedHackathonSubmission): HackathonRubrics => ({
+  const analyticsEventOptions = useMemo(() => {
+    if (participantData?.options?.events?.length) return participantData.options.events;
+    return innovationEvents.map((event) => ({ id: event.id, title: event.title, status: event.status }));
+  }, [participantData, innovationEvents]);
+
+  const analyticsProblemOptions = useMemo(() => {
+    const options = participantData?.options?.problems || [];
+    if (analyticsEventFilter === "ALL") return options;
+    return options.filter((problem) => problem.eventId === analyticsEventFilter);
+  }, [participantData, analyticsEventFilter]);
+
+  const analyticsTeamOptions = useMemo(() => {
+    const options = participantData?.options?.teams || [];
+    return options.filter((team) => {
+      if (analyticsEventFilter !== "ALL" && team.eventId !== analyticsEventFilter) return false;
+      if (analyticsProblemFilter !== "ALL" && team.problemId !== analyticsProblemFilter) return false;
+      return true;
+    });
+  }, [participantData, analyticsEventFilter, analyticsProblemFilter]);
+
+  const buildAnalyticsQueryParams = useCallback((
+    extra?: Record<string, string | number | null | undefined>
+  ) => {
+    const params = new URLSearchParams();
+
+    if (analyticsEventFilter !== "ALL") params.set("eventId", String(analyticsEventFilter));
+    if (analyticsProblemFilter !== "ALL") params.set("problemId", String(analyticsProblemFilter));
+    if (analyticsTeamFilter !== "ALL") params.set("teamId", String(analyticsTeamFilter));
+    if (analyticsStageFilter !== "ALL") params.set("stage", analyticsStageFilter);
+    if (analyticsStartDate) params.set("startDate", analyticsStartDate);
+    if (analyticsEndDate) params.set("endDate", analyticsEndDate);
+
+    if (extra) {
+      for (const [key, value] of Object.entries(extra)) {
+        if (value == null) continue;
+        const normalized = typeof value === "string" ? value.trim() : String(value);
+        if (normalized.length === 0) continue;
+        params.set(key, normalized);
+      }
+    }
+
+    return params;
+  }, [
+    analyticsEventFilter,
+    analyticsProblemFilter,
+    analyticsTeamFilter,
+    analyticsStageFilter,
+    analyticsStartDate,
+    analyticsEndDate,
+  ]);
+
+  const getDefaultRubricsForClaim = useCallback((claim: ManagedHackathonSubmission): HackathonRubrics => ({
     innovation: clampRubricScore(claim.innovationScore ?? 7),
     technical: clampRubricScore(claim.technicalScore ?? 7),
     impact: clampRubricScore(claim.impactScore ?? 7),
@@ -502,9 +773,9 @@ export default function AdminPanelClient({
     execution: clampRubricScore(claim.executionScore ?? 7),
     presentation: clampRubricScore(claim.presentationScore ?? 7),
     feasibility: clampRubricScore(claim.feasibilityScore ?? 7),
-  });
+  }), []);
 
-  const hydrateRubricDrafts = (claims: ManagedHackathonSubmission[]) => {
+  const hydrateRubricDrafts = useCallback((claims: ManagedHackathonSubmission[]) => {
     setJudgingRubricsByClaimId((prev) => {
       const next: Record<number, HackathonRubrics> = {};
       for (const claim of claims) {
@@ -512,7 +783,7 @@ export default function AdminPanelClient({
       }
       return next;
     });
-  };
+  }, [getDefaultRubricsForClaim]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -564,7 +835,7 @@ export default function AdminPanelClient({
     };
 
     void loadManagedSubmissions();
-  }, [activeView]);
+  }, [activeView, hydrateRubricDrafts]);
 
   useEffect(() => {
     if (activeView !== "operations" || operationsTab !== "emails") return;
@@ -632,6 +903,223 @@ export default function AdminPanelClient({
 
     void loadEmailBadge();
   }, [activeView]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedParticipantSearch(participantSearch.trim());
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [participantSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAttendanceSearch(attendanceSearch.trim());
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [attendanceSearch]);
+
+  useEffect(() => {
+    setAnalyticsProblemFilter("ALL");
+    setAnalyticsTeamFilter("ALL");
+    setParticipantPage(1);
+    setTeamAnalyticsPage(1);
+    setAttendancePage(1);
+  }, [analyticsEventFilter]);
+
+  useEffect(() => {
+    setAnalyticsTeamFilter("ALL");
+    setParticipantPage(1);
+    setTeamAnalyticsPage(1);
+    setAttendancePage(1);
+  }, [analyticsProblemFilter]);
+
+  const loadParticipantAnalytics = useCallback(async () => {
+    try {
+      setLoadingParticipantData(true);
+      const params = buildAnalyticsQueryParams({
+        search: debouncedParticipantSearch || undefined,
+        status: participantStatusFilter === "ALL" ? undefined : participantStatusFilter,
+        page: participantPage,
+        pageSize: participantPageSize,
+      });
+
+      const payload = await apiCall(`/api/innovation/admin/analytics/participants?${params.toString()}`, {
+        method: "GET",
+      });
+
+      setParticipantData((payload?.data || null) as ParticipantAnalyticsData | null);
+    } catch (err) {
+      setParticipantData(null);
+      setErrorMessage(err instanceof Error ? err.message : "Could not load participant analytics.");
+    } finally {
+      setLoadingParticipantData(false);
+    }
+  }, [
+    buildAnalyticsQueryParams,
+    debouncedParticipantSearch,
+    participantStatusFilter,
+    participantPage,
+    participantPageSize,
+  ]);
+
+  const loadTeamAnalytics = useCallback(async () => {
+    try {
+      setLoadingTeamData(true);
+      const params = buildAnalyticsQueryParams({
+        page: teamAnalyticsPage,
+        pageSize: teamAnalyticsPageSize,
+      });
+
+      const payload = await apiCall(`/api/innovation/admin/analytics/teams?${params.toString()}`, {
+        method: "GET",
+      });
+
+      setTeamData((payload?.data || null) as TeamAnalyticsData | null);
+    } catch (err) {
+      setTeamData(null);
+      setErrorMessage(err instanceof Error ? err.message : "Could not load team analytics.");
+    } finally {
+      setLoadingTeamData(false);
+    }
+  }, [buildAnalyticsQueryParams, teamAnalyticsPage, teamAnalyticsPageSize]);
+
+  const loadAttendanceAnalytics = useCallback(async () => {
+    try {
+      setLoadingAttendanceData(true);
+      const params = buildAnalyticsQueryParams({
+        search: debouncedAttendanceSearch || undefined,
+        page: attendancePage,
+        pageSize: attendancePageSize,
+      });
+
+      const payload = await apiCall(`/api/innovation/admin/analytics/attendance?${params.toString()}`, {
+        method: "GET",
+      });
+
+      setAttendanceData((payload?.data || null) as AttendanceAnalyticsData | null);
+    } catch (err) {
+      setAttendanceData(null);
+      setErrorMessage(err instanceof Error ? err.message : "Could not load attendance analytics.");
+    } finally {
+      setLoadingAttendanceData(false);
+    }
+  }, [
+    buildAnalyticsQueryParams,
+    debouncedAttendanceSearch,
+    attendancePage,
+    attendancePageSize,
+  ]);
+
+  const loadInsightsAnalytics = useCallback(async () => {
+    try {
+      setLoadingInsightsData(true);
+      const params = buildAnalyticsQueryParams();
+      const payload = await apiCall(`/api/innovation/admin/analytics/insights?${params.toString()}`, {
+        method: "GET",
+      });
+      setInsightsData((payload?.data || null) as InsightsAnalyticsData | null);
+    } catch (err) {
+      setInsightsData(null);
+      setErrorMessage(err instanceof Error ? err.message : "Could not load advanced analytics insights.");
+    } finally {
+      setLoadingInsightsData(false);
+    }
+  }, [buildAnalyticsQueryParams]);
+
+  const refreshInnovationAnalytics = useCallback(async () => {
+    await Promise.all([
+      loadParticipantAnalytics(),
+      loadTeamAnalytics(),
+      loadAttendanceAnalytics(),
+      loadInsightsAnalytics(),
+    ]);
+  }, [
+    loadParticipantAnalytics,
+    loadTeamAnalytics,
+    loadAttendanceAnalytics,
+    loadInsightsAnalytics,
+  ]);
+
+  useEffect(() => {
+    if (activeView !== "innovation" || innovationTab !== "analytics") return;
+    void loadParticipantAnalytics();
+  }, [activeView, innovationTab, loadParticipantAnalytics]);
+
+  useEffect(() => {
+    if (activeView !== "innovation" || innovationTab !== "analytics") return;
+    void loadTeamAnalytics();
+  }, [activeView, innovationTab, loadTeamAnalytics]);
+
+  useEffect(() => {
+    if (activeView !== "innovation" || innovationTab !== "analytics") return;
+    void loadAttendanceAnalytics();
+  }, [activeView, innovationTab, loadAttendanceAnalytics]);
+
+  useEffect(() => {
+    if (activeView !== "innovation" || innovationTab !== "analytics") return;
+    void loadInsightsAnalytics();
+  }, [activeView, innovationTab, loadInsightsAnalytics]);
+
+  const handleExportParticipantCsv = () => {
+    const params = buildAnalyticsQueryParams({
+      search: debouncedParticipantSearch || undefined,
+      status: participantStatusFilter === "ALL" ? undefined : participantStatusFilter,
+    });
+
+    const url = `/api/innovation/admin/analytics/participants/export?${params.toString()}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleMarkTeamAttendance = async (teamId: number, status: "PRESENT" | "NOT_PRESENT") => {
+    try {
+      setAttendanceUpdateKey(`team-${teamId}-${status}`);
+      setErrorMessage("");
+      await apiCall("/api/innovation/admin/analytics/attendance", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "MARK_TEAM",
+          claimId: teamId,
+          status,
+        }),
+      });
+
+      await Promise.all([loadAttendanceAnalytics(), loadTeamAnalytics(), loadInsightsAnalytics()]);
+      setStatusMessage(`Team #${teamId} marked ${status}.`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not update team attendance.");
+    } finally {
+      setAttendanceUpdateKey(null);
+    }
+  };
+
+  const handleMarkMemberAttendance = async (
+    teamId: number,
+    claimMemberId: number,
+    status: "PRESENT" | "NOT_PRESENT"
+  ) => {
+    try {
+      setAttendanceUpdateKey(`member-${teamId}-${claimMemberId}-${status}`);
+      setErrorMessage("");
+      await apiCall("/api/innovation/admin/analytics/attendance", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "MARK_MEMBER",
+          claimId: teamId,
+          claimMemberIds: [claimMemberId],
+          status,
+        }),
+      });
+
+      await Promise.all([loadAttendanceAnalytics(), loadTeamAnalytics(), loadInsightsAnalytics()]);
+      setStatusMessage(`Updated attendance for member #${claimMemberId}.`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not update member attendance.");
+    } finally {
+      setAttendanceUpdateKey(null);
+    }
+  };
 
   const stopTicketScanner = () => {
     scannerRunningRef.current = false;
@@ -2070,6 +2558,54 @@ export default function AdminPanelClient({
             </Link>
           </section>
 
+          <section className="border border-[#c4c6d3] bg-white p-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setInnovationTab("events")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationTab === "events"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Events
+              </button>
+              <button
+                onClick={() => setInnovationTab("review")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationTab === "review"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Review Queue
+              </button>
+              <button
+                onClick={() => setInnovationTab("leaderboard")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationTab === "leaderboard"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Leaderboard
+              </button>
+              <button
+                onClick={() => setInnovationTab("analytics")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationTab === "analytics"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Analytics
+              </button>
+            </div>
+          </section>
+
+          {innovationTab === "events" ? (
+            <>
+
           <section className="border border-[#c4c6d3] bg-white p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Create Hackathon Event</h2>
@@ -2341,7 +2877,10 @@ export default function AdminPanelClient({
                         </button>
 
                         <button
-                          onClick={() => void handleLoadInnovationLeaderboard(event.id)}
+                          onClick={() => {
+                            setInnovationTab("leaderboard");
+                            void handleLoadInnovationLeaderboard(event.id);
+                          }}
                           className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
                         >
                           Leaderboard
@@ -2360,7 +2899,11 @@ export default function AdminPanelClient({
             )}
           </section>
 
-          <section>
+            </>
+          ) : null}
+
+          {innovationTab === "review" ? (
+            <section>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Hackathon Submissions Control Center</h2>
               <div className="flex flex-wrap items-center gap-2">
@@ -2578,8 +3121,10 @@ export default function AdminPanelClient({
               </div>
             )}
           </section>
+          ) : null}
 
-          <section>
+          {innovationTab === "leaderboard" ? (
+            <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Leaderboard Overview</h2>
               <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
@@ -2616,6 +3161,713 @@ export default function AdminPanelClient({
               </div>
             )}
           </section>
+          ) : null}
+
+          {innovationTab === "analytics" ? (
+            <>
+          <section className="border border-[#c4c6d3] bg-white p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-headline text-2xl text-[#002155]">Hackathon Analytics</h2>
+                <p className="text-sm text-[#434651]">Global filters for participants, teams, attendance, and advanced insights.</p>
+              </div>
+              <button
+                onClick={() => void refreshInnovationAnalytics()}
+                className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+              >
+                Refresh Analytics
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+              <select
+                value={analyticsEventFilter}
+                onChange={(e) => {
+                  setAnalyticsEventFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
+                }}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value="ALL">All Events</option>
+                {analyticsEventOptions.map((event) => (
+                  <option key={`analytics-event-${event.id}`} value={event.id}>
+                    #{event.id} {event.title}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={analyticsProblemFilter}
+                onChange={(e) => {
+                  setAnalyticsProblemFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
+                }}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value="ALL">All Problems</option>
+                {analyticsProblemOptions.map((problem) => (
+                  <option key={`analytics-problem-${problem.id}`} value={problem.id}>
+                    #{problem.id} {problem.title}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={analyticsTeamFilter}
+                onChange={(e) => {
+                  setAnalyticsTeamFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
+                }}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value="ALL">All Teams</option>
+                {analyticsTeamOptions.map((team) => (
+                  <option key={`analytics-team-${team.id}`} value={team.id}>
+                    #{team.id} {team.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={analyticsStageFilter}
+                onChange={(e) => setAnalyticsStageFilter(e.target.value as AnalyticsStageFilter)}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value="ALL">All Stages</option>
+                <option value="SCREENING">SCREENING</option>
+                <option value="JUDGING">JUDGING</option>
+                <option value="CLOSED">CLOSED</option>
+              </select>
+
+              <input
+                type="date"
+                value={analyticsStartDate}
+                onChange={(e) => setAnalyticsStartDate(e.target.value)}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              />
+
+              <input
+                type="date"
+                value={analyticsEndDate}
+                onChange={(e) => setAnalyticsEndDate(e.target.value)}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              />
+            </div>
+          </section>
+
+          <section className="border border-[#c4c6d3] bg-white p-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setInnovationAnalyticsTab("participants")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationAnalyticsTab === "participants"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Participants
+              </button>
+              <button
+                onClick={() => setInnovationAnalyticsTab("teams")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationAnalyticsTab === "teams"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Teams
+              </button>
+              <button
+                onClick={() => setInnovationAnalyticsTab("attendance")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationAnalyticsTab === "attendance"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Attendance
+              </button>
+              <button
+                onClick={() => setInnovationAnalyticsTab("insights")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationAnalyticsTab === "insights"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Insights
+              </button>
+            </div>
+          </section>
+
+          {innovationAnalyticsTab === "participants" ? (
+            <section className="border border-[#c4c6d3] bg-white p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-headline text-2xl text-[#002155]">Participant Analytics</h2>
+                <p className="text-sm text-[#434651]">Searchable participant table with server-side filters and CSV export.</p>
+              </div>
+              <button
+                onClick={handleExportParticipantCsv}
+                className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider"
+              >
+                Export CSV
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <input
+                value={participantSearch}
+                onChange={(e) => {
+                  setParticipantPage(1);
+                  setParticipantSearch(e.target.value);
+                }}
+                placeholder="Search by member, team, email"
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              />
+              <select
+                value={participantStatusFilter}
+                onChange={(e) => {
+                  setParticipantPage(1);
+                  setParticipantStatusFilter(e.target.value as AnalyticsStatusFilter);
+                }}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="SUBMITTED">SUBMITTED</option>
+                <option value="REVISION_REQUESTED">REVISION_REQUESTED</option>
+                <option value="SHORTLISTED">SHORTLISTED</option>
+                <option value="ACCEPTED">ACCEPTED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+              <select
+                value={participantPageSize}
+                onChange={(e) => {
+                  setParticipantPage(1);
+                  setParticipantPageSize(Number(e.target.value));
+                }}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value={10}>10 / page</option>
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+              </select>
+              <div className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2 text-sm text-[#434651]">
+                Avg Score: <span className="font-bold text-[#002155]">{participantData?.summary.averageScore ?? "N/A"}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                <p className="text-[10px] uppercase tracking-widest text-[#434651]">Participants</p>
+                <p className="text-xl font-bold text-[#002155]">{participantData?.summary.totalParticipants ?? 0}</p>
+              </div>
+              <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                <p className="text-[10px] uppercase tracking-widest text-[#434651]">Teams</p>
+                <p className="text-xl font-bold text-[#002155]">{participantData?.summary.totalTeams ?? 0}</p>
+              </div>
+              <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                <p className="text-[10px] uppercase tracking-widest text-[#434651]">Stage Filter</p>
+                <p className="text-xl font-bold text-[#002155]">{analyticsStageFilter}</p>
+              </div>
+            </div>
+
+            {loadingParticipantData ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading participant analytics...</p>
+            ) : !participantData || participantData.items.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No participant records for the selected filters.</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto border border-[#c4c6d3]">
+                  <table className="w-full text-sm bg-white">
+                    <thead className="bg-[#f5f4f0] text-[#434651] uppercase text-xs tracking-wider">
+                      <tr>
+                        <th className="text-left px-3 py-2">Team Name</th>
+                        <th className="text-left px-3 py-2">Team ID / UID</th>
+                        <th className="text-left px-3 py-2">Member</th>
+                        <th className="text-left px-3 py-2">Role</th>
+                        <th className="text-left px-3 py-2">Email</th>
+                        <th className="text-left px-3 py-2">Phone</th>
+                        <th className="text-left px-3 py-2">Problem</th>
+                        <th className="text-left px-3 py-2">Event</th>
+                        <th className="text-left px-3 py-2">Status</th>
+                        <th className="text-left px-3 py-2">Final Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {participantData.items.map((row) => (
+                        <tr key={`participant-analytics-${row.id}`} className="border-t border-[#e3e2df] align-top">
+                          <td className="px-3 py-2">{row.teamName}</td>
+                          <td className="px-3 py-2">{row.teamIdentifier}</td>
+                          <td className="px-3 py-2">{row.memberName}</td>
+                          <td className="px-3 py-2">{row.role}</td>
+                          <td className="px-3 py-2 break-all">{row.email}</td>
+                          <td className="px-3 py-2">{row.phone || "N/A"}</td>
+                          <td className="px-3 py-2">{row.problemStatement}</td>
+                          <td className="px-3 py-2">{row.eventName}</td>
+                          <td className="px-3 py-2">{row.submissionStatus}</td>
+                          <td className="px-3 py-2">{row.finalScore ?? "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-xs text-[#434651]">Total: {participantData.total}</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setParticipantPage((value) => Math.max(1, value - 1))}
+                      disabled={participantPage <= 1 || loadingParticipantData}
+                      className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs text-[#434651]">Page {participantPage}</span>
+                    <button
+                      onClick={() => {
+                        const maxPage = Math.max(1, Math.ceil((participantData.total || 0) / participantPageSize));
+                        setParticipantPage((value) => Math.min(maxPage, value + 1));
+                      }}
+                      disabled={participantPage >= Math.max(1, Math.ceil((participantData.total || 0) / participantPageSize)) || loadingParticipantData}
+                      className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+          ) : null}
+
+          {innovationAnalyticsTab === "teams" ? (
+            <section className="border border-[#c4c6d3] bg-white p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-headline text-2xl text-[#002155]">Team-Level Analytics</h2>
+                <p className="text-sm text-[#434651]">Team distribution, acceptance ratio, score quality, and leaderboard snapshot.</p>
+              </div>
+            </div>
+
+            {loadingTeamData ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading team analytics...</p>
+            ) : !teamData ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No team analytics available.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-[#434651]">Total Teams</p>
+                    <p className="text-xl font-bold text-[#002155]">{teamData.summary.totalTeamsRegistered}</p>
+                  </div>
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-[#434651]">Shortlisted</p>
+                    <p className="text-xl font-bold text-[#002155]">{teamData.summary.shortlistedTeamsCount}</p>
+                  </div>
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-[#434651]">Accepted</p>
+                    <p className="text-xl font-bold text-[#0b6b2e]">{teamData.summary.acceptedTeamsCount}</p>
+                  </div>
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-[#434651]">Rejected</p>
+                    <p className="text-xl font-bold text-[#ba1a1a]">{teamData.summary.rejectedTeamsCount}</p>
+                  </div>
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-[#434651]">Average Team Score</p>
+                    <p className="text-xl font-bold text-[#002155]">{teamData.summary.averageTeamScore ?? "N/A"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-3">Teams Per Problem Statement</p>
+                    {teamData.teamsPerProblem.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No problem-wise team data available.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {teamData.teamsPerProblem.map((row) => {
+                          const max = Math.max(...teamData.teamsPerProblem.map((item) => item.count), 1);
+                          const width = Math.max(8, Math.round((row.count / max) * 100));
+                          return (
+                            <div key={`problem-pop-${row.problemId}`}>
+                              <p className="text-xs text-[#434651] mb-1">{row.problemTitle} ({row.count})</p>
+                              <div className="h-2 bg-[#e3e2df]">
+                                <div className="h-2 bg-[#002155]" style={{ width: `${width}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-3">Top Performing Teams</p>
+                    {teamData.leaderboard.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No scored teams available yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {teamData.leaderboard.map((row) => (
+                          <div key={`team-leaderboard-${row.teamId}`} className="border border-[#d8d6cf] bg-white p-2">
+                            <p className="text-sm font-semibold text-[#002155]">#{row.rank} {row.teamName}</p>
+                            <p className="text-xs text-[#434651]">{row.problemTitle} • {row.eventTitle}</p>
+                            <p className="text-xs text-[#0b6b2e] font-bold">Score: {row.score}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-[#c4c6d3]">
+                  <table className="w-full text-sm bg-white">
+                    <thead className="bg-[#f5f4f0] text-[#434651] uppercase text-xs tracking-wider">
+                      <tr>
+                        <th className="text-left px-3 py-2">Team</th>
+                        <th className="text-left px-3 py-2">Problem</th>
+                        <th className="text-left px-3 py-2">Status</th>
+                        <th className="text-left px-3 py-2">Score</th>
+                        <th className="text-left px-3 py-2">Members</th>
+                        <th className="text-left px-3 py-2">Attendance %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamData.teams.items.map((row) => (
+                        <tr key={`team-analytics-${row.teamId}`} className="border-t border-[#e3e2df]">
+                          <td className="px-3 py-2">#{row.teamId} {row.teamName}</td>
+                          <td className="px-3 py-2">{row.problemTitle}</td>
+                          <td className="px-3 py-2">{row.status}</td>
+                          <td className="px-3 py-2">{row.finalScore ?? "N/A"}</td>
+                          <td className="px-3 py-2">{row.memberCount}</td>
+                          <td className="px-3 py-2">{row.attendance.attendancePercentage}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between mt-3">
+                  <select
+                    value={teamAnalyticsPageSize}
+                    onChange={(e) => {
+                      setTeamAnalyticsPage(1);
+                      setTeamAnalyticsPageSize(Number(e.target.value));
+                    }}
+                    className="border border-[#c4c6d3] px-3 py-1 text-xs"
+                  >
+                    <option value={10}>10 / page</option>
+                    <option value={15}>15 / page</option>
+                    <option value={25}>25 / page</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTeamAnalyticsPage((value) => Math.max(1, value - 1))}
+                      disabled={teamAnalyticsPage <= 1 || loadingTeamData}
+                      className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs text-[#434651]">Page {teamAnalyticsPage}</span>
+                    <button
+                      onClick={() => {
+                        const total = teamData.teams.total || 0;
+                        const maxPage = Math.max(1, Math.ceil(total / teamAnalyticsPageSize));
+                        setTeamAnalyticsPage((value) => Math.min(maxPage, value + 1));
+                      }}
+                      disabled={
+                        teamAnalyticsPage >= Math.max(1, Math.ceil((teamData.teams.total || 0) / teamAnalyticsPageSize)) ||
+                        loadingTeamData
+                      }
+                      className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+          ) : null}
+
+          {innovationAnalyticsTab === "attendance" ? (
+            <section className="border border-[#c4c6d3] bg-white p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-headline text-2xl text-[#002155]">Attendance Tracking Dashboard</h2>
+                <p className="text-sm text-[#434651]">Member-level attendance with manual and bulk team marking.</p>
+              </div>
+              <input
+                value={attendanceSearch}
+                onChange={(e) => {
+                  setAttendancePage(1);
+                  setAttendanceSearch(e.target.value);
+                }}
+                placeholder="Search team/member/email"
+                className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[280px]"
+              />
+            </div>
+
+            {loadingAttendanceData ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading attendance dashboard...</p>
+            ) : !attendanceData || attendanceData.items.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No attendance records found for selected filters.</p>
+            ) : (
+              <>
+                <div className="mb-3 border border-[#e3e2df] bg-[#faf9f5] p-3 text-sm text-[#434651]">
+                  Overall attendance: <span className="font-bold text-[#002155]">{attendanceData.summary.totalPresent}/{attendanceData.summary.totalMembers}</span>
+                  <span className="ml-2 font-bold text-[#002155]">({attendanceData.summary.attendancePercentage}%)</span>
+                </div>
+
+                <div className="space-y-4">
+                  {attendanceData.items.map((team) => (
+                    <article key={`attendance-team-${team.teamId}`} className="border border-[#d8d6cf] bg-[#faf9f5] p-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+                        <div>
+                          <p className="text-sm font-bold text-[#002155]">#{team.teamId} {team.teamName}</p>
+                          <p className="text-xs text-[#434651]">{team.problemTitle} • {team.eventTitle}</p>
+                          <p className="text-xs text-[#434651]">Attendance: {team.attendance.presentCount}/{team.attendance.totalMembers} ({team.attendance.attendancePercentage}%)</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => void handleMarkTeamAttendance(team.teamId, "PRESENT")}
+                            disabled={attendanceUpdateKey === `team-${team.teamId}-PRESENT`}
+                            className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            {attendanceUpdateKey === `team-${team.teamId}-PRESENT` ? "Saving..." : "Mark Team Present"}
+                          </button>
+                          <button
+                            onClick={() => void handleMarkTeamAttendance(team.teamId, "NOT_PRESENT")}
+                            disabled={attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT`}
+                            className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                          >
+                            {attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT` ? "Saving..." : "Mark Team Not Present"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto border border-[#e3e2df] bg-white">
+                        <table className="w-full text-xs">
+                          <thead className="bg-[#f5f4f0] text-[#434651] uppercase tracking-wider">
+                            <tr>
+                              <th className="text-left px-3 py-2">Member</th>
+                              <th className="text-left px-3 py-2">Email</th>
+                              <th className="text-left px-3 py-2">Phone</th>
+                              <th className="text-left px-3 py-2">Status</th>
+                              <th className="text-left px-3 py-2">Marked Time</th>
+                              <th className="text-left px-3 py-2">Marked By</th>
+                              <th className="text-left px-3 py-2">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {team.members.map((member) => {
+                              const targetStatus = member.attendanceStatus === "PRESENT" ? "NOT_PRESENT" : "PRESENT";
+                              const actionKey = `member-${team.teamId}-${member.claimMemberId}-${targetStatus}`;
+
+                              return (
+                                <tr key={`attendance-member-${member.claimMemberId}`} className="border-t border-[#e3e2df]">
+                                  <td className="px-3 py-2">{member.name} ({member.role})</td>
+                                  <td className="px-3 py-2">{member.email}</td>
+                                  <td className="px-3 py-2">{member.phone || "N/A"}</td>
+                                  <td className="px-3 py-2">{member.attendanceStatus}</td>
+                                  <td className="px-3 py-2">{member.markedTime ? new Date(member.markedTime).toLocaleString() : "N/A"}</td>
+                                  <td className="px-3 py-2">{member.markedBy ? member.markedBy.name : "N/A"}</td>
+                                  <td className="px-3 py-2">
+                                    <button
+                                      onClick={() => void handleMarkMemberAttendance(team.teamId, member.claimMemberId, targetStatus)}
+                                      disabled={attendanceUpdateKey === actionKey}
+                                      className="border border-[#002155] text-[#002155] px-2 py-1 text-[10px] font-bold uppercase tracking-wider disabled:opacity-50"
+                                    >
+                                      {attendanceUpdateKey === actionKey
+                                        ? "Saving..."
+                                        : member.attendanceStatus === "PRESENT"
+                                          ? "Mark Not Present"
+                                          : "Mark Present"}
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between mt-3">
+                  <select
+                    value={attendancePageSize}
+                    onChange={(e) => {
+                      setAttendancePage(1);
+                      setAttendancePageSize(Number(e.target.value));
+                    }}
+                    className="border border-[#c4c6d3] px-3 py-1 text-xs"
+                  >
+                    <option value={5}>5 / page</option>
+                    <option value={8}>8 / page</option>
+                    <option value={12}>12 / page</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setAttendancePage((value) => Math.max(1, value - 1))}
+                      disabled={attendancePage <= 1 || loadingAttendanceData}
+                      className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs text-[#434651]">Page {attendancePage}</span>
+                    <button
+                      onClick={() => {
+                        const maxPage = Math.max(1, Math.ceil((attendanceData.total || 0) / attendancePageSize));
+                        setAttendancePage((value) => Math.min(maxPage, value + 1));
+                      }}
+                      disabled={attendancePage >= Math.max(1, Math.ceil((attendanceData.total || 0) / attendancePageSize)) || loadingAttendanceData}
+                      className="border border-[#c4c6d3] px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+          ) : null}
+
+          {innovationAnalyticsTab === "insights" ? (
+            <section className="border border-[#c4c6d3] bg-white p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-headline text-2xl text-[#002155]">Advanced Analytics Insights</h2>
+              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">Trends, drop-off, scoring, correlation</span>
+            </div>
+
+            {loadingInsightsData ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading advanced insights...</p>
+            ) : !insightsData ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No insight data available for the selected filters.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-3">Participation Trends (Teams Over Time)</p>
+                    {insightsData.participationTrends.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No trend points available.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {insightsData.participationTrends.map((point) => {
+                          const max = Math.max(...insightsData.participationTrends.map((item) => item.teams), 1);
+                          const width = Math.max(8, Math.round((point.teams / max) * 100));
+                          return (
+                            <div key={`trend-${point.date}`}>
+                              <p className="text-xs text-[#434651] mb-1">{point.date} ({point.teams})</p>
+                              <div className="h-2 bg-[#e3e2df]">
+                                <div className="h-2 bg-[#002155]" style={{ width: `${width}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-3">Problem Statement Popularity</p>
+                    {insightsData.problemPopularity.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No popularity data available.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {insightsData.problemPopularity.map((row) => {
+                          const max = Math.max(...insightsData.problemPopularity.map((item) => item.teams), 1);
+                          const width = Math.max(8, Math.round((row.teams / max) * 100));
+                          return (
+                            <div key={`popularity-${row.problemId}`}>
+                              <p className="text-xs text-[#434651] mb-1">{row.problemTitle} ({row.teams})</p>
+                              <div className="h-2 bg-[#e3e2df]">
+                                <div className="h-2 bg-[#8c4f00]" style={{ width: `${width}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Drop-off Funnel</p>
+                    <p className="text-sm text-[#434651]">Registered: <span className="font-bold text-[#002155]">{insightsData.dropOffRate.registered}</span></p>
+                    <p className="text-sm text-[#434651]">Submitted: <span className="font-bold text-[#002155]">{insightsData.dropOffRate.submitted}</span></p>
+                    <p className="text-sm text-[#434651]">Shortlisted: <span className="font-bold text-[#002155]">{insightsData.dropOffRate.shortlisted}</span></p>
+                    <p className="text-sm text-[#434651]">Accepted: <span className="font-bold text-[#0b6b2e]">{insightsData.dropOffRate.accepted}</span></p>
+                    <p className="mt-2 text-xs text-[#434651]">Submitted/Registered: {insightsData.dropOffRate.percentages.submittedFromRegistered}%</p>
+                    <p className="text-xs text-[#434651]">Shortlisted/Registered: {insightsData.dropOffRate.percentages.shortlistedFromRegistered}%</p>
+                    <p className="text-xs text-[#434651]">Accepted/Registered: {insightsData.dropOffRate.percentages.acceptedFromRegistered}%</p>
+                  </div>
+
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Judge Scoring Distribution</p>
+                    <div className="space-y-2">
+                      {insightsData.judgeScoringDistribution.scoreBins.map((bin) => {
+                        const max = Math.max(...insightsData.judgeScoringDistribution.scoreBins.map((item) => item.teams), 1);
+                        const width = Math.max(8, Math.round((bin.teams / max) * 100));
+                        return (
+                          <div key={`score-bin-${bin.range}`}>
+                            <p className="text-xs text-[#434651] mb-1">{bin.range} ({bin.teams})</p>
+                            <div className="h-2 bg-[#e3e2df]">
+                              <div className="h-2 bg-[#0b6b2e]" style={{ width: `${width}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Attendance vs Performance</p>
+                    <p className="text-sm text-[#434651]">Correlation: <span className="font-bold text-[#002155]">{insightsData.attendanceVsPerformance.correlation ?? "N/A"}</span></p>
+                    <p className="text-sm text-[#434651]">Sample Size: <span className="font-bold text-[#002155]">{insightsData.attendanceVsPerformance.sampleSize}</span></p>
+                    <div className="mt-2 space-y-1 text-xs text-[#434651]">
+                      <p>Low (&lt;50%): {insightsData.attendanceVsPerformance.bucketAverages.lowAttendance.averageScore ?? "N/A"}</p>
+                      <p>Medium (50-79%): {insightsData.attendanceVsPerformance.bucketAverages.mediumAttendance.averageScore ?? "N/A"}</p>
+                      <p>High (80-100%): {insightsData.attendanceVsPerformance.bucketAverages.highAttendance.averageScore ?? "N/A"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Average Scores By Problem</p>
+                    {insightsData.averageScoresByProblem.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No scored problem data available.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {insightsData.averageScoresByProblem.map((row) => (
+                          <div key={`avg-problem-${row.problemId}`} className="border border-[#d8d6cf] bg-white p-2">
+                            <p className="text-xs text-[#434651]">{row.problemTitle}</p>
+                            <p className="text-sm font-bold text-[#002155]">Avg: {row.averageScore} ({row.scoredTeams} scored teams)</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Rubric Averages</p>
+                    <div className="space-y-2">
+                      {insightsData.judgeScoringDistribution.rubricAverages.map((rubric) => (
+                        <div key={`rubric-avg-${rubric.rubric}`} className="border border-[#d8d6cf] bg-white p-2">
+                          <p className="text-xs text-[#434651]">{rubric.rubric.toUpperCase()}</p>
+                          <p className="text-sm font-bold text-[#002155]">{rubric.average ?? "N/A"} / 10</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+          ) : null}
+            </>
+          ) : null}
         </section>
       ) : null}
     </main>
