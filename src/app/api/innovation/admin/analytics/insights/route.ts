@@ -49,6 +49,8 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', errors, 400);
     }
 
+    const targetSession = filters.session ?? 1;
+
     const claimWhere = buildInnovationAnalyticsClaimWhere(filters);
 
     const [
@@ -61,6 +63,7 @@ export async function GET(req: NextRequest) {
       scoredClaims,
       scoredRubrics,
       attendanceScoreClaims,
+      sessionAttendanceClaims,
     ] = await prisma.$transaction([
       prisma.claim.findMany({
         where: claimWhere,
@@ -164,7 +167,52 @@ export async function GET(req: NextRequest) {
             },
             select: {
               attendanceRecords: {
+                where: {
+                  session: targetSession,
+                },
                 select: {
+                  status: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.claim.findMany({
+        where: {
+          ...claimWhere,
+          tickets: {
+            some: {
+              type: 'HACKATHON_SELECTION',
+            },
+          },
+        },
+        select: {
+          id: true,
+          teamName: true,
+          _count: {
+            select: {
+              members: true,
+            },
+          },
+          problem: {
+            select: {
+              event: {
+                select: {
+                  totalSessions: true,
+                },
+              },
+            },
+          },
+          tickets: {
+            where: {
+              type: 'HACKATHON_SELECTION',
+            },
+            select: {
+              attendanceRecords: {
+                select: {
+                  session: true,
+                  claimMemberId: true,
                   status: true,
                 },
               },
@@ -347,11 +395,141 @@ export async function GET(req: NextRequest) {
       },
     };
 
+    const maxSession = sessionAttendanceClaims.reduce((max, claim) => {
+      const total = claim.problem.event?.totalSessions ?? 1;
+      return total > max ? total : max;
+    }, 1);
+
+    const attendancePerSession = Array.from({ length: maxSession }, (_, index) => {
+      const session = index + 1;
+
+      let presentCount = 0;
+      let totalMembers = 0;
+      let teamsWithAnyPresent = 0;
+
+      for (const claim of sessionAttendanceClaims) {
+        const claimTotalSessions = claim.problem.event?.totalSessions ?? 1;
+        if (session > claimTotalSessions) continue;
+
+        const teamMembers = claim._count.members;
+        totalMembers += teamMembers;
+
+        const ticket = claim.tickets[0] || null;
+        const present = ticket
+          ? ticket.attendanceRecords.filter((row) => row.session === session && row.status === 'PRESENT').length
+          : 0;
+
+        presentCount += present;
+        if (present > 0) teamsWithAnyPresent += 1;
+      }
+
+      return {
+        session,
+        presentCount,
+        totalMembers,
+        attendancePercentage: totalMembers > 0 ? Number(((presentCount / totalMembers) * 100).toFixed(2)) : 0,
+        teamsWithAnyPresent,
+      };
+    });
+
+    const consistencyRows = sessionAttendanceClaims.map((claim) => {
+      const ticket = claim.tickets[0] || null;
+      const memberCount = claim._count.members;
+      const totalSessions = claim.problem.event?.totalSessions ?? 1;
+
+      const sessionRates: number[] = [];
+      const missingSessions: number[] = [];
+
+      for (let session = 1; session <= totalSessions; session += 1) {
+        const present = ticket
+          ? ticket.attendanceRecords.filter((row) => row.session === session && row.status === 'PRESENT').length
+          : 0;
+        const rate = memberCount > 0 ? (present / memberCount) * 100 : 0;
+        sessionRates.push(rate);
+        if (present < memberCount) {
+          missingSessions.push(session);
+        }
+      }
+
+      const consistencyScore =
+        sessionRates.length > 0
+          ? Number((sessionRates.reduce((sum, value) => sum + value, 0) / sessionRates.length).toFixed(2))
+          : 0;
+
+      return {
+        teamId: claim.id,
+        teamName: claim.teamName || `Team-${claim.id}`,
+        totalSessions,
+        completedSessions: totalSessions - missingSessions.length,
+        consistencyScore,
+        missingSessions,
+      };
+    });
+
+    const teamsMissingSpecificSessions = consistencyRows
+      .filter((row) => row.missingSessions.length > 0)
+      .map((row) => ({
+        teamId: row.teamId,
+        teamName: row.teamName,
+        missingSessions: row.missingSessions,
+      }));
+
+    const sessionDropOff = Array.from({ length: Math.max(0, maxSession - 1) }, (_, index) => {
+      const fromSession = index + 1;
+      const toSession = index + 2;
+
+      let teamsFrom = 0;
+      let teamsTo = 0;
+
+      for (const claim of sessionAttendanceClaims) {
+        const claimTotalSessions = claim.problem.event?.totalSessions ?? 1;
+        if (toSession > claimTotalSessions) continue;
+
+        const ticket = claim.tickets[0] || null;
+        const fromPresent = ticket
+          ? ticket.attendanceRecords.some((row) => row.session === fromSession && row.status === 'PRESENT')
+          : false;
+        const toPresent = ticket
+          ? ticket.attendanceRecords.some((row) => row.session === toSession && row.status === 'PRESENT')
+          : false;
+
+        if (fromPresent) teamsFrom += 1;
+        if (toPresent) teamsTo += 1;
+      }
+
+      const dropOffCount = Math.max(0, teamsFrom - teamsTo);
+      const dropOffRate = teamsFrom > 0 ? Number(((dropOffCount / teamsFrom) * 100).toFixed(2)) : 0;
+
+      return {
+        fromSession,
+        toSession,
+        teamsFrom,
+        teamsTo,
+        dropOffCount,
+        dropOffRate,
+      };
+    });
+
     return successRes(
       {
+        selectedSession: targetSession,
         participationTrends,
         problemPopularity,
         dropOffRate,
+        attendancePerSession,
+        attendanceConsistency: {
+          averageConsistency:
+            consistencyRows.length > 0
+              ? Number(
+                  (
+                    consistencyRows.reduce((sum, row) => sum + row.consistencyScore, 0) / consistencyRows.length
+                  ).toFixed(2)
+                )
+              : null,
+          teams: consistencyRows,
+        },
+        teamsMissingSpecificSessions,
+        sessionDropOff,
         averageScoresByProblem,
         judgeScoringDistribution: {
           scoreBins: Array.from(scoreBins.entries()).map(([range, teams]) => ({ range, teams })),

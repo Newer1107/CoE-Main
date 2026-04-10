@@ -5,6 +5,7 @@ import { markHackathonTeamMembersPresent, verifyAndConsumeTicket, verifyTicketFo
 
 const verifyTicketSchema = z.object({
   ticketId: z.string().trim().min(8, 'ticketId is required'),
+  session: z.coerce.number().int().positive().optional().default(1),
   presentClaimMemberIds: z.array(z.coerce.number().int().positive()).optional(),
 });
 
@@ -19,11 +20,12 @@ export async function POST(req: NextRequest) {
     const parsed = verifyTicketSchema.safeParse(body);
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
 
-    const verification = await verifyTicketForCheckIn(parsed.data.ticketId);
+    const verification = await verifyTicketForCheckIn(parsed.data.ticketId, parsed.data.session);
 
     if (!verification.ok) {
       if (verification.code === 'NOT_FOUND') return errorRes('Ticket not found', [], 404);
       if (verification.code === 'CANCELLED') return errorRes('Ticket is cancelled', [], 400);
+      if (verification.code === 'INVALID_SESSION') return errorRes('Invalid session', [], 400);
       return errorRes('Ticket verification failed', [], 400);
     }
 
@@ -55,12 +57,14 @@ export async function POST(req: NextRequest) {
       const marked = await markHackathonTeamMembersPresent(
         parsed.data.ticketId,
         parsed.data.presentClaimMemberIds,
-        user.id
+        user.id,
+        parsed.data.session
       );
 
       if (!marked.ok) {
         if (marked.code === 'NOT_FOUND') return errorRes('Ticket not found', [], 404);
         if (marked.code === 'CANCELLED') return errorRes('Ticket is cancelled', [], 400);
+        if (marked.code === 'INVALID_SESSION') return errorRes('Invalid session', [], 400);
         return errorRes('Ticket attendance update failed', [], 400);
       }
 
@@ -74,6 +78,8 @@ export async function POST(req: NextRequest) {
           teamName: marked.teamName,
           eventName: marked.eventName,
           claimId: marked.claimId,
+          session: marked.session,
+          totalSessions: marked.totalSessions,
           presentCount: marked.presentCount,
           totalMembers: marked.totalMembers,
           newlyMarkedCount: marked.newlyMarkedCount,
@@ -93,6 +99,8 @@ export async function POST(req: NextRequest) {
         teamName: verification.teamName,
         eventName: verification.eventName,
         claimId: verification.claimId,
+        session: verification.session,
+        totalSessions: verification.totalSessions,
         presentCount: verification.presentCount,
         totalMembers: verification.totalMembers,
         members: verification.members,

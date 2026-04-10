@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.hackathonEvent.findMany({
         orderBy: [{ startTime: 'desc' }],
-        select: { id: true, title: true, status: true },
+        select: { id: true, title: true, status: true, totalSessions: true },
       }),
       prisma.problem.findMany({
         where: {

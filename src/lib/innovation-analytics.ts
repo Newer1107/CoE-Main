@@ -21,6 +21,7 @@ export type InnovationAnalyticsFilters = {
   eventId?: number;
   problemId?: number;
   teamId?: number;
+  session?: number;
   team?: string;
   status?: ClaimStatus;
   stage?: InnovationAnalyticsStage;
@@ -92,6 +93,7 @@ export const parseInnovationAnalyticsFilters = (
   const eventIdRaw = searchParams.get('eventId');
   const problemIdRaw = searchParams.get('problemId');
   const teamIdRaw = searchParams.get('teamId');
+  const sessionRaw = searchParams.get('session');
   const statusRaw = searchParams.get('status');
   const stageRaw = searchParams.get('stage');
   const startDateRaw = searchParams.get('startDate');
@@ -105,6 +107,9 @@ export const parseInnovationAnalyticsFilters = (
 
   const teamId = parsePositiveInt(teamIdRaw);
   if (teamIdRaw && !teamId) errors.push('teamId must be a positive integer.');
+
+  const session = parsePositiveInt(sessionRaw);
+  if (sessionRaw && !session) errors.push('session must be a positive integer.');
 
   const status = parseStatus(statusRaw);
   if (statusRaw && !status) {
@@ -144,6 +149,7 @@ export const parseInnovationAnalyticsFilters = (
       eventId,
       problemId,
       teamId,
+      session,
       team: team.length > 0 ? team : undefined,
       status,
       stage,
@@ -207,6 +213,16 @@ export const buildInnovationAnalyticsClaimWhere = (filters: InnovationAnalyticsF
     where.updatedAt = {
       ...(filters.startDate ? { gte: filters.startDate } : {}),
       ...(filters.endDate ? { lte: filters.endDate } : {}),
+    };
+  }
+
+  if (typeof filters.session === 'number') {
+    problemWhere.event = {
+      is: {
+        totalSessions: {
+          gte: filters.session,
+        },
+      },
     };
   }
 

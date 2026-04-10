@@ -114,6 +114,7 @@ model User {
   tickets           Ticket[]
   hackathonInterests HackathonInterest[]
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
+  attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
 
   @@map("users")
 }
@@ -169,6 +170,7 @@ model Claim {
   isAbsent          Boolean       @default(false)
   reminderSent      Boolean       @default(false)
   tickets           Ticket[]
+  attendanceRecords TicketAttendance[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -263,6 +265,7 @@ model HackathonEvent {
   startTime   DateTime
   endTime     DateTime
   submissionLockAt DateTime?
+  totalSessions Int @default(1)
   registrationOpen Boolean @default(true)
   status      EventStatus @default(UPCOMING)
   createdById Int
@@ -362,8 +365,13 @@ model TicketAttendance {
   id                Int                    @id @default(autoincrement())
   ticketId          Int
   ticket            Ticket                 @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  claimId           Int
+  claim             Claim                  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  userId            Int
+  user              User                   @relation("AttendanceParticipant", fields: [userId], references: [id], onDelete: Cascade)
   claimMemberId     Int
   claimMember       ClaimMember            @relation(fields: [claimMemberId], references: [id], onDelete: Cascade)
+  session           Int                    @default(1)
   status            MemberAttendanceStatus @default(NOT_PRESENT)
   checkedInAt       DateTime?
   checkedInByUserId Int?
@@ -371,9 +379,11 @@ model TicketAttendance {
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 
-  @@unique([ticketId, claimMemberId])
-  @@index([ticketId, status])
-  @@index([claimMemberId, status])
+  @@unique([ticketId, claimMemberId, session])
+  @@unique([userId, claimId, session])
+  @@index([ticketId, session, status])
+  @@index([claimMemberId, session, status])
+  @@index([claimId, session, status])
   @@index([checkedInByUserId])
   @@map("ticket_attendance")
 }

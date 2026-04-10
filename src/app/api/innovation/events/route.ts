@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
     const startTime = (formData.get('startTime') as string) || '';
     const endTime = (formData.get('endTime') as string) || '';
     const submissionLockAt = (formData.get('submissionLockAt') as string) || '';
+    const totalSessionsRaw = (formData.get('totalSessions') as string) || '1';
     const rawProblems = (formData.get('problems') as string) || '[]';
     const pptFile = formData.get('pptFile') as File | null;
 
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
       startTime,
       endTime,
       submissionLockAt,
+      totalSessions: totalSessionsRaw,
       problems,
     });
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
@@ -112,6 +114,7 @@ export async function POST(req: NextRequest) {
           startTime: start,
           endTime: end,
           submissionLockAt: submissionLockDate,
+          totalSessions: parsed.data.totalSessions,
           createdById: user.id,
         },
       });

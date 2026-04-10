@@ -31,6 +31,7 @@ type AttendanceMemberRow = {
   email: string;
   uid: string | null;
   role: string;
+  session: number;
   attendanceStatus: 'NOT_PRESENT' | 'PRESENT';
   checkedInAt: string | null;
 };
@@ -392,7 +393,7 @@ export const issueHackathonSelectionTicketsForClaim = async (claimId: number) =>
     include: {
       problem: {
         include: {
-          event: { select: { id: true, title: true, startTime: true, endTime: true } },
+          event: { select: { id: true, title: true, startTime: true, endTime: true, totalSessions: true } },
         },
       },
       members: {
@@ -449,7 +450,10 @@ export const issueHackathonSelectionTicketsForClaim = async (claimId: number) =>
     await ticketAttendanceModel.createMany({
       data: claim.members.map((member) => ({
         ticketId: result.ticket.id,
+        claimId: claim.id,
+        userId: member.userId,
         claimMemberId: member.id,
+        session: 1,
         status: 'NOT_PRESENT',
       })),
       skipDuplicates: true,
@@ -523,7 +527,7 @@ export const verifyAndConsumeTicket = async (ticketId: string, verifiedByUserId?
   return { ok: true as const, ticket: updated ?? ticket };
 };
 
-const getHackathonTicketRecord = async (ticketId: string) => {
+const getHackathonTicketRecord = async (ticketId: string, session = 1) => {
   const ticketModel = (prisma as any).ticket;
   const ticketAttendanceModel = (prisma as any).ticketAttendance;
 
@@ -535,7 +539,7 @@ const getHackathonTicketRecord = async (ticketId: string) => {
         include: {
           problem: {
             include: {
-              event: { select: { id: true, title: true } },
+              event: { select: { id: true, title: true, totalSessions: true } },
             },
           },
           members: {
@@ -545,7 +549,11 @@ const getHackathonTicketRecord = async (ticketId: string) => {
           },
         },
       },
-      attendanceRecords: true,
+      attendanceRecords: {
+        where: {
+          session,
+        },
+      },
     },
   });
 
@@ -557,7 +565,10 @@ const getHackathonTicketRecord = async (ticketId: string) => {
     await ticketAttendanceModel.createMany({
       data: ticket.claim.members.map((member: any) => ({
         ticketId: ticket.id,
+        claimId: ticket.claim.id,
+        userId: member.user.id,
         claimMemberId: member.id,
+        session,
         status: 'NOT_PRESENT',
       })),
       skipDuplicates: true,
@@ -571,7 +582,7 @@ const getHackathonTicketRecord = async (ticketId: string) => {
           include: {
             problem: {
               include: {
-                event: { select: { id: true, title: true } },
+                event: { select: { id: true, title: true, totalSessions: true } },
               },
             },
             members: {
@@ -581,7 +592,11 @@ const getHackathonTicketRecord = async (ticketId: string) => {
             },
           },
         },
-        attendanceRecords: true,
+        attendanceRecords: {
+          where: {
+            session,
+          },
+        },
       },
     });
   }
@@ -589,7 +604,7 @@ const getHackathonTicketRecord = async (ticketId: string) => {
   return ticket;
 };
 
-const mapAttendanceMembers = (ticket: any): AttendanceMemberRow[] => {
+const mapAttendanceMembers = (ticket: any, session: number): AttendanceMemberRow[] => {
   const attendanceByClaimMemberId = new Map<number, any>();
   for (const record of ticket?.attendanceRecords || []) {
     attendanceByClaimMemberId.set(record.claimMemberId, record);
@@ -604,13 +619,96 @@ const mapAttendanceMembers = (ticket: any): AttendanceMemberRow[] => {
       email: member.user.email,
       uid: member.user.uid ?? null,
       role: member.role,
+      session,
       attendanceStatus: (attendance?.status || 'NOT_PRESENT') as 'NOT_PRESENT' | 'PRESENT',
       checkedInAt: attendance?.checkedInAt ? new Date(attendance.checkedInAt).toISOString() : null,
     };
   });
 };
 
-export const verifyTicketForCheckIn = async (ticketId: string) => {
+const isHackathonAttendanceComplete = async (ticketId: number, totalMembers: number, totalSessions: number) => {
+  if (totalMembers <= 0 || totalSessions <= 0) return false;
+
+  const attendanceRows = await prisma.ticketAttendance.findMany({
+    where: {
+      ticketId,
+      session: {
+        lte: totalSessions,
+      },
+    },
+    select: {
+      session: true,
+      claimMemberId: true,
+      status: true,
+    },
+  });
+
+  const sessionPresence = new Map<number, Set<number>>();
+
+  for (const row of attendanceRows) {
+    if (row.status !== 'PRESENT') continue;
+    if (!sessionPresence.has(row.session)) {
+      sessionPresence.set(row.session, new Set<number>());
+    }
+    sessionPresence.get(row.session)?.add(row.claimMemberId);
+  }
+
+  for (let session = 1; session <= totalSessions; session += 1) {
+    const presentSet = sessionPresence.get(session);
+    if (!presentSet || presentSet.size < totalMembers) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+export const syncHackathonTicketUsageStatus = async (ticketId: number, totalMembers: number, totalSessions: number) => {
+  const complete = await isHackathonAttendanceComplete(ticketId, totalMembers, totalSessions);
+
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: { id: true, status: true },
+  });
+
+  if (!ticket) {
+    return { status: null as 'ACTIVE' | 'USED' | 'CANCELLED' | null, changed: false };
+  }
+
+  if (ticket.status === 'CANCELLED') {
+    return { status: 'CANCELLED' as const, changed: false };
+  }
+
+  if (complete && ticket.status !== 'USED') {
+    await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: 'USED',
+        usedAt: new Date(),
+      },
+    });
+    return { status: 'USED' as const, changed: true };
+  }
+
+  if (!complete && ticket.status === 'USED') {
+    await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: 'ACTIVE',
+        usedAt: null,
+      },
+    });
+    return { status: 'ACTIVE' as const, changed: true };
+  }
+
+  return { status: ticket.status as 'ACTIVE' | 'USED' | 'CANCELLED', changed: false };
+};
+
+export const verifyTicketForCheckIn = async (ticketId: string, session = 1) => {
+  if (!Number.isInteger(session) || session <= 0) {
+    return { ok: false as const, code: 'INVALID_SESSION' as const };
+  }
+
   const ticketModel = (prisma as any).ticket;
   const base = await ticketModel.findUnique({
     where: { ticketId },
@@ -635,12 +733,17 @@ export const verifyTicketForCheckIn = async (ticketId: string) => {
     };
   }
 
-  const hackathonTicket = await getHackathonTicketRecord(ticketId);
+  const hackathonTicket = await getHackathonTicketRecord(ticketId, session);
   if (!hackathonTicket || !hackathonTicket.claim) {
     return { ok: false as const, code: 'INVALID_HACKATHON_TICKET' as const };
   }
 
-  const members = mapAttendanceMembers(hackathonTicket);
+  const totalSessions = hackathonTicket.claim.problem?.event?.totalSessions ?? 1;
+  if (session > totalSessions) {
+    return { ok: false as const, code: 'INVALID_SESSION' as const };
+  }
+
+  const members = mapAttendanceMembers(hackathonTicket, session);
   const presentCount = members.filter((member) => member.attendanceStatus === 'PRESENT').length;
 
   return {
@@ -650,6 +753,8 @@ export const verifyTicketForCheckIn = async (ticketId: string) => {
     claimId: hackathonTicket.claim.id,
     teamName: hackathonTicket.claim.teamName || `Team-${hackathonTicket.claim.id}`,
     eventName: hackathonTicket.claim.problem?.event?.title || 'Hackathon Event',
+    session,
+    totalSessions,
     members,
     presentCount,
     totalMembers: members.length,
@@ -659,14 +764,19 @@ export const verifyTicketForCheckIn = async (ticketId: string) => {
 export const markHackathonTeamMembersPresent = async (
   ticketId: string,
   presentClaimMemberIds: number[],
-  checkedInByUserId?: number
+  checkedInByUserId?: number,
+  session = 1
 ) => {
+  if (!Number.isInteger(session) || session <= 0) {
+    return { ok: false as const, code: 'INVALID_SESSION' as const };
+  }
+
   const ticketAttendanceModel = (prisma as any).ticketAttendance;
   if (!ticketAttendanceModel) {
     throw new Error('Ticket attendance model is unavailable');
   }
 
-  const ticket = await getHackathonTicketRecord(ticketId);
+  const ticket = await getHackathonTicketRecord(ticketId, session);
 
   if (!ticket) {
     return { ok: false as const, code: 'NOT_FOUND' as const };
@@ -680,6 +790,25 @@ export const markHackathonTeamMembersPresent = async (
     return { ok: false as const, code: 'WRONG_TICKET_TYPE' as const, ticket };
   }
 
+  const totalSessions = ticket.claim.problem?.event?.totalSessions ?? 1;
+  if (session > totalSessions) {
+    return { ok: false as const, code: 'INVALID_SESSION' as const, ticket };
+  }
+
+  if (ticket.claim.members.length > 0) {
+    await ticketAttendanceModel.createMany({
+      data: ticket.claim.members.map((member: any) => ({
+        ticketId: ticket.id,
+        claimId: ticket.claim.id,
+        userId: member.user.id,
+        claimMemberId: member.id,
+        session,
+        status: 'NOT_PRESENT',
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   const validMemberIds = new Set<number>((ticket.claim.members || []).map((member: any) => member.id));
   const selectedUnique = Array.from(
     new Set(presentClaimMemberIds.filter((claimMemberId) => Number.isInteger(claimMemberId) && validMemberIds.has(claimMemberId)))
@@ -690,6 +819,7 @@ export const markHackathonTeamMembersPresent = async (
     const updateResult = await ticketAttendanceModel.updateMany({
       where: {
         ticketId: ticket.id,
+        session,
         claimMemberId: { in: selectedUnique },
         status: 'NOT_PRESENT',
       },
@@ -703,35 +833,25 @@ export const markHackathonTeamMembersPresent = async (
     newlyMarkedCount = updateResult.count ?? 0;
   }
 
-  const updated = await getHackathonTicketRecord(ticketId);
+  const updated = await getHackathonTicketRecord(ticketId, session);
   if (!updated || !updated.claim) {
     return { ok: false as const, code: 'NOT_FOUND' as const };
   }
 
-  const members = mapAttendanceMembers(updated);
+  const members = mapAttendanceMembers(updated, session);
   const presentCount = members.filter((member) => member.attendanceStatus === 'PRESENT').length;
   const totalMembers = members.length;
 
-  if (totalMembers > 0 && presentCount === totalMembers && updated.status === 'ACTIVE') {
-    await (prisma as any).ticket.update({
-      where: { id: updated.id },
-      data: {
-        status: 'USED',
-        usedAt: new Date(),
-        metadata: {
-          ...((updated.metadata as Record<string, unknown> | null) ?? {}),
-          attendanceCompletedAt: new Date().toISOString(),
-          attendanceCompletedByUserId: checkedInByUserId ?? null,
-        } as Prisma.InputJsonValue,
-      },
-    });
-    updated.status = 'USED';
+  const statusSync = await syncHackathonTicketUsageStatus(updated.id, totalMembers, totalSessions);
+  if (statusSync.status) {
+    updated.status = statusSync.status;
   }
 
   logActivity('HACKATHON_MEMBER_ATTENDANCE_MARKED', {
     ticketId: updated.ticketId,
     claimId: updated.claim.id,
     markedBy: checkedInByUserId ?? null,
+    session,
     newlyMarkedCount,
     presentCount,
     totalMembers,
@@ -743,6 +863,8 @@ export const markHackathonTeamMembersPresent = async (
     claimId: updated.claim.id,
     teamName: updated.claim.teamName || `Team-${updated.claim.id}`,
     eventName: updated.claim.problem?.event?.title || 'Hackathon Event',
+    session,
+    totalSessions,
     members,
     presentCount,
     totalMembers,

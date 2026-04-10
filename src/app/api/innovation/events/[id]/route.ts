@@ -27,6 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof parsed.data.description !== 'undefined') updateData.description = parsed.data.description || null;
     if (typeof parsed.data.startTime !== 'undefined') updateData.startTime = new Date(parsed.data.startTime);
     if (typeof parsed.data.endTime !== 'undefined') updateData.endTime = new Date(parsed.data.endTime);
+    if (typeof parsed.data.totalSessions !== 'undefined') updateData.totalSessions = parsed.data.totalSessions;
     if (typeof parsed.data.registrationOpen !== 'undefined') updateData.registrationOpen = parsed.data.registrationOpen;
 
     const nextStart = (updateData.startTime as Date | undefined) ?? event.startTime;

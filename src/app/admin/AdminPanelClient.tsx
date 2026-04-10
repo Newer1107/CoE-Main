@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -83,6 +83,7 @@ type InnovationEvent = {
   startTime: string;
   endTime: string;
   submissionLockAt: string | null;
+  totalSessions?: number;
   totalInterested: number;
   totalInterestedWithDetails: number;
 };
@@ -240,7 +241,7 @@ type ParticipantAnalyticsData = {
     averageScore: number | null;
   };
   options: {
-    events: Array<{ id: number; title: string; status: InnovationEvent["status"] }>;
+    events: Array<{ id: number; title: string; status: InnovationEvent["status"]; totalSessions: number }>;
     problems: Array<{ id: number; title: string; eventId: number | null }>;
     teams: Array<{ id: number; name: string; problemId: number; eventId: number | null }>;
   };
@@ -285,12 +286,29 @@ type TeamAnalyticsData = {
       problemTitle: string;
       eventId: number | null;
       eventTitle: string;
+      session: number;
+      totalSessions: number;
       memberCount: number;
+      members: Array<{
+        claimMemberId: number;
+        userId: number;
+        name: string;
+        email: string;
+        uid: string | null;
+        phone: string | null;
+        role: string;
+      }>;
       attendance: {
         presentCount: number;
         totalMembers: number;
         attendancePercentage: number;
       };
+      perSessionSummary: Array<{
+        session: number;
+        presentCount: number;
+        totalMembers: number;
+        attendancePercentage: number;
+      }>;
       ticket: {
         id: number;
         ticketId: string;
@@ -301,6 +319,7 @@ type TeamAnalyticsData = {
     page: number;
     pageSize: number;
   };
+  selectedSession: number;
 };
 
 type AttendanceAnalyticsData = {
@@ -314,6 +333,8 @@ type AttendanceAnalyticsData = {
     problemTitle: string;
     eventId: number | null;
     eventTitle: string;
+    session: number;
+    totalSessions: number;
     ticket: {
       id: number;
       ticketId: string;
@@ -324,6 +345,12 @@ type AttendanceAnalyticsData = {
       totalMembers: number;
       attendancePercentage: number;
     };
+    perSessionSummary: Array<{
+      session: number;
+      presentCount: number;
+      totalMembers: number;
+      attendancePercentage: number;
+    }>;
     members: Array<{
       claimMemberId: number;
       userId: number;
@@ -344,6 +371,7 @@ type AttendanceAnalyticsData = {
   total: number;
   page: number;
   pageSize: number;
+  selectedSession: number;
   summary: {
     totalPresent: number;
     totalMembers: number;
@@ -352,6 +380,7 @@ type AttendanceAnalyticsData = {
 };
 
 type InsightsAnalyticsData = {
+  selectedSession: number;
   participationTrends: Array<{ date: string; teams: number }>;
   problemPopularity: Array<{ problemId: number; problemTitle: string; teams: number }>;
   dropOffRate: {
@@ -384,6 +413,37 @@ type InsightsAnalyticsData = {
       highAttendance: { range: string; averageScore: number | null; teams: number };
     };
   };
+  attendancePerSession: Array<{
+    session: number;
+    presentCount: number;
+    totalMembers: number;
+    attendancePercentage: number;
+    teamsWithAnyPresent: number;
+  }>;
+  attendanceConsistency: {
+    averageConsistency: number | null;
+    teams: Array<{
+      teamId: number;
+      teamName: string;
+      totalSessions: number;
+      completedSessions: number;
+      consistencyScore: number;
+      missingSessions: number[];
+    }>;
+  };
+  teamsMissingSpecificSessions: Array<{
+    teamId: number;
+    teamName: string;
+    missingSessions: number[];
+  }>;
+  sessionDropOff: Array<{
+    fromSession: number;
+    toSession: number;
+    teamsFrom: number;
+    teamsTo: number;
+    dropOffCount: number;
+    dropOffRate: number;
+  }>;
 };
 
 type AdminPanelClientProps = {
@@ -439,6 +499,8 @@ type TicketVerificationResult = {
   teamName?: string;
   eventName?: string;
   claimId?: number;
+  session?: number;
+  totalSessions?: number;
   presentCount?: number;
   totalMembers?: number;
   newlyMarkedCount?: number;
@@ -579,6 +641,7 @@ export default function AdminPanelClient({
   const [eventStartTime, setEventStartTime] = useState("");
   const [eventEndTime, setEventEndTime] = useState("");
   const [eventSubmissionLockAt, setEventSubmissionLockAt] = useState("");
+  const [eventTotalSessions, setEventTotalSessions] = useState(1);
   const [eventPptFile, setEventPptFile] = useState<File | null>(null);
   const [eventCreating, setEventCreating] = useState(false);
   const [eventProblems, setEventProblems] = useState<EventProblemInput[]>([
@@ -603,6 +666,7 @@ export default function AdminPanelClient({
   const [ticketVerifying, setTicketVerifying] = useState(false);
   const [ticketVerifyError, setTicketVerifyError] = useState("");
   const [ticketVerifyResult, setTicketVerifyResult] = useState<TicketVerificationResult | null>(null);
+  const [ticketSession, setTicketSession] = useState(1);
   const [selectedPresentMemberIds, setSelectedPresentMemberIds] = useState<number[]>([]);
   const [ticketScannerOpen, setTicketScannerOpen] = useState(false);
   const [ticketScannerStarting, setTicketScannerStarting] = useState(false);
@@ -614,6 +678,7 @@ export default function AdminPanelClient({
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState<number | "ALL">("ALL");
   const [analyticsProblemFilter, setAnalyticsProblemFilter] = useState<number | "ALL">("ALL");
   const [analyticsTeamFilter, setAnalyticsTeamFilter] = useState<number | "ALL">("ALL");
+  const [analyticsSessionFilter, setAnalyticsSessionFilter] = useState(1);
   const [analyticsStageFilter, setAnalyticsStageFilter] = useState<AnalyticsStageFilter>("ALL");
   const [analyticsStartDate, setAnalyticsStartDate] = useState("");
   const [analyticsEndDate, setAnalyticsEndDate] = useState("");
@@ -629,6 +694,9 @@ export default function AdminPanelClient({
   const [teamAnalyticsPageSize, setTeamAnalyticsPageSize] = useState(15);
   const [teamData, setTeamData] = useState<TeamAnalyticsData | null>(null);
   const [loadingTeamData, setLoadingTeamData] = useState(false);
+  const [teamManagementClaimId, setTeamManagementClaimId] = useState<number | null>(null);
+  const [teamMemberIdentifierInput, setTeamMemberIdentifierInput] = useState("");
+  const [teamMemberMutationKey, setTeamMemberMutationKey] = useState<string | null>(null);
 
   const [attendanceSearch, setAttendanceSearch] = useState("");
   const [attendancePage, setAttendancePage] = useState(1);
@@ -716,8 +784,23 @@ export default function AdminPanelClient({
 
   const analyticsEventOptions = useMemo(() => {
     if (participantData?.options?.events?.length) return participantData.options.events;
-    return innovationEvents.map((event) => ({ id: event.id, title: event.title, status: event.status }));
+    return innovationEvents.map((event) => ({
+      id: event.id,
+      title: event.title,
+      status: event.status,
+      totalSessions: event.totalSessions ?? 1,
+    }));
   }, [participantData, innovationEvents]);
+
+  const analyticsSessionLimit = useMemo(() => {
+    if (analyticsEventFilter !== "ALL") {
+      const selected = analyticsEventOptions.find((event) => event.id === analyticsEventFilter);
+      return Math.max(1, selected?.totalSessions ?? 1);
+    }
+
+    const maxSessions = analyticsEventOptions.reduce((max, event) => Math.max(max, event.totalSessions || 1), 1);
+    return Math.max(1, maxSessions);
+  }, [analyticsEventFilter, analyticsEventOptions]);
 
   const analyticsProblemOptions = useMemo(() => {
     const options = participantData?.options?.problems || [];
@@ -734,6 +817,28 @@ export default function AdminPanelClient({
     });
   }, [participantData, analyticsEventFilter, analyticsProblemFilter]);
 
+  const allSessionAttendanceSummary = useMemo(() => {
+    if (!attendanceData?.items?.length) return null;
+
+    let totalPresent = 0;
+    let totalSlots = 0;
+
+    for (const team of attendanceData.items) {
+      for (const row of team.perSessionSummary) {
+        totalPresent += row.presentCount;
+        totalSlots += row.totalMembers;
+      }
+    }
+
+    const attendancePercentage = totalSlots > 0 ? Number(((totalPresent / totalSlots) * 100).toFixed(2)) : 0;
+
+    return {
+      totalPresent,
+      totalSlots,
+      attendancePercentage,
+    };
+  }, [attendanceData]);
+
   const buildAnalyticsQueryParams = useCallback((
     extra?: Record<string, string | number | null | undefined>
   ) => {
@@ -742,6 +847,7 @@ export default function AdminPanelClient({
     if (analyticsEventFilter !== "ALL") params.set("eventId", String(analyticsEventFilter));
     if (analyticsProblemFilter !== "ALL") params.set("problemId", String(analyticsProblemFilter));
     if (analyticsTeamFilter !== "ALL") params.set("teamId", String(analyticsTeamFilter));
+    params.set("session", String(analyticsSessionFilter));
     if (analyticsStageFilter !== "ALL") params.set("stage", analyticsStageFilter);
     if (analyticsStartDate) params.set("startDate", analyticsStartDate);
     if (analyticsEndDate) params.set("endDate", analyticsEndDate);
@@ -760,6 +866,7 @@ export default function AdminPanelClient({
     analyticsEventFilter,
     analyticsProblemFilter,
     analyticsTeamFilter,
+    analyticsSessionFilter,
     analyticsStageFilter,
     analyticsStartDate,
     analyticsEndDate,
@@ -929,11 +1036,28 @@ export default function AdminPanelClient({
   }, [analyticsEventFilter]);
 
   useEffect(() => {
+    if (analyticsSessionFilter > analyticsSessionLimit) {
+      setAnalyticsSessionFilter(1);
+    }
+  }, [analyticsSessionFilter, analyticsSessionLimit]);
+
+  useEffect(() => {
     setAnalyticsTeamFilter("ALL");
     setParticipantPage(1);
     setTeamAnalyticsPage(1);
     setAttendancePage(1);
   }, [analyticsProblemFilter]);
+
+  useEffect(() => {
+    setParticipantPage(1);
+    setTeamAnalyticsPage(1);
+    setAttendancePage(1);
+  }, [analyticsSessionFilter]);
+
+  useEffect(() => {
+    setTeamManagementClaimId(null);
+    setTeamMemberIdentifierInput("");
+  }, [teamAnalyticsPage, teamAnalyticsPageSize, analyticsEventFilter, analyticsProblemFilter, analyticsSessionFilter]);
 
   const loadParticipantAnalytics = useCallback(async () => {
     try {
@@ -1042,6 +1166,80 @@ export default function AdminPanelClient({
     loadInsightsAnalytics,
   ]);
 
+  const mutateTeamMembers = useCallback(
+    async (
+      claimId: number,
+      payload: { action: "ADD_MEMBER"; identifier: string } | { action: "REMOVE_MEMBER" | "SET_LEAD"; claimMemberId: number },
+      mutationKey: string,
+      successFallback: string
+    ) => {
+      try {
+        setErrorMessage("");
+        setStatusMessage("");
+        setTeamMemberMutationKey(mutationKey);
+
+        const response = await apiCall(`/api/innovation/admin/teams/${claimId}/members`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+
+        setStatusMessage(response?.message || successFallback);
+        await refreshInnovationAnalytics();
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : "Could not update team members.");
+      } finally {
+        setTeamMemberMutationKey(null);
+      }
+    },
+    [refreshInnovationAnalytics]
+  );
+
+  const handleAddTeamMember = useCallback(
+    async (claimId: number) => {
+      const identifier = teamMemberIdentifierInput.trim();
+      if (!identifier) {
+        setErrorMessage("Provide a UID or email to add a member.");
+        return;
+      }
+
+      await mutateTeamMembers(
+        claimId,
+        { action: "ADD_MEMBER", identifier },
+        `add:${claimId}`,
+        "Team member added successfully."
+      );
+      setTeamMemberIdentifierInput("");
+    },
+    [mutateTeamMembers, teamMemberIdentifierInput]
+  );
+
+  const handleRemoveTeamMember = useCallback(
+    async (claimId: number, claimMemberId: number) => {
+      const confirmed = window.confirm("Remove this member from the team?");
+      if (!confirmed) return;
+
+      await mutateTeamMembers(
+        claimId,
+        { action: "REMOVE_MEMBER", claimMemberId },
+        `remove:${claimId}:${claimMemberId}`,
+        "Team member removed successfully."
+      );
+    },
+    [mutateTeamMembers]
+  );
+
+  const handleSetTeamLead = useCallback(
+    async (claimId: number, claimMemberId: number) => {
+      await mutateTeamMembers(
+        claimId,
+        { action: "SET_LEAD", claimMemberId },
+        `lead:${claimId}:${claimMemberId}`,
+        "Team lead updated successfully."
+      );
+    },
+    [mutateTeamMembers]
+  );
+
   useEffect(() => {
     if (activeView !== "innovation" || innovationTab !== "analytics") return;
     void loadParticipantAnalytics();
@@ -1072,21 +1270,39 @@ export default function AdminPanelClient({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const handleMarkTeamAttendance = async (teamId: number, status: "PRESENT" | "NOT_PRESENT") => {
+  const handleMarkTeamAttendance = async (
+    team: AttendanceAnalyticsData["items"][number],
+    status: "PRESENT" | "NOT_PRESENT"
+  ) => {
+    const targetMemberUserIds = team.members
+      .filter((member) => member.attendanceStatus !== status)
+      .map((member) => member.userId);
+
+    if (targetMemberUserIds.length === 0) {
+      setStatusMessage(`All members for Team #${team.teamId} are already marked ${status} for session ${analyticsSessionFilter}.`);
+      return;
+    }
+
     try {
-      setAttendanceUpdateKey(`team-${teamId}-${status}`);
+      setAttendanceUpdateKey(`team-${team.teamId}-${status}-${analyticsSessionFilter}`);
       setErrorMessage("");
-      await apiCall("/api/innovation/admin/analytics/attendance", {
-        method: "PATCH",
-        body: JSON.stringify({
-          action: "MARK_TEAM",
-          claimId: teamId,
-          status,
-        }),
-      });
+
+      await Promise.all(
+        targetMemberUserIds.map((userId) =>
+          apiCall("/api/attendance", {
+            method: "POST",
+            body: JSON.stringify({
+              claimId: team.teamId,
+              userId,
+              session: analyticsSessionFilter,
+              status,
+            }),
+          })
+        )
+      );
 
       await Promise.all([loadAttendanceAnalytics(), loadTeamAnalytics(), loadInsightsAnalytics()]);
-      setStatusMessage(`Team #${teamId} marked ${status}.`);
+      setStatusMessage(`Team #${team.teamId} marked ${status} for session ${analyticsSessionFilter}.`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Could not update team attendance.");
     } finally {
@@ -1096,24 +1312,26 @@ export default function AdminPanelClient({
 
   const handleMarkMemberAttendance = async (
     teamId: number,
+    userId: number,
     claimMemberId: number,
     status: "PRESENT" | "NOT_PRESENT"
   ) => {
     try {
-      setAttendanceUpdateKey(`member-${teamId}-${claimMemberId}-${status}`);
+      setAttendanceUpdateKey(`member-${teamId}-${claimMemberId}-${status}-${analyticsSessionFilter}`);
       setErrorMessage("");
-      await apiCall("/api/innovation/admin/analytics/attendance", {
-        method: "PATCH",
+
+      await apiCall("/api/attendance", {
+        method: "POST",
         body: JSON.stringify({
-          action: "MARK_MEMBER",
           claimId: teamId,
-          claimMemberIds: [claimMemberId],
+          userId,
+          session: analyticsSessionFilter,
           status,
         }),
       });
 
       await Promise.all([loadAttendanceAnalytics(), loadTeamAnalytics(), loadInsightsAnalytics()]);
-      setStatusMessage(`Updated attendance for member #${claimMemberId}.`);
+      setStatusMessage(`Updated attendance for member #${claimMemberId} in session ${analyticsSessionFilter}.`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Could not update member attendance.");
     } finally {
@@ -1158,7 +1376,10 @@ export default function AdminPanelClient({
 
       const payload = await apiCall("/api/tickets/verify", {
         method: "POST",
-        body: JSON.stringify({ ticketId: normalizedTicketId }),
+        body: JSON.stringify({
+          ticketId: normalizedTicketId,
+          session: ticketSession,
+        }),
       });
 
       setTicketIdInput(normalizedTicketId);
@@ -1166,8 +1387,11 @@ export default function AdminPanelClient({
       setTicketVerifyResult(result);
 
       if (result?.mode === "HACKATHON") {
+        if (typeof result.session === "number") {
+          setTicketSession(result.session);
+        }
         setSelectedPresentMemberIds([]);
-        setStatusMessage(`Team ticket ${normalizedTicketId} loaded. Select present members and confirm check-in.`);
+        setStatusMessage(`Team ticket ${normalizedTicketId} loaded for session ${result.session ?? ticketSession}. Select present members and confirm check-in.`);
       } else {
         setSelectedPresentMemberIds([]);
         setStatusMessage(`Facility ticket ${normalizedTicketId} verified.`);
@@ -1200,6 +1424,7 @@ export default function AdminPanelClient({
         method: "POST",
         body: JSON.stringify({
           ticketId: ticketVerifyResult.ticketId,
+          session: ticketSession,
           presentClaimMemberIds: selectedPresentMemberIds,
         }),
       });
@@ -1209,8 +1434,11 @@ export default function AdminPanelClient({
       setSelectedPresentMemberIds([]);
 
       if (result?.mode === "HACKATHON") {
+        if (typeof result.session === "number") {
+          setTicketSession(result.session);
+        }
         setStatusMessage(
-          `Marked ${result.newlyMarkedCount ?? 0} member(s) present. ${result.presentCount ?? 0}/${
+          `Session ${result.session ?? ticketSession}: marked ${result.newlyMarkedCount ?? 0} member(s) present. ${result.presentCount ?? 0}/${
             result.totalMembers ?? 0
           } checked in.`
         );
@@ -1375,6 +1603,10 @@ export default function AdminPanelClient({
       stopTicketScanner();
     }
   }, [operationsTab]);
+
+  useEffect(() => {
+    setSelectedPresentMemberIds([]);
+  }, [ticketSession]);
 
   useEffect(() => {
     if (activeView !== "operations") {
@@ -1557,6 +1789,7 @@ export default function AdminPanelClient({
       formData.set("startTime", eventStartTime);
       formData.set("endTime", eventEndTime);
       formData.set("submissionLockAt", eventSubmissionLockAt);
+      formData.set("totalSessions", String(eventTotalSessions));
       formData.set("problems", JSON.stringify(problemsPayload));
       if (eventPptFile) {
         formData.set("pptFile", eventPptFile);
@@ -1578,6 +1811,7 @@ export default function AdminPanelClient({
       setEventStartTime("");
       setEventEndTime("");
       setEventSubmissionLockAt("");
+      setEventTotalSessions(1);
       setEventPptFile(null);
       setEventProblems([{ title: "", description: "", isIndustryProblem: false, industryName: "" }]);
       setStatusMessage("Hackathon event created successfully.");
@@ -2075,12 +2309,32 @@ export default function AdminPanelClient({
           <p className="text-sm text-[#434651]">Admin-only check-in: facility tickets consume on verify, while hackathon team tickets support per-member attendance marking.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto_auto] gap-3 mb-4">
           <input
             value={ticketIdInput}
             onChange={(e) => setTicketIdInput(e.target.value)}
             className="border border-[#c4c6d3] px-3 py-2 text-sm"
             placeholder="Enter ticket ID or paste QR URL"
+          />
+          <input
+            type="number"
+            min={1}
+            max={ticketVerifyResult?.mode === "HACKATHON" ? Math.max(1, ticketVerifyResult.totalSessions ?? 1) : 30}
+            value={ticketSession}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (!Number.isFinite(next) || next <= 0) {
+                setTicketSession(1);
+                return;
+              }
+              const upperBound =
+                ticketVerifyResult?.mode === "HACKATHON"
+                  ? Math.max(1, ticketVerifyResult.totalSessions ?? 1)
+                  : 30;
+              setTicketSession(Math.min(Math.max(1, Math.floor(next)), upperBound));
+            }}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            placeholder="Session"
           />
           <button
             onClick={() => void handleVerifyTicket()}
@@ -2138,6 +2392,7 @@ export default function AdminPanelClient({
                 <div className="mb-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   <p><span className="text-[#747782]">Team:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.teamName || "N/A"}</span></p>
                   <p><span className="text-[#747782]">Event:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.eventName || "N/A"}</span></p>
+                  <p><span className="text-[#747782]">Session:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.session ?? ticketSession} / {ticketVerifyResult.totalSessions ?? 1}</span></p>
                   <p className="md:col-span-2"><span className="text-[#747782]">Attendance:</span> <span className="text-[#002155] font-semibold">{ticketVerifyResult.presentCount ?? 0}/{ticketVerifyResult.totalMembers ?? 0} present</span></p>
                 </div>
 
@@ -2636,7 +2891,7 @@ export default function AdminPanelClient({
                 placeholder="Event description (optional)"
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Start Time</label>
                   <input
@@ -2664,6 +2919,25 @@ export default function AdminPanelClient({
                     required
                     value={eventSubmissionLockAt}
                     onChange={(e) => setEventSubmissionLockAt(e.target.value)}
+                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Total Sessions</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    required
+                    value={eventTotalSessions}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      if (!Number.isFinite(next) || next <= 0) {
+                        setEventTotalSessions(1);
+                        return;
+                      }
+                      setEventTotalSessions(Math.min(30, Math.floor(next)));
+                    }}
                     className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                   />
                 </div>
@@ -2801,6 +3075,7 @@ export default function AdminPanelClient({
                         Event: {event.status === "CLOSED" ? "CLOSED" : "OPEN"} ({event.status})
                       </p>
                       <p className="mt-1 text-xs text-[#434651]">Submissions: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
+                      <p className="mt-1 text-xs text-[#434651]">Required sessions: {event.totalSessions ?? 1}</p>
                       <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
                       <p className="mt-1 text-xs text-[#434651]">
                         Submission lock: {event.submissionLockAt ? new Date(event.submissionLockAt).toLocaleString() : "Not set"}
@@ -3179,7 +3454,7 @@ export default function AdminPanelClient({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
               <select
                 value={analyticsEventFilter}
                 onChange={(e) => {
@@ -3223,6 +3498,21 @@ export default function AdminPanelClient({
                     #{team.id} {team.name}
                   </option>
                 ))}
+              </select>
+
+              <select
+                value={analyticsSessionFilter}
+                onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                {Array.from({ length: analyticsSessionLimit }, (_, index) => {
+                  const session = index + 1;
+                  return (
+                    <option key={`analytics-session-${session}`} value={session}>
+                      Session {session}
+                    </option>
+                  );
+                })}
               </select>
 
               <select
@@ -3355,7 +3645,7 @@ export default function AdminPanelClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
               <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
                 <p className="text-[10px] uppercase tracking-widest text-[#434651]">Participants</p>
                 <p className="text-xl font-bold text-[#002155]">{participantData?.summary.totalParticipants ?? 0}</p>
@@ -3368,6 +3658,10 @@ export default function AdminPanelClient({
                 <p className="text-[10px] uppercase tracking-widest text-[#434651]">Stage Filter</p>
                 <p className="text-xl font-bold text-[#002155]">{analyticsStageFilter}</p>
               </div>
+                <div className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-[#434651]">Session</p>
+                  <p className="text-xl font-bold text-[#002155]">{analyticsSessionFilter}</p>
+                </div>
             </div>
 
             {loadingParticipantData ? (
@@ -3444,8 +3738,22 @@ export default function AdminPanelClient({
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <div>
                 <h2 className="font-headline text-2xl text-[#002155]">Team-Level Analytics</h2>
-                <p className="text-sm text-[#434651]">Team distribution, acceptance ratio, score quality, and leaderboard snapshot.</p>
+                <p className="text-sm text-[#434651]">Team distribution, acceptance ratio, score quality, and leaderboard snapshot for session {teamData?.selectedSession ?? analyticsSessionFilter}.</p>
               </div>
+              <select
+                value={analyticsSessionFilter}
+                onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[220px]"
+              >
+                {Array.from({ length: analyticsSessionLimit }, (_, index) => {
+                  const session = index + 1;
+                  return (
+                    <option key={`teams-session-${session}`} value={session}>
+                      Session {session}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             {loadingTeamData ? (
@@ -3528,19 +3836,132 @@ export default function AdminPanelClient({
                         <th className="text-left px-3 py-2">Score</th>
                         <th className="text-left px-3 py-2">Members</th>
                         <th className="text-left px-3 py-2">Attendance %</th>
+                        <th className="text-left px-3 py-2">All Sessions</th>
+                        <th className="text-left px-3 py-2">Manage</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {teamData.teams.items.map((row) => (
-                        <tr key={`team-analytics-${row.teamId}`} className="border-t border-[#e3e2df]">
-                          <td className="px-3 py-2">#{row.teamId} {row.teamName}</td>
-                          <td className="px-3 py-2">{row.problemTitle}</td>
-                          <td className="px-3 py-2">{row.status}</td>
-                          <td className="px-3 py-2">{row.finalScore ?? "N/A"}</td>
-                          <td className="px-3 py-2">{row.memberCount}</td>
-                          <td className="px-3 py-2">{row.attendance.attendancePercentage}%</td>
-                        </tr>
-                      ))}
+                      {teamData.teams.items.map((row) => {
+                        const isManaging = teamManagementClaimId === row.teamId;
+                        const addMutationKey = `add:${row.teamId}`;
+
+                        return (
+                          <Fragment key={`team-analytics-group-${row.teamId}`}>
+                            <tr key={`team-analytics-${row.teamId}`} className="border-t border-[#e3e2df]">
+                              <td className="px-3 py-2">#{row.teamId} {row.teamName}</td>
+                              <td className="px-3 py-2">{row.problemTitle}</td>
+                              <td className="px-3 py-2">{row.status}</td>
+                              <td className="px-3 py-2">{row.finalScore ?? "N/A"}</td>
+                              <td className="px-3 py-2">{row.memberCount}</td>
+                              <td className="px-3 py-2">S{row.session}: {row.attendance.attendancePercentage}%</td>
+                              <td className="px-3 py-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {row.perSessionSummary.map((sessionRow) => (
+                                    <span
+                                      key={`team-session-snapshot-${row.teamId}-${sessionRow.session}`}
+                                      className="text-[10px] border border-[#d8d6cf] bg-[#faf9f5] px-2 py-1 text-[#434651]"
+                                    >
+                                      S{sessionRow.session}: {sessionRow.presentCount}/{sessionRow.totalMembers}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (isManaging) {
+                                      setTeamManagementClaimId(null);
+                                      setTeamMemberIdentifierInput("");
+                                      return;
+                                    }
+
+                                    setTeamManagementClaimId(row.teamId);
+                                    setTeamMemberIdentifierInput("");
+                                  }}
+                                  className="border border-[#c4c6d3] px-2 py-1 text-[10px] font-bold uppercase tracking-wider"
+                                >
+                                  {isManaging ? "Close" : "Manage"}
+                                </button>
+                              </td>
+                            </tr>
+
+                            {isManaging ? (
+                              <tr className="border-t border-[#e3e2df] bg-[#faf9f5]" key={`team-manage-${row.teamId}`}>
+                                <td colSpan={8} className="px-3 py-3">
+                                  <div className="space-y-3">
+                                    <div>
+                                      <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Current Members</p>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {row.members.map((member) => {
+                                          const removeKey = `remove:${row.teamId}:${member.claimMemberId}`;
+                                          const leadKey = `lead:${row.teamId}:${member.claimMemberId}`;
+                                          const isLead = member.role === "LEAD";
+
+                                          return (
+                                            <div
+                                              key={`team-manage-member-${row.teamId}-${member.claimMemberId}`}
+                                              className="border border-[#d8d6cf] bg-white p-2"
+                                            >
+                                              <p className="text-sm font-semibold text-[#002155]">{member.name}</p>
+                                              <p className="text-xs text-[#434651]">{member.uid || member.email}</p>
+                                              <p className="text-[11px] text-[#434651] mt-1">
+                                                {isLead ? "Lead" : "Member"}
+                                              </p>
+                                              <div className="flex flex-wrap gap-2 mt-2">
+                                                {!isLead ? (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => void handleSetTeamLead(row.teamId, member.claimMemberId)}
+                                                    disabled={teamMemberMutationKey === leadKey}
+                                                    className="border border-[#0b6b2e] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#0b6b2e] disabled:opacity-50"
+                                                  >
+                                                    {teamMemberMutationKey === leadKey ? "Saving" : "Make Lead"}
+                                                  </button>
+                                                ) : null}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => void handleRemoveTeamMember(row.teamId, member.claimMemberId)}
+                                                  disabled={row.members.length <= 1 || teamMemberMutationKey === removeKey}
+                                                  className="border border-[#ba1a1a] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#ba1a1a] disabled:opacity-50"
+                                                >
+                                                  {teamMemberMutationKey === removeKey ? "Removing" : "Remove"}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    <div className="border border-[#d8d6cf] bg-white p-3">
+                                      <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Add Member</p>
+                                      <div className="flex flex-col md:flex-row gap-2">
+                                        <input
+                                          type="text"
+                                          value={teamMemberIdentifierInput}
+                                          onChange={(e) => setTeamMemberIdentifierInput(e.target.value)}
+                                          placeholder="Enter UID or student email"
+                                          className="border border-[#c4c6d3] px-3 py-2 text-sm flex-1"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => void handleAddTeamMember(row.teamId)}
+                                          disabled={teamMemberMutationKey === addMutationKey}
+                                          className="border border-[#002155] bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                                        >
+                                          {teamMemberMutationKey === addMutationKey ? "Adding" : "Add Member"}
+                                        </button>
+                                      </div>
+                                      <p className="text-[11px] text-[#434651] mt-2">Use UID or active student email. Remove + add can be used to replace members.</p>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : null}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3593,17 +4014,33 @@ export default function AdminPanelClient({
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <div>
                 <h2 className="font-headline text-2xl text-[#002155]">Attendance Tracking Dashboard</h2>
-                <p className="text-sm text-[#434651]">Member-level attendance with manual and bulk team marking.</p>
+                <p className="text-sm text-[#434651]">Member-level attendance with manual and bulk team marking for session {attendanceData?.selectedSession ?? analyticsSessionFilter}.</p>
               </div>
-              <input
-                value={attendanceSearch}
-                onChange={(e) => {
-                  setAttendancePage(1);
-                  setAttendanceSearch(e.target.value);
-                }}
-                placeholder="Search team/member/email"
-                className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[280px]"
-              />
+              <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                <select
+                  value={analyticsSessionFilter}
+                  onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[180px]"
+                >
+                  {Array.from({ length: analyticsSessionLimit }, (_, index) => {
+                    const session = index + 1;
+                    return (
+                      <option key={`attendance-session-${session}`} value={session}>
+                        Session {session}
+                      </option>
+                    );
+                  })}
+                </select>
+                <input
+                  value={attendanceSearch}
+                  onChange={(e) => {
+                    setAttendancePage(1);
+                    setAttendanceSearch(e.target.value);
+                  }}
+                  placeholder="Search team/member/email"
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[280px]"
+                />
+              </div>
             </div>
 
             {loadingAttendanceData ? (
@@ -3613,35 +4050,54 @@ export default function AdminPanelClient({
             ) : (
               <>
                 <div className="mb-3 border border-[#e3e2df] bg-[#faf9f5] p-3 text-sm text-[#434651]">
-                  Overall attendance: <span className="font-bold text-[#002155]">{attendanceData.summary.totalPresent}/{attendanceData.summary.totalMembers}</span>
+                  Session {attendanceData.selectedSession}: <span className="font-bold text-[#002155]">{attendanceData.summary.totalPresent}/{attendanceData.summary.totalMembers}</span>
                   <span className="ml-2 font-bold text-[#002155]">({attendanceData.summary.attendancePercentage}%)</span>
+                  {allSessionAttendanceSummary ? (
+                    <span className="ml-3 text-[#434651]">
+                      | All sessions: <span className="font-bold text-[#002155]">{allSessionAttendanceSummary.totalPresent}/{allSessionAttendanceSummary.totalSlots}</span>
+                      <span className="ml-1 font-bold text-[#002155]">({allSessionAttendanceSummary.attendancePercentage}%)</span>
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="space-y-4">
                   {attendanceData.items.map((team) => (
                     <article key={`attendance-team-${team.teamId}`} className="border border-[#d8d6cf] bg-[#faf9f5] p-4">
+                      {analyticsSessionFilter > team.totalSessions ? (
+                        <p className="mb-2 border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                          Session {analyticsSessionFilter} is not configured for this team&apos;s event (max {team.totalSessions}).
+                        </p>
+                      ) : null}
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
                         <div>
                           <p className="text-sm font-bold text-[#002155]">#{team.teamId} {team.teamName}</p>
                           <p className="text-xs text-[#434651]">{team.problemTitle} • {team.eventTitle}</p>
-                          <p className="text-xs text-[#434651]">Attendance: {team.attendance.presentCount}/{team.attendance.totalMembers} ({team.attendance.attendancePercentage}%)</p>
+                          <p className="text-xs text-[#434651]">Session {team.session}/{team.totalSessions} attendance: {team.attendance.presentCount}/{team.attendance.totalMembers} ({team.attendance.attendancePercentage}%)</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => void handleMarkTeamAttendance(team.teamId, "PRESENT")}
-                            disabled={attendanceUpdateKey === `team-${team.teamId}-PRESENT`}
+                            onClick={() => void handleMarkTeamAttendance(team, "PRESENT")}
+                            disabled={analyticsSessionFilter > team.totalSessions || attendanceUpdateKey === `team-${team.teamId}-PRESENT-${analyticsSessionFilter}`}
                             className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                           >
-                            {attendanceUpdateKey === `team-${team.teamId}-PRESENT` ? "Saving..." : "Mark Team Present"}
+                            {attendanceUpdateKey === `team-${team.teamId}-PRESENT-${analyticsSessionFilter}` ? "Saving..." : "Mark Team Present"}
                           </button>
                           <button
-                            onClick={() => void handleMarkTeamAttendance(team.teamId, "NOT_PRESENT")}
-                            disabled={attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT`}
+                            onClick={() => void handleMarkTeamAttendance(team, "NOT_PRESENT")}
+                            disabled={analyticsSessionFilter > team.totalSessions || attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT-${analyticsSessionFilter}`}
                             className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                           >
-                            {attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT` ? "Saving..." : "Mark Team Not Present"}
+                            {attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT-${analyticsSessionFilter}` ? "Saving..." : "Mark Team Not Present"}
                           </button>
                         </div>
+                      </div>
+
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {team.perSessionSummary.map((row) => (
+                          <span key={`team-${team.teamId}-session-summary-${row.session}`} className="text-[10px] border border-[#d8d6cf] bg-white px-2 py-1 text-[#434651]">
+                            S{row.session}: {row.presentCount}/{row.totalMembers}
+                          </span>
+                        ))}
                       </div>
 
                       <div className="overflow-x-auto border border-[#e3e2df] bg-white">
@@ -3660,7 +4116,7 @@ export default function AdminPanelClient({
                           <tbody>
                             {team.members.map((member) => {
                               const targetStatus = member.attendanceStatus === "PRESENT" ? "NOT_PRESENT" : "PRESENT";
-                              const actionKey = `member-${team.teamId}-${member.claimMemberId}-${targetStatus}`;
+                              const actionKey = `member-${team.teamId}-${member.claimMemberId}-${targetStatus}-${analyticsSessionFilter}`;
 
                               return (
                                 <tr key={`attendance-member-${member.claimMemberId}`} className="border-t border-[#e3e2df]">
@@ -3672,8 +4128,8 @@ export default function AdminPanelClient({
                                   <td className="px-3 py-2">{member.markedBy ? member.markedBy.name : "N/A"}</td>
                                   <td className="px-3 py-2">
                                     <button
-                                      onClick={() => void handleMarkMemberAttendance(team.teamId, member.claimMemberId, targetStatus)}
-                                      disabled={attendanceUpdateKey === actionKey}
+                                      onClick={() => void handleMarkMemberAttendance(team.teamId, member.userId, member.claimMemberId, targetStatus)}
+                                      disabled={analyticsSessionFilter > team.totalSessions || attendanceUpdateKey === actionKey}
                                       className="border border-[#002155] text-[#002155] px-2 py-1 text-[10px] font-bold uppercase tracking-wider disabled:opacity-50"
                                     >
                                       {attendanceUpdateKey === actionKey
@@ -3734,9 +4190,25 @@ export default function AdminPanelClient({
 
           {innovationAnalyticsTab === "insights" ? (
             <section className="border border-[#c4c6d3] bg-white p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-headline text-2xl text-[#002155]">Advanced Analytics Insights</h2>
-              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">Trends, drop-off, scoring, correlation</span>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+              <div>
+                <h2 className="font-headline text-2xl text-[#002155]">Advanced Analytics Insights</h2>
+                <span className="text-xs uppercase tracking-widest text-[#434651] font-label">Trends, drop-off, scoring, correlation</span>
+              </div>
+              <select
+                value={analyticsSessionFilter}
+                onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[180px]"
+              >
+                {Array.from({ length: analyticsSessionLimit }, (_, index) => {
+                  const session = index + 1;
+                  return (
+                    <option key={`insights-session-${session}`} value={session}>
+                      Session {session}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             {loadingInsightsData ? (
@@ -3823,6 +4295,7 @@ export default function AdminPanelClient({
 
                   <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
                     <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Attendance vs Performance</p>
+                    <p className="text-sm text-[#434651]">Selected Session: <span className="font-bold text-[#002155]">{insightsData.selectedSession}</span></p>
                     <p className="text-sm text-[#434651]">Correlation: <span className="font-bold text-[#002155]">{insightsData.attendanceVsPerformance.correlation ?? "N/A"}</span></p>
                     <p className="text-sm text-[#434651]">Sample Size: <span className="font-bold text-[#002155]">{insightsData.attendanceVsPerformance.sampleSize}</span></p>
                     <div className="mt-2 space-y-1 text-xs text-[#434651]">
@@ -3834,6 +4307,31 @@ export default function AdminPanelClient({
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Session Attendance Trend</p>
+                    {insightsData.attendancePerSession.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No session attendance records available.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {insightsData.attendancePerSession.map((row) => {
+                          const max = Math.max(...insightsData.attendancePerSession.map((item) => item.attendancePercentage), 1);
+                          const width = Math.max(8, Math.round((row.attendancePercentage / max) * 100));
+
+                          return (
+                            <div key={`insight-attendance-session-${row.session}`}>
+                              <p className="text-xs text-[#434651] mb-1">
+                                Session {row.session}: {row.presentCount}/{row.totalMembers} ({row.attendancePercentage}%)
+                              </p>
+                              <div className="h-2 bg-[#e3e2df]">
+                                <div className="h-2 bg-[#002155]" style={{ width: `${width}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
                     <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Average Scores By Problem</p>
                     {insightsData.averageScoresByProblem.length === 0 ? (
@@ -3860,6 +4358,43 @@ export default function AdminPanelClient({
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Session-to-Session Drop-off</p>
+                    {insightsData.sessionDropOff.length === 0 ? (
+                      <p className="text-sm text-[#434651]">At least two sessions are required to compute drop-off.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {insightsData.sessionDropOff.map((row) => (
+                          <div key={`session-drop-${row.fromSession}-${row.toSession}`} className="border border-[#d8d6cf] bg-white p-2">
+                            <p className="text-xs text-[#434651]">S{row.fromSession} to S{row.toSession}</p>
+                            <p className="text-sm font-bold text-[#002155]">{row.dropOffCount} team drop ({row.dropOffRate}%)</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Teams Missing Sessions</p>
+                    <p className="text-xs text-[#434651] mb-2">
+                      Avg consistency: <span className="font-bold text-[#002155]">{insightsData.attendanceConsistency.averageConsistency ?? "N/A"}%</span>
+                    </p>
+                    {insightsData.teamsMissingSpecificSessions.length === 0 ? (
+                      <p className="text-sm text-[#434651]">No teams are missing required sessions.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-auto">
+                        {insightsData.teamsMissingSpecificSessions.map((row) => (
+                          <div key={`missing-session-team-${row.teamId}`} className="border border-[#d8d6cf] bg-white p-2">
+                            <p className="text-sm font-semibold text-[#002155]">{row.teamName}</p>
+                            <p className="text-xs text-[#434651]">Missing: {row.missingSessions.join(", ")}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

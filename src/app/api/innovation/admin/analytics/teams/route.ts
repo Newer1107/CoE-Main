@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', errors, 400);
     }
 
+    const targetSession = filters.session ?? 1;
+
     const claimWhere = buildInnovationAnalyticsClaimWhere(filters);
     let scopedClaimWhere: Prisma.ClaimWhereInput = claimWhere;
 
@@ -83,6 +85,22 @@ export async function GET(req: NextRequest) {
           finalScore: true,
           score: true,
           updatedAt: true,
+          members: {
+            select: {
+              id: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  uid: true,
+                  phone: true,
+                },
+              },
+            },
+            orderBy: [{ role: 'asc' }, { id: 'asc' }],
+          },
           _count: {
             select: {
               members: true,
@@ -96,6 +114,7 @@ export async function GET(req: NextRequest) {
                 select: {
                   id: true,
                   title: true,
+                  totalSessions: true,
                 },
               },
             },
@@ -110,6 +129,7 @@ export async function GET(req: NextRequest) {
               status: true,
               attendanceRecords: {
                 select: {
+                  session: true,
                   status: true,
                 },
               },
@@ -188,10 +208,33 @@ export async function GET(req: NextRequest) {
 
     const items = pagedTeams.map((team) => {
       const ticket = team.tickets[0] || null;
-      const presentCount = ticket
-        ? ticket.attendanceRecords.filter((entry) => entry.status === 'PRESENT').length
-        : 0;
       const totalMembers = team._count.members;
+      const totalSessions = team.problem.event?.totalSessions ?? 1;
+      const effectiveSession = Math.min(targetSession, totalSessions);
+
+      const perSessionSummary = Array.from({ length: totalSessions }, (_, index) => {
+        const session = index + 1;
+        const sessionPresentCount = ticket
+          ? ticket.attendanceRecords.filter((entry) => entry.session === session && entry.status === 'PRESENT').length
+          : 0;
+
+        return {
+          session,
+          presentCount: sessionPresentCount,
+          totalMembers,
+          attendancePercentage:
+            totalMembers > 0 ? Number(((sessionPresentCount / totalMembers) * 100).toFixed(2)) : 0,
+        };
+      });
+
+      const selectedSessionSummary = perSessionSummary.find((row) => row.session === effectiveSession) || {
+        session: effectiveSession,
+        presentCount: 0,
+        totalMembers,
+        attendancePercentage: 0,
+      };
+
+      const presentCount = selectedSessionSummary.presentCount;
       const attendancePercentage = totalMembers > 0 ? Math.round((presentCount / totalMembers) * 100) : 0;
 
       return {
@@ -205,12 +248,24 @@ export async function GET(req: NextRequest) {
         problemTitle: team.problem.title,
         eventId: team.problem.event?.id ?? null,
         eventTitle: team.problem.event?.title ?? 'N/A',
+        session: effectiveSession,
+        totalSessions,
         memberCount: totalMembers,
+        members: team.members.map((member) => ({
+          claimMemberId: member.id,
+          userId: member.user.id,
+          name: member.user.name,
+          email: member.user.email,
+          uid: member.user.uid,
+          phone: member.user.phone,
+          role: member.role,
+        })),
         attendance: {
           presentCount,
           totalMembers,
           attendancePercentage,
         },
+        perSessionSummary,
         ticket: ticket
           ? {
               id: ticket.id,
@@ -252,6 +307,7 @@ export async function GET(req: NextRequest) {
           page,
           pageSize,
         },
+        selectedSession: targetSession,
       },
       'Team analytics retrieved successfully.'
     );

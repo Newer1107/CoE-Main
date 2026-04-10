@@ -1,7 +1,5 @@
 import { ClaimStatus, MemberAttendanceStatus, Prisma } from '@prisma/client';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import {
   buildInnovationAnalyticsClaimWhere,
@@ -9,67 +7,72 @@ import {
   mapClaimStatusToStage,
   parseInnovationAnalyticsFilters,
 } from '@/lib/innovation-analytics';
+import prisma from '@/lib/prisma';
 
-const markAttendanceSchema = z.discriminatedUnion('action', [
-  z.object({
-    action: z.literal('MARK_MEMBER'),
-    claimId: z.coerce.number().int().positive(),
-    claimMemberIds: z.array(z.coerce.number().int().positive()).min(1),
-    status: z.enum(['PRESENT', 'NOT_PRESENT']),
-  }),
-  z.object({
-    action: z.literal('MARK_TEAM'),
-    claimId: z.coerce.number().int().positive(),
-    status: z.enum(['PRESENT', 'NOT_PRESENT']),
-  }),
-]);
-
-const buildAttendanceTeamRows = (claims: Array<{
-  id: number;
-  teamName: string | null;
-  status: ClaimStatus;
-  updatedAt: Date;
-  problem: {
+type AttendanceRow = {
+  claimMemberId: number;
+  session: number;
+  status: MemberAttendanceStatus;
+  checkedInAt: Date | null;
+  checkedInBy: {
     id: number;
-    title: string;
-    event: {
+    name: string;
+    email: string;
+  } | null;
+};
+
+const buildAttendanceTeamRows = (
+  claims: Array<{
+    id: number;
+    teamName: string | null;
+    status: ClaimStatus;
+    updatedAt: Date;
+    problem: {
       id: number;
       title: string;
-    } | null;
-  };
-  members: Array<{
-    id: number;
-    role: string;
-    user: {
-      id: number;
-      name: string;
-      email: string;
-      phone: string | null;
-      uid: string | null;
+      event: {
+        id: number;
+        title: string;
+        totalSessions: number;
+      } | null;
     };
-  }>;
-  tickets: Array<{
-    id: number;
-    ticketId: string;
-    status: string;
-    attendanceRecords: Array<{
-      claimMemberId: number;
-      status: MemberAttendanceStatus;
-      checkedInAt: Date | null;
-      checkedInBy: {
+    members: Array<{
+      id: number;
+      role: string;
+      user: {
         id: number;
         name: string;
         email: string;
-      } | null;
+        phone: string | null;
+        uid: string | null;
+      };
     }>;
-  }>;
-}>) => {
+    tickets: Array<{
+      id: number;
+      ticketId: string;
+      status: string;
+      attendanceRecords: AttendanceRow[];
+    }>;
+  }>,
+  targetSession: number
+) => {
   return claims.map((claim) => {
     const teamTicket = claim.tickets[0] || null;
-    const attendanceMap = new Map(teamTicket?.attendanceRecords.map((row) => [row.claimMemberId, row]) || []);
+    const totalSessions = claim.problem.event?.totalSessions ?? 1;
+    const effectiveSession = Math.min(targetSession, totalSessions);
+
+    const attendanceBySession = new Map<number, Map<number, AttendanceRow>>();
+    for (const row of teamTicket?.attendanceRecords || []) {
+      if (!attendanceBySession.has(row.session)) {
+        attendanceBySession.set(row.session, new Map<number, AttendanceRow>());
+      }
+      attendanceBySession.get(row.session)?.set(row.claimMemberId, row);
+    }
+
+    const activeSessionAttendance = attendanceBySession.get(effectiveSession) || new Map<number, AttendanceRow>();
 
     const members = claim.members.map((member) => {
-      const attendance = attendanceMap.get(member.id);
+      const attendance = activeSessionAttendance.get(member.id);
       const status = attendance?.status || 'NOT_PRESENT';
       return {
         claimMemberId: member.id,
@@ -95,6 +98,19 @@ const buildAttendanceTeamRows = (claims: Array<{
     const totalMembers = members.length;
     const attendancePercentage = totalMembers > 0 ? Number(((presentCount / totalMembers) * 100).toFixed(2)) : 0;
 
+    const perSessionSummary = Array.from({ length: totalSessions }, (_, index) => {
+      const session = index + 1;
+      const rows = attendanceBySession.get(session) || new Map<number, AttendanceRow>();
+      const sessionPresentCount = Array.from(rows.values()).filter((row) => row.status === 'PRESENT').length;
+      return {
+        session,
+        presentCount: sessionPresentCount,
+        totalMembers,
+        attendancePercentage:
+          totalMembers > 0 ? Number(((sessionPresentCount / totalMembers) * 100).toFixed(2)) : 0,
+      };
+    });
+
     return {
       teamId: claim.id,
       teamName: claim.teamName || `Team-${claim.id}`,
@@ -105,6 +121,8 @@ const buildAttendanceTeamRows = (claims: Array<{
       problemTitle: claim.problem.title,
       eventId: claim.problem.event?.id ?? null,
       eventTitle: claim.problem.event?.title ?? 'N/A',
+      session: effectiveSession,
+      totalSessions,
       ticket: teamTicket
         ? {
             id: teamTicket.id,
@@ -117,6 +135,7 @@ const buildAttendanceTeamRows = (claims: Array<{
         totalMembers,
         attendancePercentage,
       },
+      perSessionSummary,
       members,
     };
   });
@@ -138,7 +157,13 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', errors, 400);
     }
 
-    const claimWhere = buildInnovationAnalyticsClaimWhere(filters);
+    const targetSession = filters.session ?? 1;
+
+    const claimWhere = buildInnovationAnalyticsClaimWhere({
+      ...filters,
+      session: undefined,
+    });
+
     let scopedClaimWhere: Prisma.ClaimWhereInput = claimWhere;
 
     if (filters.search) {
@@ -154,6 +179,21 @@ export async function GET(req: NextRequest) {
       scopedClaimWhere = {
         AND: [claimWhere, searchWhere],
       };
+    }
+
+    if (typeof filters.eventId === 'number') {
+      const selectedEvent = await prisma.hackathonEvent.findUnique({
+        where: { id: filters.eventId },
+        select: { id: true, totalSessions: true },
+      });
+
+      if (!selectedEvent) {
+        return errorRes('Event not found', [], 404);
+      }
+
+      if (targetSession > selectedEvent.totalSessions) {
+        return errorRes('Invalid session', [`session must be between 1 and ${selectedEvent.totalSessions}.`], 400);
+      }
     }
 
     const { page, pageSize, skip, take } = getPagination(filters);
@@ -178,6 +218,7 @@ export async function GET(req: NextRequest) {
                 select: {
                   id: true,
                   title: true,
+                  totalSessions: true,
                 },
               },
             },
@@ -206,6 +247,7 @@ export async function GET(req: NextRequest) {
               attendanceRecords: {
                 select: {
                   claimMemberId: true,
+                  session: true,
                   status: true,
                   checkedInAt: true,
                   checkedInBy: {
@@ -223,7 +265,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const items = buildAttendanceTeamRows(claims);
+    const items = buildAttendanceTeamRows(claims, targetSession);
 
     const totalPresent = items.reduce((sum, item) => sum + item.attendance.presentCount, 0);
     const totalMembers = items.reduce((sum, item) => sum + item.attendance.totalMembers, 0);
@@ -234,6 +276,7 @@ export async function GET(req: NextRequest) {
         total: totalTeams,
         page,
         pageSize,
+        selectedSession: targetSession,
         summary: {
           totalPresent,
           totalMembers,
@@ -250,126 +293,13 @@ export async function GET(req: NextRequest) {
 
 // PATCH /api/innovation/admin/analytics/attendance
 export async function PATCH(req: NextRequest) {
-  try {
-    const user = authenticate(req);
-    if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
+  const user = authenticate(req);
+  if (!user) return errorRes('Unauthorized', [], 401);
+  if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
-    const body = await req.json();
-    const parsed = markAttendanceSchema.safeParse(body);
-    if (!parsed.success) {
-      return errorRes(
-        'Validation failed',
-        parsed.error.issues.map((issue) => issue.message),
-        400
-      );
-    }
-
-    const claim = await prisma.claim.findUnique({
-      where: { id: parsed.data.claimId },
-      select: {
-        id: true,
-        members: {
-          select: {
-            id: true,
-          },
-        },
-        tickets: {
-          where: { type: 'HACKATHON_SELECTION' },
-          select: {
-            id: true,
-            status: true,
-          },
-        },
-      },
-    });
-
-    if (!claim) {
-      return errorRes('Claim not found', [], 404);
-    }
-
-    const ticket = claim.tickets[0] || null;
-    if (!ticket) {
-      return errorRes('Attendance unavailable', ['No team ticket found for this claim.'], 400);
-    }
-
-    const memberIds = new Set(claim.members.map((member) => member.id));
-
-    const selectedClaimMemberIds =
-      parsed.data.action === 'MARK_TEAM'
-        ? Array.from(memberIds)
-        : Array.from(new Set(parsed.data.claimMemberIds.filter((id) => memberIds.has(id))));
-
-    if (selectedClaimMemberIds.length === 0) {
-      return errorRes('Invalid members', ['No valid claim members selected for attendance update.'], 400);
-    }
-
-    const now = new Date();
-    const nextStatus = parsed.data.status;
-
-    await prisma.$transaction(async (tx) => {
-      await Promise.all(
-        selectedClaimMemberIds.map((claimMemberId) =>
-          tx.ticketAttendance.upsert({
-            where: {
-              ticketId_claimMemberId: {
-                ticketId: ticket.id,
-                claimMemberId,
-              },
-            },
-            update: {
-              status: nextStatus,
-              checkedInAt: nextStatus === 'PRESENT' ? now : null,
-              checkedInByUserId: nextStatus === 'PRESENT' ? user.id : null,
-            },
-            create: {
-              ticketId: ticket.id,
-              claimMemberId,
-              status: nextStatus,
-              checkedInAt: nextStatus === 'PRESENT' ? now : null,
-              checkedInByUserId: nextStatus === 'PRESENT' ? user.id : null,
-            },
-          })
-        )
-      );
-
-      const attendanceRows = await tx.ticketAttendance.findMany({
-        where: { ticketId: ticket.id },
-        select: { status: true },
-      });
-
-      const presentCount = attendanceRows.filter((row) => row.status === 'PRESENT').length;
-      const totalMembers = claim.members.length;
-
-      if (totalMembers > 0 && presentCount === totalMembers && ticket.status !== 'CANCELLED') {
-        await tx.ticket.update({
-          where: { id: ticket.id },
-          data: {
-            status: 'USED',
-            usedAt: now,
-          },
-        });
-      } else if (ticket.status === 'USED' && presentCount < totalMembers) {
-        await tx.ticket.update({
-          where: { id: ticket.id },
-          data: {
-            status: 'ACTIVE',
-            usedAt: null,
-          },
-        });
-      }
-    });
-
-    return successRes(
-      {
-        claimId: claim.id,
-        ticketId: ticket.id,
-        updatedMembers: selectedClaimMemberIds.length,
-      },
-      parsed.data.action === 'MARK_TEAM' ? 'Team attendance updated.' : 'Member attendance updated.'
-    );
-  } catch (err) {
-    console.error('Innovation attendance analytics PATCH error:', err);
-    return errorRes('Internal server error', [], 500);
-  }
+  return errorRes(
+    'Deprecated endpoint',
+    ['Use POST /api/attendance with claimId, userId, session, and status.'],
+    410
+  );
 }
