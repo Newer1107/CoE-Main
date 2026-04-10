@@ -151,7 +151,7 @@ type ManagedHackathonSubmission = {
   members: Array<{
     id: number;
     role: string;
-    user: { id: number; name: string; email: string; uid: string | null };
+    user: { id: number; name: string; email: string; uid: string | null; phone: string | null };
   }>;
 };
 
@@ -2475,11 +2475,16 @@ export default function AdminPanelClient({
                     <div className="space-y-3">
                       {judgingSubmissions.map((claim) => {
                         const rubricDraft = getJudgingRubrics(claim);
+                        const teamLeader = claim.members.find((member) => member.role === "LEAD") ?? claim.members[0] ?? null;
+                        const teamLeaderPhone = teamLeader?.user.phone?.trim() || "Not available";
 
                         return (
                           <article key={`judging-${claim.id}`} className="border border-[#c4c6d3] bg-white p-5">
                             <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
                             <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
+                            <p className="mt-1 text-xs text-[#434651]">
+                              Team Leader: {teamLeader ? `${teamLeader.user.name} (${teamLeader.user.email})` : "Unknown"} • Contact: {teamLeaderPhone}
+                            </p>
                             <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
                             <p className="mt-1 text-xs text-[#434651]">Attendance: {claim.attendanceSummary.presentCount}/{claim.attendanceSummary.totalMembers} present</p>
                             <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>

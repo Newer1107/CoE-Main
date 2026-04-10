@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         },
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true, uid: true } },
+            user: { select: { id: true, name: true, email: true, uid: true, phone: true } },
           },
         },
         tickets: {
