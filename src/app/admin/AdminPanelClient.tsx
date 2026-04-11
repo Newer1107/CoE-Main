@@ -602,6 +602,13 @@ const compareBookingsByScheduleAsc = (a: Booking, b: Booking) => {
   return a.timeSlot.localeCompare(b.timeSlot);
 };
 
+const formatIstDateTime = (value: string | null | undefined) => {
+  if (!value) return "Not set";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Invalid date";
+  return parsed.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+};
+
 export default function AdminPanelClient({
   stats,
   pendingBookings,
@@ -1786,9 +1793,9 @@ export default function AdminPanelClient({
       const formData = new FormData();
       formData.set("title", eventTitle);
       formData.set("description", eventDescription);
-      formData.set("startTime", eventStartTime);
-      formData.set("endTime", eventEndTime);
-      formData.set("submissionLockAt", eventSubmissionLockAt);
+      formData.set("startTime", new Date(eventStartTime).toISOString());
+      formData.set("endTime", new Date(eventEndTime).toISOString());
+      formData.set("submissionLockAt", new Date(eventSubmissionLockAt).toISOString());
       formData.set("totalSessions", String(eventTotalSessions));
       formData.set("problems", JSON.stringify(problemsPayload));
       if (eventPptFile) {
@@ -3076,9 +3083,9 @@ export default function AdminPanelClient({
                       </p>
                       <p className="mt-1 text-xs text-[#434651]">Submissions: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
                       <p className="mt-1 text-xs text-[#434651]">Required sessions: {event.totalSessions ?? 1}</p>
-                      <p className="mt-1 text-xs text-[#434651]">{new Date(event.startTime).toLocaleString()} to {new Date(event.endTime).toLocaleString()}</p>
+                      <p className="mt-1 text-xs text-[#434651]">{formatIstDateTime(event.startTime)} to {formatIstDateTime(event.endTime)}</p>
                       <p className="mt-1 text-xs text-[#434651]">
-                        Submission lock: {event.submissionLockAt ? new Date(event.submissionLockAt).toLocaleString() : "Not set"}
+                        Submission lock: {formatIstDateTime(event.submissionLockAt)}
                       </p>
                       <p className="mt-1 text-xs text-[#434651]">Interest: {totalInterested} students ({totalWithDetails} with team details)</p>
 

@@ -1,6 +1,13 @@
 import { dispatchEmail, sendEmail } from '@/lib/email-delivery';
 import prisma from '@/lib/prisma';
 
+const appBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+const innovationEventsUrl = `${appBaseUrl}/innovation/events`;
+const innovationProblemsUrl = `${appBaseUrl}/innovation/problems`;
+const innovationMyApplicationsUrl = `${appBaseUrl}/innovation/my-applications`;
+const innovationMySubmissionsUrl = `${appBaseUrl}/innovation/my-submissions`;
+const innovationFacultyUrl = `${appBaseUrl}/innovation/faculty`;
+
 const brandHeader = `
   <div style="background:#002155;padding:16px 24px;text-align:center;">
     <h1 style="margin:0;color:#ffffff;font-family:'Helvetica Neue',Arial,sans-serif;font-size:20px;letter-spacing:2px;">TCET CENTER OF EXCELLENCE</h1>
@@ -25,6 +32,21 @@ const wrap = (body: string) => `
     ${brandFooter}
   </div>
 </body></html>`;
+
+const formatEmailDateTime = (value: string | Date | null | undefined) => {
+  if (!value) return 'N/A';
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'N/A';
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(parsed);
+};
 
 const send = async (
   to: string | string[],
@@ -191,7 +213,10 @@ export const sendInnovationProblemClaimedEmail = async (
     <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
     <p style="color:#434651;font-size:14px;">Claimed by: <strong>${details.claimedBy}</strong></p>
     <p style="color:#434651;font-size:14px;">Team: <strong>${details.teamName || 'Individual'}</strong></p>
-    <p style="color:#747782;font-size:12px;">Please review submissions in the Innovation dashboard.</p>`;
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationFacultyUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Review In Faculty Workspace</a>
+    </div>
+    <p style="color:#747782;font-size:12px;">Open the faculty workspace to review claim details and provide feedback.</p>`;
 
   await send(facultyEmail, 'Innovation Update: Problem Claimed', body, {
     mode: 'immediate',
@@ -217,6 +242,9 @@ export const sendInnovationClaimReviewEmail = async (
     <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:12px 16px;margin:16px 0;">
       <p style="margin:0;color:#434651;">Feedback:</p>
       <p style="margin:4px 0 0;color:#002155;">${details.feedback || 'No feedback shared.'}</p>
+    </div>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationMySubmissionsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View My Submission</a>
     </div>`;
 
   await send(recipients, 'Innovation Submission Review Update', body, {
@@ -243,7 +271,10 @@ export const sendInnovationScreeningResultEmail = async (
     <h2 style="color:#002155;margin:0 0 8px;">PPT Screening Result</h2>
     <p style="color:#434651;font-size:14px;">Event: <strong>${details.eventTitle}</strong></p>
     <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
-    <p style="color:#434651;font-size:14px;">Result: <strong>${statusLine}</strong></p>`;
+    <p style="color:#434651;font-size:14px;">Result: <strong>${statusLine}</strong></p>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationEventsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Open Event Details</a>
+    </div>`;
 
   await send(recipients, 'Hackathon PPT Screening Result', body, {
     mode: 'bulk',
@@ -284,7 +315,10 @@ export const sendInnovationRubricScoreEmail = async (
       <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Presentation</td><td style="padding:8px;color:#002155;">${details.rubrics.presentation}/10</td></tr>
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Feasibility</td><td style="padding:8px;color:#002155;">${details.rubrics.feasibility}/10</td></tr>
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Final Score</td><td style="padding:8px;color:#002155;"><strong>${details.finalScore}/100</strong></td></tr>
-    </table>`;
+    </table>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationEventsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View Event & Leaderboard</a>
+    </div>`;
 
   await send(recipients, 'Hackathon Evaluation Result', body, {
     mode: 'bulk',
@@ -300,10 +334,14 @@ export const sendInnovationEventReminderEmail = async (
     endTime: string;
   }
 ) => {
+  const endTimeText = formatEmailDateTime(details.endTime);
   const body = `
     <h2 style="color:#002155;margin:0 0 8px;">Hackathon Reminder: 30 Minutes Left</h2>
     <p style="color:#434651;font-size:14px;">Your event <strong>${details.eventTitle}</strong> is closing soon.</p>
-    <p style="color:#434651;font-size:14px;">Submission lock time: <strong>${details.endTime}</strong></p>`;
+    <p style="color:#434651;font-size:14px;">Submission lock time: <strong>${endTimeText}</strong></p>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationEventsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Submit / Check Event</a>
+    </div>`;
 
   await send(recipients, 'Innovation Reminder: 30 Minutes Remaining', body, {
     mode: 'bulk',
@@ -321,7 +359,10 @@ export const sendInnovationEventActiveEmail = async (
   const body = `
     <h2 style="color:#002155;margin:0 0 8px;">Hackathon Status Updated: Active</h2>
     <p style="color:#434651;font-size:14px;">The event <strong>${details.eventTitle}</strong> is now active.</p>
-    <p style="color:#434651;font-size:14px;">Final judging is now open during the active phase. Results are announced when the event is closed.</p>`;
+    <p style="color:#434651;font-size:14px;">Final judging is now open during the active phase. Results are announced when the event is closed.</p>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationEventsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Open Active Event</a>
+    </div>`;
 
   await send(recipients, 'Innovation Update: Event Is Active', body, {
     mode: 'bulk',
@@ -337,11 +378,14 @@ export const sendInnovationEventUpcomingBroadcastEmail = async (
     startTime: string;
   }
 ) => {
+  const startTimeText = formatEmailDateTime(details.startTime);
   const body = `
     <h2 style="color:#002155;margin:0 0 8px;">New Upcoming Hackathon</h2>
     <p style="color:#434651;font-size:14px;">A new hackathon is now open for participation: <strong>${details.eventTitle}</strong>.</p>
-    <p style="color:#434651;font-size:14px;">Scheduled start time: <strong>${details.startTime}</strong></p>
-    <p style="color:#434651;font-size:14px;">Log in to the Innovation portal to view details and register your team.</p>`;
+    <p style="color:#434651;font-size:14px;">Scheduled start time: <strong>${startTimeText}</strong></p>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationEventsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View & Register Team</a>
+    </div>`;
 
   await send(recipients, `Upcoming Hackathon: ${details.eventTitle}`, body, {
     mode: 'bulk',
@@ -365,7 +409,10 @@ export const sendInnovationWinnerEmail = async (
     <h2 style="color:#002155;margin:0 0 8px;">Congratulations! Winner Announcement</h2>
     <p style="color:#434651;font-size:14px;">You placed <strong>#${details.rank}</strong> in <strong>${details.eventTitle}</strong>.</p>
     <p style="color:#434651;font-size:14px;">Final Score: <strong>${details.score}</strong></p>
-    <p style="color:#434651;font-size:14px;">Please watch the admin announcements for certificate and recognition details.</p>`;
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationEventsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View Final Results</a>
+    </div>
+    <p style="color:#434651;font-size:14px;">Certificate and recognition details will be shared in event updates.</p>`;
 
   await send(recipients, `Innovation Winners: ${details.eventTitle}`, body, {
     mode: 'bulk',
@@ -423,7 +470,10 @@ export const sendApplicationSelectionEmail = async (
       <p style="margin:4px 0 0;color:#002155;">${details.feedback}</p>
     </div>
     ` : ''}
-    <p style="color:#747782;font-size:12px;">Please log in to the CoE Innovation Portal to view next steps and connect with your assigned faculty mentor.</p>`;
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationMyApplicationsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View My Application</a>
+    </div>
+    <p style="color:#747782;font-size:12px;">Open your application to see next steps and connect with your assigned faculty mentor.</p>`;
 
   await send(studentEmail, 'Application Selected — TCET CoE Innovation', body, {
     mode: 'immediate',
@@ -450,7 +500,10 @@ export const sendApplicationRejectionEmail = async (
       <p style="margin:4px 0 0;color:#002155;">${details.feedback}</p>
     </div>
     ` : ''}
-    <p style="color:#747782;font-size:12px;">We encourage you to explore other open problems and apply again. Check the Innovation Portal for more opportunities.</p>`;
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${innovationProblemsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Explore Open Problems</a>
+    </div>
+    <p style="color:#747782;font-size:12px;">You can apply again anytime from the open problems page.</p>`;
 
   await send(studentEmail, 'Application Status — TCET CoE Innovation', body, {
     mode: 'immediate',
@@ -507,6 +560,7 @@ export const sendTicketIssuedEmail = async (
     teamMembers?: Array<{ name: string; email: string; role: string }>;
   }
 ) => {
+  const scheduledAtText = formatEmailDateTime(details.scheduledAt);
   const teamMemberRows = (details.teamMembers || [])
     .map(
       (member) =>
@@ -531,7 +585,7 @@ export const sendTicketIssuedEmail = async (
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Ticket ID</td><td style="padding:8px;color:#002155;">${details.ticketId}</td></tr>
       <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Type</td><td style="padding:8px;color:#002155;">${details.ticketTitle}</td></tr>
       <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Event / Booking</td><td style="padding:8px;color:#002155;">${details.subjectName}</td></tr>
-      <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Date & Time</td><td style="padding:8px;color:#002155;">${details.scheduledAt || 'N/A'}</td></tr>
+      <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Date & Time</td><td style="padding:8px;color:#002155;">${scheduledAtText}</td></tr>
     </table>
     ${teamMembersSection}
     <p style="color:#747782;font-size:12px;">Your ticket PDF is attached to this email. Present it at entry. Each ticket is valid for one successful verification only.</p>`;

@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/jwt';
 
+const formatIstDateTime = (value: Date | null) => {
+  if (!value) return 'Not set';
+  return value.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+};
+
 export default async function InnovationLandingPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value;
@@ -96,10 +101,10 @@ export default async function InnovationLandingPage() {
                 <h3 className="mt-1 text-lg font-bold text-[#002155]">{event.title}</h3>
                 {event.description ? <p className="mt-2 text-sm text-[#434651] line-clamp-3">{event.description}</p> : null}
                 <p className="mt-2 text-xs text-[#434651]">Problems: {event._count.problems}</p>
-                <p className="mt-1 text-xs text-[#434651]">Starts: {event.startTime.toLocaleString()}</p>
-                <p className="mt-1 text-xs text-[#434651]">Ends: {event.endTime.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-[#434651]">Starts: {formatIstDateTime(event.startTime)}</p>
+                <p className="mt-1 text-xs text-[#434651]">Ends: {formatIstDateTime(event.endTime)}</p>
                 <p className="mt-1 text-xs text-[#434651]">
-                  Submission lock: {event.submissionLockAt ? event.submissionLockAt.toLocaleString() : 'Not set'}
+                  Submission lock: {formatIstDateTime(event.submissionLockAt)}
                 </p>
                 <Link
                   href={`/innovation/events/${event.id}`}
@@ -135,10 +140,10 @@ export default async function InnovationLandingPage() {
                 <h3 className="mt-1 text-lg font-bold text-[#002155]">{event.title}</h3>
                 {event.description ? <p className="mt-2 text-sm text-[#434651] line-clamp-3">{event.description}</p> : null}
                 <p className="mt-2 text-xs text-[#434651]">Problems: {event._count.problems}</p>
-                <p className="mt-1 text-xs text-[#434651]">Started: {event.startTime.toLocaleString()}</p>
-                <p className="mt-1 text-xs text-[#434651]">Closed: {event.endTime.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-[#434651]">Started: {formatIstDateTime(event.startTime)}</p>
+                <p className="mt-1 text-xs text-[#434651]">Closed: {formatIstDateTime(event.endTime)}</p>
                 <p className="mt-1 text-xs text-[#434651]">
-                  Submission lock: {event.submissionLockAt ? event.submissionLockAt.toLocaleString() : 'Not set'}
+                  Submission lock: {formatIstDateTime(event.submissionLockAt)}
                 </p>
                 <Link
                   href={`/innovation/events/${event.id}`}

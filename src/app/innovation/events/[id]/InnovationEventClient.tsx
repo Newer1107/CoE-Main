@@ -128,6 +128,12 @@ type InnovationEventClientProps = {
   initialInterest: ViewerInterestSummary | null;
 };
 
+const formatIstDateTime = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Invalid date";
+  return parsed.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+};
+
 export default function InnovationEventClient({
   eventId,
   title,
@@ -654,12 +660,12 @@ export default function InnovationEventClient({
         <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{status}</p>
         <h2 className="text-2xl font-headline text-[#002155] mt-1">{title}</h2>
         {description ? <p className="mt-2 text-sm text-[#434651] whitespace-pre-wrap break-words">{renderTextWithClickableLinks(description)}</p> : null}
-        <p className="mt-2 text-xs text-[#434651]">Starts: {new Date(startTimeISO).toLocaleString()}</p>
-        <p className="mt-1 text-xs text-[#434651]">Ends: {new Date(endTimeISO).toLocaleString()}</p>
+        <p className="mt-2 text-xs text-[#434651]">Starts: {formatIstDateTime(startTimeISO)}</p>
+        <p className="mt-1 text-xs text-[#434651]">Ends: {formatIstDateTime(endTimeISO)}</p>
         <p className="mt-1 text-xs text-[#434651]">
-          Submission lock: {submissionLockISO ? new Date(submissionLockISO).toLocaleString() : 'Not set'}
+          Submission lock: {submissionLockISO ? formatIstDateTime(submissionLockISO) : 'Not set'}
         </p>
-        <p className="mt-1 text-xs text-[#434651]">Registration closes: {new Date(registrationCloseISO).toLocaleString()}</p>
+        <p className="mt-1 text-xs text-[#434651]">Registration closes: {formatIstDateTime(registrationCloseISO)}</p>
         <p className="mt-1 text-xs text-[#434651]">Registration status: {registrationOpen ? 'OPEN' : 'CLOSED'}</p>
         {eventBriefUrl ? (
           <a href={eventBriefUrl} target="_blank" rel="noreferrer" className="inline-flex mt-3 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
@@ -812,7 +818,7 @@ export default function InnovationEventClient({
                 : 'Not available'}
             </span>
           </p>
-          <p className="mt-1 text-xs text-[#434651]">Registered on: {new Date(registrationSummary.submittedAt).toLocaleString()}</p>
+          <p className="mt-1 text-xs text-[#434651]">Registered on: {formatIstDateTime(registrationSummary.submittedAt)}</p>
 
           <div className="mt-4">
             <p className="text-xs uppercase tracking-widest text-[#002155] font-bold mb-2">Team Members</p>

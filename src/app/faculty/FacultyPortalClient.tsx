@@ -76,6 +76,17 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return payload.data;
 }
 
+const toUtcIso = (value: string) => {
+  const parsed = new Date(value);
+  return parsed.toISOString();
+};
+
+const formatIstDateTime = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Invalid date";
+  return parsed.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+};
+
 export default function FacultyPortalClient() {
   const [activeTab, setActiveTab] = useState<"news" | "events" | "grants" | "announcements">("news");
   const [busy, setBusy] = useState(false);
@@ -170,7 +181,7 @@ export default function FacultyPortalClient() {
       const formData = new FormData();
       formData.set("title", eventTitle);
       formData.set("description", eventDescription);
-      formData.set("date", eventDate);
+      formData.set("date", toUtcIso(eventDate));
       formData.set("mode", eventMode);
       formData.set("registrationLink", eventRegistrationLink);
       if (eventPoster) formData.set("poster", eventPoster);
@@ -221,7 +232,7 @@ export default function FacultyPortalClient() {
         body: JSON.stringify({
           text: announcementText,
           link: announcementLink,
-          expiresAt: announcementExpiresAt,
+          expiresAt: toUtcIso(announcementExpiresAt),
         }),
       });
       setAnnouncementText("");
@@ -251,7 +262,7 @@ export default function FacultyPortalClient() {
           {eventList.map((item) => (
             <article key={item.id} className="border border-[#c4c6d3] bg-white p-4">
               <p className="font-bold text-[#002155]">{item.title}</p>
-              <p className="text-xs text-[#434651] mt-1">{new Date(item.date).toLocaleString()} • {item.mode}</p>
+              <p className="text-xs text-[#434651] mt-1">{formatIstDateTime(item.date)} • {item.mode}</p>
               <p className="text-sm text-[#434651] mt-2">{item.description}</p>
             </article>
           ))}
@@ -280,7 +291,7 @@ export default function FacultyPortalClient() {
         {announcementList.map((item) => (
           <article key={item.id} className="border border-[#c4c6d3] bg-white p-4">
             <p className="font-bold text-[#002155]">{item.text}</p>
-            <p className="text-xs text-[#434651] mt-1">Expires: {new Date(item.expiresAt).toLocaleString()}</p>
+            <p className="text-xs text-[#434651] mt-1">Expires: {formatIstDateTime(item.expiresAt)}</p>
           </article>
         ))}
         {announcementList.length === 0 ? <p className="text-sm text-[#434651]">No announcements found.</p> : null}
