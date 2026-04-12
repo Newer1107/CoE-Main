@@ -11,6 +11,7 @@ enum Role {
   ADMIN
   FACULTY
   STUDENT
+  EVALUATOR
 }
 
 enum UserStatus {
@@ -115,6 +116,8 @@ model User {
   hackathonInterests HackathonInterest[]
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
   attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
+  committeeRegistrations CommitteeRegistration[]
+  committeeScoresGiven CommitteeScore[]
 
   @@map("users")
 }
@@ -485,4 +488,85 @@ model EmailJob {
   @@index([mode])
   @@index([createdAt])
   @@map("email_jobs")
+}
+
+model CommitteeEvent {
+  id        Int      @id @default(autoincrement())
+  title     String
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tracks        CommitteeTrack[]
+  registrations CommitteeRegistration[]
+  rubricItems   CommitteeRubricItem[]
+
+  @@index([isActive])
+  @@map("committee_events")
+}
+
+model CommitteeTrack {
+  id      Int    @id @default(autoincrement())
+  eventId Int
+  event   CommitteeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name    String
+  room    String?
+
+  registrations CommitteeRegistration[]
+
+  @@index([eventId])
+  @@map("committee_tracks")
+}
+
+model CommitteeRegistration {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     CommitteeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  trackId   Int
+  track     CommitteeTrack @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  scores CommitteeScore[]
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([trackId])
+  @@index([userId])
+  @@map("committee_registrations")
+}
+
+model CommitteeRubricItem {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     CommitteeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  label     String
+  maxScore  Int
+  weight    Float    @default(1)
+  order     Int
+  createdAt DateTime @default(now())
+
+  scores CommitteeScore[]
+
+  @@index([eventId, order])
+  @@map("committee_rubric_items")
+}
+
+model CommitteeScore {
+  id             Int      @id @default(autoincrement())
+  registrationId Int
+  registration   CommitteeRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  rubricItemId   Int
+  rubricItem     CommitteeRubricItem @relation(fields: [rubricItemId], references: [id], onDelete: Cascade)
+  evaluatorId    Int
+  evaluator      User     @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+  score          Int
+  feedback       String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@unique([registrationId, rubricItemId, evaluatorId])
+  @@index([registrationId])
+  @@index([rubricItemId])
+  @@index([evaluatorId])
+  @@map("committee_scores")
 }
