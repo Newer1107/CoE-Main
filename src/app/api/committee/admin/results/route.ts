@@ -59,7 +59,10 @@ export async function GET(req: NextRequest) {
         weightedSum += (average / item.maxScore) * item.weight;
       }
 
-      const weightedPercentage = totalWeight > 0 ? Number(((weightedSum / totalWeight) * 100).toFixed(2)) : 0;
+      const weightedPercentage =
+        rubricItems.length > 0 && totalWeight > 0
+          ? Number(((weightedSum / totalWeight) * 100).toFixed(2))
+          : null;
       return {
         registrationId: registration.id,
         student: registration.user,
