@@ -522,7 +522,7 @@ model CommitteeRegistration {
   eventId   Int
   event     CommitteeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   trackId   Int
-  track     CommitteeTrack @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  track     CommitteeTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

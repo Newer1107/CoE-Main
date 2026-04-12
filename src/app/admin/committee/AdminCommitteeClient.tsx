@@ -262,7 +262,11 @@ export default function AdminCommitteeClient() {
     }
 
     const headers = Object.keys(csvRows[0]);
-    const escapeCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const escapeCell = (value: string | number) => {
+      const stringValue = String(value);
+      const sanitizedValue = /^[=+\-@\t\r\n]/.test(stringValue) ? `'${stringValue}` : stringValue;
+      return `"${sanitizedValue.replaceAll('"', '""')}"`;
+    };
     const lines = [
       headers.map(escapeCell).join(','),
       ...csvRows.map((row) => headers.map((header) => escapeCell(row[header] ?? '')).join(',')),

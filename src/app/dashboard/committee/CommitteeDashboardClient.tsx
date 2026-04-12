@@ -103,8 +103,8 @@ export default function CommitteeDashboardClient() {
 
       pushToast('Registered successfully.', 'success');
       await load();
-    } catch (err: any) {
-      if (err?.status === 409) {
+    } catch (err: unknown) {
+      if (err instanceof Error && 'status' in err && err.status === 409) {
         pushToast('You are already registered.', 'info');
       } else {
         pushToast(err instanceof Error ? err.message : 'Registration failed.', 'error');

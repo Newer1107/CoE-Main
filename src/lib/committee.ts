@@ -12,6 +12,6 @@ export const normalizeText = (value: unknown) =>
 
 export const parsePositiveInt = (value: unknown) => {
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.floor(n);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
+  return n;
 };

@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
     for (const item of rubricItems) {
       const values = scoreGroups.get(item.id) || [];
       if (values.length === 0) continue;
+      if (item.maxScore === 0) continue;
       const average = values.reduce((sum, value) => sum + value, 0) / values.length;
       weightedSum += (average / item.maxScore) * item.weight;
     }

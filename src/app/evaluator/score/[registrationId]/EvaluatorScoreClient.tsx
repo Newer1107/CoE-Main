@@ -105,14 +105,18 @@ export default function EvaluatorScoreClient({ registrationId }: { registrationI
 
       const scoreMap = new Map(foundStudent.scores.map((score) => [score.rubricItemId, score]));
       setFormRows(
-        data.rubricItems.map((item) => ({
-          rubricItemId: item.id,
-          label: item.label,
-          maxScore: item.maxScore,
-          weight: item.weight,
-          score: typeof scoreMap.get(item.id)?.score === 'number' ? String(scoreMap.get(item.id)?.score) : '',
-          feedback: scoreMap.get(item.id)?.feedback || '',
-        })),
+        data.rubricItems.map((item) => {
+          const existingScore = scoreMap.get(item.id);
+
+          return {
+            rubricItemId: item.id,
+            label: item.label,
+            maxScore: item.maxScore,
+            weight: item.weight,
+            score: typeof existingScore?.score === 'number' ? String(existingScore.score) : '',
+            feedback: existingScore?.feedback || '',
+          };
+        }),
       );
     } catch (err) {
       pushToast(err instanceof Error ? err.message : 'Failed to load scoring form.', 'error');

@@ -4,16 +4,15 @@ import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers
 import { committeeCreateRubricSchema } from '@/lib/committee-validators';
 
 const hasCommitteeScores = async (eventId: number) => {
-  const score = await prisma.committeeScore.findFirst({
+  const scoreCount = await prisma.committeeScore.count({
     where: {
       registration: {
         eventId,
       },
     },
-    select: { id: true },
   });
 
-  return Boolean(score);
+  return scoreCount > 0;
 };
 
 // POST /api/committee/admin/rubric
