@@ -73,7 +73,7 @@ ALTER TABLE `committee_registrations`
   ADD CONSTRAINT `committee_registrations_eventId_fkey`
   FOREIGN KEY (`eventId`) REFERENCES `committee_events`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `committee_registrations_trackId_fkey`
-  FOREIGN KEY (`trackId`) REFERENCES `committee_tracks`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`trackId`) REFERENCES `committee_tracks`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `committee_registrations_userId_fkey`
   FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
