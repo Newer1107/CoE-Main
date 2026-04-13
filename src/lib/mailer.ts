@@ -1,5 +1,6 @@
 import { dispatchEmail, sendEmail } from '@/lib/email-delivery';
 import prisma from '@/lib/prisma';
+import { HACKATHON_RUBRIC_WEIGHTS } from '@/lib/hackathon-scoring';
 
 const appBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 const innovationEventsUrl = `${appBaseUrl}/innovation/events`;
@@ -307,13 +308,13 @@ export const sendInnovationRubricScoreEmail = async (
     <p style="color:#434651;font-size:14px;">Problem: <strong>${details.problemTitle}</strong></p>
     <p style="color:#434651;font-size:14px;">Result: <strong>${details.status}</strong></p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
-      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Innovation</td><td style="padding:8px;color:#002155;">${details.rubrics.innovation}/10</td></tr>
-      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Technical</td><td style="padding:8px;color:#002155;">${details.rubrics.technical}/10</td></tr>
-      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Impact</td><td style="padding:8px;color:#002155;">${details.rubrics.impact}/10</td></tr>
-      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">UX</td><td style="padding:8px;color:#002155;">${details.rubrics.ux}/10</td></tr>
-      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Execution</td><td style="padding:8px;color:#002155;">${details.rubrics.execution}/10</td></tr>
-      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Presentation</td><td style="padding:8px;color:#002155;">${details.rubrics.presentation}/10</td></tr>
-      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Feasibility</td><td style="padding:8px;color:#002155;">${details.rubrics.feasibility}/10</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Innovation</td><td style="padding:8px;color:#002155;">${details.rubrics.innovation}/${HACKATHON_RUBRIC_WEIGHTS.innovation}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Technical</td><td style="padding:8px;color:#002155;">${details.rubrics.technical}/${HACKATHON_RUBRIC_WEIGHTS.technical}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Impact</td><td style="padding:8px;color:#002155;">${details.rubrics.impact}/${HACKATHON_RUBRIC_WEIGHTS.impact}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">UX</td><td style="padding:8px;color:#002155;">${details.rubrics.ux}/${HACKATHON_RUBRIC_WEIGHTS.ux}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Execution</td><td style="padding:8px;color:#002155;">${details.rubrics.execution}/${HACKATHON_RUBRIC_WEIGHTS.execution}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Presentation</td><td style="padding:8px;color:#002155;">${details.rubrics.presentation}/${HACKATHON_RUBRIC_WEIGHTS.presentation}</td></tr>
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Feasibility</td><td style="padding:8px;color:#002155;">${details.rubrics.feasibility}/${HACKATHON_RUBRIC_WEIGHTS.feasibility}</td></tr>
       <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Final Score</td><td style="padding:8px;color:#002155;"><strong>${details.finalScore}/100</strong></td></tr>
     </table>
     <div style="text-align:center;margin:20px 0;">

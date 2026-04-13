@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HACKATHON_RUBRIC_WEIGHTS } from './hackathon-scoring';
 
 const tcetUidSchema = z
   .string()
@@ -210,13 +211,13 @@ export const innovationOpenSubmissionRegisterSchema = z.object({
 });
 
 const innovationRubricSchema = z.object({
-  innovation: z.coerce.number().int().min(0).max(10),
-  technical: z.coerce.number().int().min(0).max(10),
-  impact: z.coerce.number().int().min(0).max(10),
-  ux: z.coerce.number().int().min(0).max(10),
-  execution: z.coerce.number().int().min(0).max(10),
-  presentation: z.coerce.number().int().min(0).max(10),
-  feasibility: z.coerce.number().int().min(0).max(10),
+  innovation: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.innovation),
+  technical: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.technical),
+  impact: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.impact),
+  ux: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.ux),
+  execution: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.execution),
+  presentation: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.presentation),
+  feasibility: z.coerce.number().int().min(0).max(HACKATHON_RUBRIC_WEIGHTS.feasibility),
 });
 
 export const innovationOpenSubmissionReviewSchema = z.object({

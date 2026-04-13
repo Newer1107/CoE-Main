@@ -40,15 +40,18 @@ export const HACKATHON_RUBRIC_WEIGHTS: Record<keyof HackathonRubricScores, numbe
 
 export const calculateWeightedHackathonScore = (scores: HackathonRubricScores): number => {
   const weighted =
-    (scores.innovation * HACKATHON_RUBRIC_WEIGHTS.innovation) / 10 +
-    (scores.technical * HACKATHON_RUBRIC_WEIGHTS.technical) / 10 +
-    (scores.impact * HACKATHON_RUBRIC_WEIGHTS.impact) / 10 +
-    (scores.ux * HACKATHON_RUBRIC_WEIGHTS.ux) / 10 +
-    (scores.execution * HACKATHON_RUBRIC_WEIGHTS.execution) / 10 +
-    (scores.presentation * HACKATHON_RUBRIC_WEIGHTS.presentation) / 10 +
-    (scores.feasibility * HACKATHON_RUBRIC_WEIGHTS.feasibility) / 10;
+    scores.innovation +
+    scores.technical +
+    scores.impact +
+    scores.ux +
+    scores.execution +
+    scores.presentation +
+    scores.feasibility;
 
   return Math.round(weighted);
 };
 
-export const isValidRubricScore = (value: number) => Number.isInteger(value) && value >= 0 && value <= 10;
+export const isValidRubricScore = (
+  key: keyof HackathonRubricScores,
+  value: number,
+) => Number.isInteger(value) && value >= 0 && value <= HACKATHON_RUBRIC_WEIGHTS[key];

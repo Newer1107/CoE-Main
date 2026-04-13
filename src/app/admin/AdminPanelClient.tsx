@@ -180,10 +180,10 @@ const rubricFieldConfig: Array<{ key: HackathonRubricKey; label: string; weight:
   { key: "feasibility", label: "Feasibility", weight: HACKATHON_RUBRIC_WEIGHTS.feasibility },
 ];
 
-const clampRubricScore = (value: number) => {
+const clampRubricScore = (value: number, max: number) => {
   if (!Number.isFinite(value)) return 0;
   if (value < 0) return 0;
-  if (value > 10) return 10;
+  if (value > max) return max;
   return Math.round(value);
 };
 
@@ -880,13 +880,13 @@ export default function AdminPanelClient({
   ]);
 
   const getDefaultRubricsForClaim = useCallback((claim: ManagedHackathonSubmission): HackathonRubrics => ({
-    innovation: clampRubricScore(claim.innovationScore ?? 7),
-    technical: clampRubricScore(claim.technicalScore ?? 7),
-    impact: clampRubricScore(claim.impactScore ?? 7),
-    ux: clampRubricScore(claim.uxScore ?? 7),
-    execution: clampRubricScore(claim.executionScore ?? 7),
-    presentation: clampRubricScore(claim.presentationScore ?? 7),
-    feasibility: clampRubricScore(claim.feasibilityScore ?? 7),
+    innovation: clampRubricScore(claim.innovationScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.innovation * 0.7), HACKATHON_RUBRIC_WEIGHTS.innovation),
+    technical: clampRubricScore(claim.technicalScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.technical * 0.7), HACKATHON_RUBRIC_WEIGHTS.technical),
+    impact: clampRubricScore(claim.impactScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.impact * 0.7), HACKATHON_RUBRIC_WEIGHTS.impact),
+    ux: clampRubricScore(claim.uxScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.ux * 0.7), HACKATHON_RUBRIC_WEIGHTS.ux),
+    execution: clampRubricScore(claim.executionScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.execution * 0.7), HACKATHON_RUBRIC_WEIGHTS.execution),
+    presentation: clampRubricScore(claim.presentationScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.presentation * 0.7), HACKATHON_RUBRIC_WEIGHTS.presentation),
+    feasibility: clampRubricScore(claim.feasibilityScore ?? Math.round(HACKATHON_RUBRIC_WEIGHTS.feasibility * 0.7), HACKATHON_RUBRIC_WEIGHTS.feasibility),
   }), []);
 
   const hydrateRubricDrafts = useCallback((claims: ManagedHackathonSubmission[]) => {
@@ -1880,20 +1880,22 @@ export default function AdminPanelClient({
   const updateJudgingRubric = (claimId: number, key: HackathonRubricKey, rawValue: number) => {
     setJudgingRubricsByClaimId((prev) => {
       const base = prev[claimId] || {
-        innovation: 7,
-        technical: 7,
-        impact: 7,
-        ux: 7,
-        execution: 7,
-        presentation: 7,
-        feasibility: 7,
+        innovation: Math.round(HACKATHON_RUBRIC_WEIGHTS.innovation * 0.7),
+        technical: Math.round(HACKATHON_RUBRIC_WEIGHTS.technical * 0.7),
+        impact: Math.round(HACKATHON_RUBRIC_WEIGHTS.impact * 0.7),
+        ux: Math.round(HACKATHON_RUBRIC_WEIGHTS.ux * 0.7),
+        execution: Math.round(HACKATHON_RUBRIC_WEIGHTS.execution * 0.7),
+        presentation: Math.round(HACKATHON_RUBRIC_WEIGHTS.presentation * 0.7),
+        feasibility: Math.round(HACKATHON_RUBRIC_WEIGHTS.feasibility * 0.7),
       };
+
+      const max = HACKATHON_RUBRIC_WEIGHTS[key];
 
       return {
         ...prev,
         [claimId]: {
           ...base,
-          [key]: clampRubricScore(rawValue),
+          [key]: clampRubricScore(rawValue, max),
         },
       };
     });
@@ -3327,7 +3329,7 @@ export default function AdminPanelClient({
                             </div>
 
                             <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
-                              <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (0-10)</p>
+                              <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (Score Out Of Weight)</p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 {rubricFieldConfig.map((field) => (
                                   <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
@@ -3335,7 +3337,7 @@ export default function AdminPanelClient({
                                     <input
                                       type="number"
                                       min={0}
-                                      max={10}
+                                      max={field.weight}
                                       step={1}
                                       value={rubricDraft[field.key]}
                                       onChange={(e) => updateJudgingRubric(claim.id, field.key, Number(e.target.value))}
