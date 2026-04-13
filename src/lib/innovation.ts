@@ -90,6 +90,7 @@ export const parseStringList = (value: string | null): string[] => {
 export type LeaderboardRow = {
   rank: number;
   teamName: string;
+  problemTitle: string;
   score: number;
   claimId: number;
   updatedAt: Date;
@@ -104,6 +105,11 @@ export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number)
     select: {
       id: true,
       teamName: true,
+      problem: {
+        select: {
+          title: true,
+        },
+      },
       finalScore: true,
       score: true,
       updatedAt: true,
@@ -114,6 +120,7 @@ export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number)
   return claims.map((claim, index) => ({
     rank: index + 1,
     teamName: claim.teamName || `Team-${claim.id}`,
+    problemTitle: claim.problem.title,
     score: claim.finalScore ?? claim.score ?? 0,
     claimId: claim.id,
     updatedAt: claim.updatedAt,

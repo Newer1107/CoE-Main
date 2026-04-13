@@ -59,6 +59,7 @@ type ProblemLite = {
 type LeaderboardRow = {
   rank: number;
   teamName: string;
+  problemTitle: string;
   score: number;
   updatedAt: string;
   members: { id: number; name: string; email: string; role: string }[];
@@ -981,6 +982,7 @@ export default function InnovationEventClient({
                   <tr>
                     <th className="text-left px-4 py-3">Rank</th>
                     <th className="text-left px-4 py-3">Team</th>
+                    <th className="text-left px-4 py-3">Problem Statement</th>
                     <th className="text-left px-4 py-3">Final Score</th>
                     <th className="text-left px-4 py-3">Members</th>
                   </tr>
@@ -990,6 +992,7 @@ export default function InnovationEventClient({
                     <tr key={`${row.rank}-${row.teamName}`} className="border-t border-[#e3e2df]">
                       <td className="px-4 py-3">#{row.rank}</td>
                       <td className="px-4 py-3">{row.teamName}</td>
+                      <td className="px-4 py-3">{row.problemTitle}</td>
                       <td className="px-4 py-3">{row.score}</td>
                       <td className="px-4 py-3">{row.members.map((member) => member.name).join(', ')}</td>
                     </tr>

@@ -34,6 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const payload = ranked.map((row) => ({
       rank: row.rank,
       teamName: row.teamName,
+      problemTitle: row.problemTitle,
       score: row.score,
       updatedAt: row.updatedAt,
       members: (claimMap.get(row.claimId)?.members || []).map((member) => ({
