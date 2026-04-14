@@ -357,6 +357,35 @@ export default function InnovationEventClient({
     !registrationSummary;
   const isInterested = Boolean(interestRecord);
 
+  const getRankVisual = (rank: number) => {
+    if (rank === 1) {
+      return {
+        icon: 'workspace_premium',
+        pill: 'bg-[#fff3c4] text-[#7a5300] border border-[#f2cd6b]',
+        row: 'bg-[linear-gradient(90deg,#fff8dc,transparent)]',
+      };
+    }
+    if (rank === 2) {
+      return {
+        icon: 'military_tech',
+        pill: 'bg-[#eef2f7] text-[#455066] border border-[#d4dbe7]',
+        row: 'bg-[linear-gradient(90deg,#f5f7fb,transparent)]',
+      };
+    }
+    if (rank === 3) {
+      return {
+        icon: 'award_star',
+        pill: 'bg-[#fbe9dd] text-[#7a3f00] border border-[#f0c7a4]',
+        row: 'bg-[linear-gradient(90deg,#fff2e9,transparent)]',
+      };
+    }
+    return {
+      icon: 'emoji_events',
+      pill: 'bg-[#f6f6f6] text-[#434651] border border-[#e3e2df]',
+      row: '',
+    };
+  };
+
   const parseInterestRecord = (value: unknown): ViewerInterestSummary | null => {
     if (!value || typeof value !== 'object') return null;
 
@@ -970,7 +999,10 @@ export default function InnovationEventClient({
 
       {status === 'CLOSED' ? (
         <section>
-          <h3 className="font-headline text-2xl text-[#002155] mb-4">Leaderboard</h3>
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <h3 className="font-headline text-2xl text-[#002155]">Leaderboard</h3>
+            
+          </div>
           {leaderboardLoading ? (
             <p className="text-sm text-[#434651]">Loading leaderboard...</p>
           ) : leaderboard.length === 0 ? (
@@ -988,15 +1020,23 @@ export default function InnovationEventClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderboard.map((row) => (
-                    <tr key={`${row.rank}-${row.teamName}`} className="border-t border-[#e3e2df]">
-                      <td className="px-4 py-3">#{row.rank}</td>
+                  {leaderboard.map((row) => {
+                    const rankVisual = getRankVisual(row.rank);
+
+                    return (
+                    <tr key={`${row.rank}-${row.teamName}`} className={`border-t border-[#e3e2df] ${rankVisual.row}`}>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold ${rankVisual.pill}`}>
+                          <span className="material-symbols-outlined text-[14px]">{rankVisual.icon}</span>
+                          #{row.rank}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">{row.teamName}</td>
                       <td className="px-4 py-3">{row.problemTitle}</td>
-                      <td className="px-4 py-3">{row.score}</td>
+                      <td className="px-4 py-3 font-bold text-[#002155]">{row.score}</td>
                       <td className="px-4 py-3">{row.members.map((member) => member.name).join(', ')}</td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>

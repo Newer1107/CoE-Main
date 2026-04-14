@@ -16,7 +16,7 @@ export default async function CreateProblemPage() {
     redirect('/login?next=%2Finnovation%2Ffaculty%2Fproblems%2Fcreate');
   }
 
-  if (payload.role !== 'FACULTY') redirect('/facility-booking');
+  if (!['FACULTY', 'INDUSTRY_PARTNER', 'ADMIN'].includes(payload.role)) redirect('/facility-booking');
 
-  return <CreateProblemClient />;
+  return <CreateProblemClient role={payload.role as 'FACULTY' | 'INDUSTRY_PARTNER' | 'ADMIN'} />;
 }

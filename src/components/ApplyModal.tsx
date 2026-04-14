@@ -6,9 +6,7 @@ import { useToast } from "@/components/ToastProvider";
 type ProblemQuestion = {
   id: number;
   questionText: string;
-  questionType: 'SHORT_TEXT' | 'LONG_TEXT';
-  isRequired: boolean;
-  order: number;
+  type: 'TEXT' | 'LONG_TEXT';
 };
 
 type StudentProfile = {
@@ -129,7 +127,7 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
     setError(null);
 
     // Validate all required questions are answered
-    const missingAnswers = questions.filter((q) => q.isRequired && !answers[q.id]?.trim());
+    const missingAnswers = questions.filter((q) => !answers[q.id]?.trim());
     if (missingAnswers.length > 0) {
       setError(`Please answer all required questions (${missingAnswers.length} remaining)`);
       return;
@@ -199,6 +197,9 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
             {/* Profile Confirmation Section */}
             <div className="border border-[#c4c6d3] p-4 rounded bg-[#f9f8f4]">
               <h3 className="font-bold text-sm text-[#002155] mb-3">Profile Information</h3>
+              <p className="text-xs text-[#434651] mb-3">
+                By continuing, your profile details and resume will be shared with the problem reviewer.
+              </p>
               <div className="space-y-2 text-sm">
                 <p className="text-[#434651]">
                   ✓ <span className="font-medium">Skills:</span> {profile?.skills || 'Not specified'}
@@ -241,16 +242,16 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
                     <div key={question.id}>
                       <label className="block text-sm font-medium text-[#002155] mb-2">
                         {idx + 1}. {question.questionText}
-                        {question.isRequired && <span className="text-red-500 ml-1">*</span>}
+                        <span className="text-red-500 ml-1">*</span>
                       </label>
-                      {question.questionType === 'SHORT_TEXT' ? (
+                      {question.type === 'TEXT' ? (
                         <input
                           type="text"
                           value={answers[question.id] || ''}
                           onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
                           className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50"
                           placeholder="Enter your answer"
-                          required={question.isRequired}
+                          required
                         />
                       ) : (
                         <textarea
@@ -259,7 +260,7 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
                           className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50"
                           placeholder="Enter your answer"
                           rows={4}
-                          required={question.isRequired}
+                          required
                         />
                       )}
                     </div>

@@ -11,6 +11,18 @@ enum Role {
   ADMIN
   FACULTY
   STUDENT
+  INDUSTRY_PARTNER
+}
+
+enum ProblemType {
+  OPEN
+  INTERNSHIP
+}
+
+enum ProblemApprovalStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
 }
 
 enum UserStatus {
@@ -126,6 +138,8 @@ model Problem {
   tags        String?
   isIndustryProblem Boolean   @default(false)
   industryName String?
+  problemType ProblemType     @default(OPEN)
+  approvalStatus ProblemApprovalStatus @default(APPROVED)
   mode        ProblemMode     @default(OPEN)
   status      ProblemStatus   @default(CLOSED)
   createdById Int
@@ -144,6 +158,8 @@ model Problem {
   @@index([eventId])
   @@index([status])
   @@index([mode])
+  @@index([problemType])
+  @@index([approvalStatus])
   @@map("problems")
 }
 

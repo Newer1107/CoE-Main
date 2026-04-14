@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
         mode: 'OPEN',
         eventId: null,
         status: 'OPENED',
+        approvalStatus: 'APPROVED',
+        problemType: { in: ['OPEN', 'INTERNSHIP'] },
       },
       select: { id: true },
     });

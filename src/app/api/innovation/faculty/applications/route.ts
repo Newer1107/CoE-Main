@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'FACULTY', 'ADMIN')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'FACULTY', 'INDUSTRY_PARTNER', 'ADMIN')) {
+      return errorRes('Forbidden', ['Faculty, industry partner, or admin access required'], 403);
+    }
 
     const { searchParams } = new URL(req.url);
     const problemIdRaw = searchParams.get('problemId');

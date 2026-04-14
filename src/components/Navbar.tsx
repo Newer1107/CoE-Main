@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+
+type NavLinkItem = {
+  label: string;
+  href: string;
+};
 
 type NavbarProps = {
   user: {
@@ -17,7 +22,9 @@ type NavbarProps = {
 export default function Navbar({ user }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [openDesktopDropdown, setOpenDesktopDropdown] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const dropdownCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -35,11 +42,85 @@ export default function Navbar({ user }: NavbarProps) {
   const loginHref = `/login?next=${encodeURIComponent(currentPathWithSearch)}`;
   const bookingLoginHref = `/login?next=${encodeURIComponent("/facility-booking")}&reason=booking-auth-required`;
   const userRole = user?.role || null;
-  const canSeeFacultyPortal = userRole === "FACULTY" || userRole === "ADMIN";
+  const canSeeFacultyPortal = userRole === "FACULTY" || userRole === "ADMIN" || userRole === "INDUSTRY_PARTNER";
   const canSeeAdminPanel = userRole === "ADMIN";
   const canSeeMySubmissions = userRole === "STUDENT";
   const isLoggedIn = !!user;
   const bookFacilityHref = isLoggedIn ? "/facility-booking" : bookingLoginHref;
+
+  useEffect(() => {
+    setOpenDesktopDropdown(null);
+    setIsMobileMenuOpen(false);
+    setIsUserMenuOpen(false);
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (dropdownCloseTimer.current) {
+        clearTimeout(dropdownCloseTimer.current);
+      }
+    };
+  }, []);
+
+  const clearDropdownCloseTimer = () => {
+    if (dropdownCloseTimer.current) {
+      clearTimeout(dropdownCloseTimer.current);
+      dropdownCloseTimer.current = null;
+    }
+  };
+
+  const openDropdown = (key: string) => {
+    clearDropdownCloseTimer();
+    setOpenDesktopDropdown(key);
+  };
+
+  const scheduleDropdownClose = () => {
+    clearDropdownCloseTimer();
+    dropdownCloseTimer.current = setTimeout(() => {
+      setOpenDesktopDropdown(null);
+      dropdownCloseTimer.current = null;
+    }, 220);
+  };
+
+  const isLinkActive = (href: string) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+    if (href.startsWith("/#")) {
+      return pathname === "/";
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const primaryLinks: NavLinkItem[] = [
+    { label: "Home", href: "/" },
+    { label: "About", href: "/about" },
+  ];
+
+  const programsLinks: NavLinkItem[] = [
+    { label: "Innovation", href: "/innovation" },
+    { label: "Industry Internship", href: "/industry-internship" },
+    { label: "Laboratory", href: "/laboratory" },
+  ];
+
+  const spotlightLinks: NavLinkItem[] = [
+    { label: "Events", href: "/#events" },
+    { label: "Grants", href: "/#grants" },
+    { label: "News", href: "/#news" },
+  ];
+
+  const portalLinks: NavLinkItem[] = [
+    ...(canSeeFacultyPortal
+      ? [{ label: userRole === "INDUSTRY_PARTNER" ? "Industry Workspace" : "Faculty Portal", href: userRole === "INDUSTRY_PARTNER" ? "/innovation/faculty" : "/faculty" }]
+      : []),
+    ...(canSeeAdminPanel ? [{ label: "Admin Panel", href: "/admin" }] : []),
+  ];
+
+  const groupedDesktopMenus: Array<{ label: string; key: string; links: NavLinkItem[] }> = [
+    { label: "Programs", key: "programs", links: programsLinks },
+    { label: "Spotlight", key: "spotlight", links: spotlightLinks },
+    ...(portalLinks.length > 0 ? [{ label: "Portals", key: "portals", links: portalLinks }] : []),
+  ];
 
   const handleLogout = async () => {
     try {
@@ -51,19 +132,6 @@ export default function Navbar({ user }: NavbarProps) {
       window.location.href = "/login";
     }
   };
-
-  const links = [
-    { label: "Home", href: "/" },
-    { label: "About", href: "/about" },
-    { label: "Innovation", href: "/innovation" },
-    { label: "Laboratory", href: "/laboratory" },
-    ...(canSeeFacultyPortal ? [{ label: "Faculty Portal", href: "/faculty" }] : []),
-    ...(canSeeAdminPanel ? [{ label: "Admin", href: "/admin" }] : []),
-    { label: "Events", href: "/#events" },
-    { label: "Grants", href: "/#grants" },
-    { label: "News", href: "/#news" },
-    ...(!isLoggedIn ? [{ label: "Login", href: loginHref }] : []),
-  ];
 
   return (
     <>
@@ -117,12 +185,12 @@ export default function Navbar({ user }: NavbarProps) {
         {/* RIGHT SIDE: Desktop Links + TCET Logo + Mobile Toggle */}
         <div className="flex items-center gap-6 z-50">
           {/* Desktop Links */}
-          <div className="hidden lg:flex items-center gap-6">
-            {links.map((link) => (
+          <div className="hidden lg:flex items-center gap-5">
+            {primaryLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
-                className={`${pathname === link.href
+                className={`${isLinkActive(link.href)
                   ? "text-[#fd9923] font-bold border-b-2 border-[#fd9923] pb-1"
                   : "text-white opacity-80 hover:opacity-100 hover:text-[#fd9923]"
                   } transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]`}
@@ -130,6 +198,67 @@ export default function Navbar({ user }: NavbarProps) {
                 {link.label}
               </Link>
             ))}
+
+            {groupedDesktopMenus.map((menu) => {
+              const isMenuActive = menu.links.some((link) => isLinkActive(link.href));
+              const isOpen = openDesktopDropdown === menu.key;
+              const useActiveHighlight = menu.key !== "spotlight";
+
+              return (
+                <div
+                  key={menu.key}
+                  className="relative"
+                  onMouseEnter={() => openDropdown(menu.key)}
+                  onMouseLeave={scheduleDropdownClose}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenDesktopDropdown((prev) => (prev === menu.key ? null : menu.key))}
+                    className={`${isMenuActive && useActiveHighlight
+                      ? "text-[#fd9923] font-bold"
+                      : "text-white opacity-80 hover:opacity-100 hover:text-[#fd9923]"
+                      } flex items-center gap-1 transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]`}
+                  >
+                    {menu.label}
+                    <span className={`material-symbols-outlined text-base transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                      expand_more
+                    </span>
+                  </button>
+
+                  {isOpen ? (
+                    <div
+                      className="absolute left-0 top-full min-w-[220px] border border-white/20 bg-[#001a42] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+                      onMouseEnter={() => openDropdown(menu.key)}
+                      onMouseLeave={scheduleDropdownClose}
+                    >
+                      {menu.links.map((link) => (
+                        <Link
+                          key={`${menu.key}-${link.href}`}
+                          href={link.href}
+                          onClick={() => setOpenDesktopDropdown(null)}
+                          className={`${isLinkActive(link.href)
+                            ? "bg-[#fd9923] text-[#002155]"
+                            : "text-white hover:bg-white/10"
+                            } block px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors`}
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            {!isLoggedIn ? (
+              <Link
+                href={loginHref}
+                className="text-white opacity-85 hover:opacity-100 hover:text-[#fd9923] transition-all text-xs font-['Inter'] uppercase tracking-[0.05rem]"
+              >
+                Login
+              </Link>
+            ) : null}
+
             <Link
               href={bookFacilityHref}
               className={`${pathname === "/facility-booking"
@@ -194,6 +323,24 @@ export default function Navbar({ user }: NavbarProps) {
                           </Link>
                         </>
                       ) : null}
+                      {userRole === "INDUSTRY_PARTNER" ? (
+                        <>
+                          <Link
+                            href="/innovation/faculty"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="border border-[#8c4f00] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]"
+                          >
+                            Industry Workspace
+                          </Link>
+                          <Link
+                            href="/innovation/faculty/applications"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="border border-[#0b6b2e] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#0b6b2e]"
+                          >
+                            Internship Applicants
+                          </Link>
+                        </>
+                      ) : null}
                       <Link
                         href="/facility-booking"
                         onClick={() => setIsUserMenuOpen(false)}
@@ -255,19 +402,92 @@ export default function Navbar({ user }: NavbarProps) {
               {user?.uid ? <p className="mt-1 text-xs text-white/80">UID: {user.uid}</p> : null}
             </div>
           ) : null}
-          {links.map((link) => (
+
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Main</p>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              {primaryLinks.map((link) => (
+                <Link
+                  key={`main-${link.href}`}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`${isLinkActive(link.href)
+                    ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
+                    : "text-white opacity-80 hover:opacity-100 pl-4"
+                    } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Programs</p>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              {programsLinks.map((link) => (
+                <Link
+                  key={`program-${link.href}`}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`${isLinkActive(link.href)
+                    ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
+                    : "text-white opacity-80 hover:opacity-100 pl-4"
+                    } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Spotlight</p>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              {spotlightLinks.map((link) => (
+                <Link
+                  key={`spotlight-${link.href}`}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-white opacity-80 hover:opacity-100 pl-4 transition-all text-sm font-['Inter'] uppercase tracking-widest block"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {portalLinks.length > 0 ? (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Portals</p>
+              <div className="mt-2 grid grid-cols-1 gap-2">
+                {portalLinks.map((link) => (
+                  <Link
+                    key={`portal-${link.href}`}
+                    href={link.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`${isLinkActive(link.href)
+                      ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
+                      : "text-white opacity-80 hover:opacity-100 pl-4"
+                      } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {!isLoggedIn ? (
             <Link
-              key={link.label}
-              href={link.href}
+              href={loginHref}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`${pathname === link.href
-                ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
-                : "text-white opacity-80 hover:opacity-100 pl-4"
-                } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
+              className="inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-white"
             >
-              {link.label}
+              Login
             </Link>
-          ))}
+          ) : null}
+
           <div className="mt-4 pt-4 border-t border-white/20">
             <Link
               href={bookFacilityHref}

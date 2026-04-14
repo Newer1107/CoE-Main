@@ -516,7 +516,17 @@ type TicketVerificationResult = {
   }>;
 };
 
-type OperationsTab = "overview" | "bookings" | "faculty" | "tickets" | "content" | "emails";
+type IndustryPartnerSummary = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  createdAt: string;
+};
+
+type OperationsTab = "overview" | "bookings" | "faculty" | "tickets" | "content" | "emails" | "industry";
 
 const apiCall = async (url: string, options?: RequestInit) => {
   const res = await fetch(url, {
@@ -679,6 +689,25 @@ export default function AdminPanelClient({
   const [ticketScannerStarting, setTicketScannerStarting] = useState(false);
   const [ticketScannerError, setTicketScannerError] = useState("");
   const [operationsTab, setOperationsTab] = useState<OperationsTab>("overview");
+  const [industryPartners, setIndustryPartners] = useState<IndustryPartnerSummary[]>(() =>
+    users
+      .filter((entry) => entry.role === "INDUSTRY_PARTNER")
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        email: entry.email,
+        phone: entry.phone,
+        role: entry.role,
+        status: entry.status,
+        createdAt: entry.createdAt,
+      }))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  );
+  const [industryPartnerName, setIndustryPartnerName] = useState("");
+  const [industryPartnerEmail, setIndustryPartnerEmail] = useState("");
+  const [industryPartnerPhone, setIndustryPartnerPhone] = useState("");
+  const [industryPartnerPassword, setIndustryPartnerPassword] = useState("");
+  const [creatingIndustryPartner, setCreatingIndustryPartner] = useState(false);
   const [innovationTab, setInnovationTab] = useState<InnovationTab>("events");
   const [innovationAnalyticsTab, setInnovationAnalyticsTab] = useState<InnovationAnalyticsTab>("participants");
 
@@ -910,7 +939,8 @@ export default function AdminPanelClient({
       ops === "faculty" ||
       ops === "tickets" ||
       ops === "content" ||
-      ops === "emails"
+      ops === "emails" ||
+      ops === "industry"
     ) {
       setOperationsTab(ops);
     }
@@ -1862,6 +1892,40 @@ export default function AdminPanelClient({
     }
   };
 
+  const handleCreateIndustryPartner = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStatusMessage("");
+    setErrorMessage("");
+    setCreatingIndustryPartner(true);
+
+    try {
+      const payload = await apiCall("/api/admin/industry-partners", {
+        method: "POST",
+        body: JSON.stringify({
+          name: industryPartnerName.trim(),
+          email: industryPartnerEmail.trim(),
+          phone: industryPartnerPhone.trim() || undefined,
+          password: industryPartnerPassword,
+        }),
+      });
+
+      const created = payload?.data as IndustryPartnerSummary;
+      if (created?.id) {
+        setIndustryPartners((prev) => [created, ...prev.filter((item) => item.id !== created.id)]);
+      }
+
+      setIndustryPartnerName("");
+      setIndustryPartnerEmail("");
+      setIndustryPartnerPhone("");
+      setIndustryPartnerPassword("");
+      setStatusMessage("Industry partner account created successfully.");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not create industry partner account.");
+    } finally {
+      setCreatingIndustryPartner(false);
+    }
+  };
+
   const stageDecision = (claimId: number, status: StagedHackathonDecision) => {
     setStagedDecisions((prev) => {
       if (prev[claimId] === status) {
@@ -2113,6 +2177,19 @@ export default function AdminPanelClient({
               </span>
             </span>
           </button>
+          <button
+            onClick={() => setOperationsTab("industry")}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${
+              operationsTab === "industry" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              Industry Internship
+              <span className="px-2 py-[1px] rounded-full text-[10px] font-bold bg-[#e8e6e0] text-[#434651]">
+                {industryPartners.length}
+              </span>
+            </span>
+          </button>
         </div>
         <p className="text-sm text-[#434651]">
           {operationsTab === "overview" ? "Platform summary and high-level counts." : null}
@@ -2121,8 +2198,118 @@ export default function AdminPanelClient({
           {operationsTab === "tickets" ? "Verify tickets manually or by camera QR scan." : null}
           {operationsTab === "content" ? "Upload and review homepage hero slides." : null}
           {operationsTab === "emails" ? "Monitor delivery queue health and retry patterns." : null}
+          {operationsTab === "industry" ? "Create industry partner accounts and manage internship workflow access points." : null}
         </p>
       </section>
+
+      {operationsTab === "industry" ? (
+      <section className="mb-10 space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <article className="border border-[#c4c6d3] bg-white p-5">
+            <h2 className="font-headline text-2xl text-[#002155]">Create Industry Partner Account</h2>
+            <p className="mt-2 text-sm text-[#434651]">
+              Create login credentials for companies so they can publish internship opportunities and review applications.
+            </p>
+
+            <form className="mt-4 space-y-3" onSubmit={handleCreateIndustryPartner}>
+              <input
+                required
+                value={industryPartnerName}
+                onChange={(e) => setIndustryPartnerName(e.target.value)}
+                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                placeholder="Contact person name"
+              />
+              <input
+                required
+                type="email"
+                value={industryPartnerEmail}
+                onChange={(e) => setIndustryPartnerEmail(e.target.value)}
+                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                placeholder="work-email@company.com"
+              />
+              <input
+                value={industryPartnerPhone}
+                onChange={(e) => setIndustryPartnerPhone(e.target.value)}
+                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                placeholder="Phone (optional)"
+              />
+              <input
+                required
+                type="password"
+                minLength={8}
+                value={industryPartnerPassword}
+                onChange={(e) => setIndustryPartnerPassword(e.target.value)}
+                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                placeholder="Temporary password"
+              />
+
+              <button
+                type="submit"
+                disabled={creatingIndustryPartner}
+                className="bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
+              >
+                {creatingIndustryPartner ? "Creating..." : "Create Partner"}
+              </button>
+            </form>
+          </article>
+
+          <article className="border border-[#c4c6d3] bg-white p-5">
+            <h2 className="font-headline text-2xl text-[#002155]">Quick Access</h2>
+            <p className="mt-2 text-sm text-[#434651]">
+              Open all internship module surfaces from here.
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-2">
+              <Link href="/industry-internship" className="border border-[#8c4f00] px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-[#8c4f00]">
+                Internship Board (Public)
+              </Link>
+              <Link href="/innovation/faculty" className="border border-[#0b6b2e] px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-[#0b6b2e]">
+                Approvals And Workspace
+              </Link>
+              <Link href="/innovation/faculty/applications" className="border border-[#002155] px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-[#002155]">
+                Internship Applications
+              </Link>
+            </div>
+          </article>
+        </div>
+
+        <article className="border border-[#c4c6d3] bg-white p-5">
+          <h2 className="font-headline text-2xl text-[#002155]">Industry Partners</h2>
+          <p className="mt-2 text-sm text-[#434651]">Active partner accounts created for internship workflows.</p>
+
+          {industryPartners.length === 0 ? (
+            <p className="mt-4 border border-dashed border-[#c4c6d3] p-4 text-sm text-[#434651]">
+              No industry partner accounts yet.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#f5f4f0] text-left text-xs uppercase tracking-widest text-[#434651]">
+                    <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">Email</th>
+                    <th className="px-3 py-2">Phone</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {industryPartners.map((partner) => (
+                    <tr key={partner.id} className="border-t border-[#ecebe7]">
+                      <td className="px-3 py-2 text-[#002155] font-medium">{partner.name}</td>
+                      <td className="px-3 py-2 text-[#434651]">{partner.email}</td>
+                      <td className="px-3 py-2 text-[#434651]">{partner.phone || "-"}</td>
+                      <td className="px-3 py-2 text-[#434651]">{partner.status}</td>
+                      <td className="px-3 py-2 text-[#434651]">{formatIstDateTime(partner.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </article>
+      </section>
+      ) : null}
 
       {operationsTab === "overview" ? (
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">

@@ -12,6 +12,7 @@ type Hackathon = {
 type Problem = {
     id: number;
     title: string;
+    problemType: 'OPEN' | 'INTERNSHIP';
 };
 
 export default function NewOpportunitiesModal({
@@ -116,14 +117,28 @@ export default function NewOpportunitiesModal({
                             </h3>
                             <div className="space-y-2">
                                 {problems.map((p) => (
-                                    <Link key={p.id} href="/innovation/problems">
+                                    <Link key={p.id} href={p.problemType === 'INTERNSHIP' ? '/industry-internship' : '/innovation/problems'}>
                                         <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition flex justify-between items-center">
-                                            <span className="text-sm font-semibold text-[#002155]">
-                                                {p.title}
-                                            </span>
-                                            <span className="text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">
-                                                New
-                                            </span>
+                                            <div className="min-w-0">
+                                                <span className="text-sm font-semibold text-[#002155] block truncate">
+                                                    {p.title}
+                                                </span>
+                                                {p.problemType === 'INTERNSHIP' ? (
+                                                    <span className="inline-flex mt-1 border border-[#8c4f00] bg-[#fff8ee] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]">
+                                                        Industry Internship Opportunity
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {p.problemType === 'INTERNSHIP' ? (
+                                                    <span className="text-[10px] bg-[#8c4f00] text-white px-2 py-0.5 font-bold uppercase">
+                                                        Internship
+                                                    </span>
+                                                ) : null}
+                                                <span className="text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">
+                                                    New
+                                                </span>
+                                            </div>
                                         </div>
                                     </Link>
                                 ))}

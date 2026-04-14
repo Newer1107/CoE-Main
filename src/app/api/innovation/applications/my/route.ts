@@ -12,7 +12,17 @@ export async function GET(req: NextRequest) {
     const applications = await prisma.application.findMany({
       where: { userId: user.id },
       include: {
-        problem: { select: { id: true, title: true } },
+        problem: {
+          select: {
+            id: true,
+            title: true,
+            problemType: true,
+            mode: true,
+            status: true,
+            approvalStatus: true,
+            industryName: true,
+          },
+        },
         profile: { select: { skills: true, experience: true, interests: true } },
         answers: {
           include: { question: { select: { id: true, questionText: true } } },

@@ -18,6 +18,8 @@ type ProblemRow = {
   title: string;
   description: string;
   tags: string | null;
+  problemType: 'OPEN' | 'INTERNSHIP';
+  approvalStatus: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
   isIndustryProblem: boolean;
   industryName: string | null;
   supportDocumentUrl: string | null;
@@ -29,7 +31,8 @@ type ProblemRow = {
 };
 
 type InnovationProblemsClientProps = {
-  role: 'STUDENT' | 'FACULTY' | 'ADMIN' | null;
+  role: 'STUDENT' | 'FACULTY' | 'ADMIN' | 'INDUSTRY_PARTNER' | null;
+  listingType?: 'open' | 'internship';
 };
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -47,7 +50,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return payload.data;
 }
 
-export default function InnovationProblemsClient({ role }: InnovationProblemsClientProps) {
+export default function InnovationProblemsClient({ role, listingType = 'open' }: InnovationProblemsClientProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -97,6 +100,9 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
       const params = new URLSearchParams();
       if (tagFilter.trim()) params.set('tag', tagFilter.trim());
       if (statusFilter.trim()) params.set('status', statusFilter.trim());
+      params.set('track', 'open');
+      params.set('visibility', 'public');
+      params.set('problemType', listingType === 'internship' ? 'INTERNSHIP' : 'OPEN');
 
       const query = params.toString();
       const data = await fetchJson<ProblemRow[]>(`/api/innovation/problems${query ? `?${query}` : ''}`);
@@ -164,10 +170,12 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
       {/* Header */}
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
-          Open Problems
+          {listingType === 'internship' ? 'Industry Internship Opportunities' : 'Open Problems'}
         </h1>
         <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
-          Apply for real-world industry problems and showcase your skills
+          {listingType === 'internship'
+            ? 'Explore approved internship opportunities posted by industry partners.'
+            : 'Apply for real-world industry problems and showcase your skills'}
         </p>
       </header>
 
@@ -192,6 +200,16 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
           Open Problem Statements
         </Link>
 
+        <Link
+          href="/industry-internship"
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/industry-internship"
+              ? "bg-[#8c4f00] text-white"
+              : "border border-[#8c4f00] text-[#8c4f00]"
+            }`}
+        >
+          Industry Internship
+        </Link>
+
         {role === "STUDENT" && (
           <Link
             href="/innovation/my-submissions"
@@ -204,7 +222,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
           </Link>
         )}
 
-        {role === "FACULTY" && (
+        {(role === "FACULTY" || role === "INDUSTRY_PARTNER") && (
           <Link
             href="/innovation/faculty"
             className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/innovation/faculty"
@@ -212,7 +230,7 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                 : "border border-[#8c4f00] text-[#8c4f00]"
               }`}
           >
-            Faculty Workspace
+            {role === 'INDUSTRY_PARTNER' ? 'Industry Workspace' : 'Faculty Workspace'}
           </Link>
         )}
       </section>
@@ -262,7 +280,9 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
       {/* Problems Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-headline text-2xl text-[#002155]">Problem Board</h2>
+          <h2 className="font-headline text-2xl text-[#002155]">
+            {listingType === 'internship' ? 'Internship Board' : 'Problem Board'}
+          </h2>
           {loading && <span className="text-xs text-[#747782]">Loading...</span>}
         </div>
 
@@ -285,10 +305,15 @@ export default function InnovationProblemsClient({ role }: InnovationProblemsCli
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div>
-                      <p className="text-xs uppercase tracking-widest text-[#8c4f00] font-bold">{problem.mode}</p>
+                      <p className="text-xs uppercase tracking-widest text-[#8c4f00] font-bold">
+                        {problem.problemType === 'INTERNSHIP' ? 'Internship Opportunity' : problem.mode}
+                      </p>
                       {problem.status === 'CLOSED' && (
                         <p className="text-xs uppercase tracking-widest text-red-600 font-bold">Closed</p>
                       )}
+                      {problem.approvalStatus !== 'APPROVED' ? (
+                        <p className="text-xs uppercase tracking-widest text-[#ba1a1a] font-bold">{problem.approvalStatus.replaceAll('_', ' ')}</p>
+                      ) : null}
                     </div>
                     {isAlreadyApplied && (
                       <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">

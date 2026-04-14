@@ -83,6 +83,7 @@ export default async function HomePage() {
         select: {
           id: true,
           title: true,
+          problemType: true,
           tags: true,
           _count: { select: { applications: true } },
         },

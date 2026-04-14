@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/lib/jwt';
-import InnovationProblemsClient from './InnovationProblemsClient';
+import InnovationProblemsClient from '@/app/innovation/problems/InnovationProblemsClient';
 
-export default async function InnovationProblemsPage() {
+export default async function IndustryInternshipPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value;
 
@@ -11,7 +11,6 @@ export default async function InnovationProblemsPage() {
   if (token) {
     try {
       const payload = verifyAccessToken(token);
-
       if (
         payload.role === 'STUDENT' ||
         payload.role === 'FACULTY' ||
@@ -25,5 +24,5 @@ export default async function InnovationProblemsPage() {
     }
   }
 
-  return <InnovationProblemsClient role={role} listingType="open" />;
+  return <InnovationProblemsClient role={role} listingType="internship" />;
 }

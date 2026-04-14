@@ -9,7 +9,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'FACULTY', 'ADMIN')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'FACULTY', 'ADMIN', 'INDUSTRY_PARTNER')) {
+      return errorRes('Forbidden', ['Faculty, industry partner, or admin access required'], 403);
+    }
 
     const { id } = await params;
     const problemId = Number(id);
@@ -26,6 +28,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return errorRes('Forbidden', ['You can only modify your own problems'], 403);
     }
 
+    if (existing.problemType === 'INTERNSHIP' && !authorize(user, 'ADMIN', 'INDUSTRY_PARTNER')) {
+      return errorRes('Forbidden', ['Only admin or the assigned industry partner can modify internship problems'], 403);
+    }
+
     const body = await req.json();
     const parsed = innovationProblemUpdateSchema.safeParse(body);
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
@@ -38,8 +44,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return errorRes('Invalid mode update', ['Open innovation problems must remain OPEN'], 400);
     }
 
+    if (existing.problemType === 'INTERNSHIP' && typeof parsed.data.mode !== 'undefined' && parsed.data.mode !== 'OPEN') {
+      return errorRes('Invalid mode update', ['Internship opportunities must remain OPEN mode'], 400);
+    }
+
     if (existing.eventId && typeof parsed.data.status !== 'undefined' && parsed.data.status === 'OPENED') {
       return errorRes('Invalid status update', ['Hackathon problem statements cannot be marked OPENED'], 400);
+    }
+
+    if (typeof parsed.data.approvalStatus !== 'undefined' && !authorize(user, 'ADMIN')) {
+      return errorRes('Forbidden', ['Only admin can change problem approval status'], 403);
+    }
+
+    if (typeof parsed.data.problemType !== 'undefined' && parsed.data.problemType !== existing.problemType) {
+      return errorRes('Invalid problemType update', ['Problem type cannot be changed after creation'], 400);
     }
 
     const targetIsIndustryProblem =
@@ -75,6 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof parsed.data.mode !== 'undefined') updateData.mode = parsed.data.mode;
     if (typeof parsed.data.status !== 'undefined') updateData.status = parsed.data.status;
     if (typeof parsed.data.isIndustryProblem !== 'undefined') updateData.isIndustryProblem = parsed.data.isIndustryProblem;
+    if (typeof parsed.data.approvalStatus !== 'undefined') updateData.approvalStatus = parsed.data.approvalStatus;
 
     const problem = await prisma.problem.update({
       where: { id: problemId },

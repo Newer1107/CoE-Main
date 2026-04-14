@@ -40,6 +40,13 @@ export const facultyRegisterSchema = z.object({
   password: z.string().min(6),
 });
 
+export const industryPartnerCreateSchema = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().email('Invalid email address'),
+  phone: z.string().trim().min(10, 'Phone must be at least 10 digits').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
 export const loginSchema = z.object({
   identifier: z.string().trim().min(2, 'Email or UID is required'),
   password: z.string().min(1),
@@ -144,6 +151,8 @@ export const innovationProblemCreateSchema = z.object({
   description: z.string().min(5),
   tags: z.string().optional().or(z.literal('')),
   mode: z.enum(['OPEN', 'CLOSED']),
+  problemType: z.enum(['OPEN', 'INTERNSHIP']).optional().default('OPEN'),
+  approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
   eventId: z.coerce.number().int().positive().optional(),
   isIndustryProblem: booleanLikeSchema.optional().default(false),
   industryName: industryNameSchema.optional().or(z.literal('')),
@@ -164,6 +173,22 @@ export const innovationProblemCreateSchema = z.object({
       message: 'Industry name is only allowed when the problem type is industry',
     });
   }
+
+  if (value.problemType === 'INTERNSHIP' && value.mode !== 'OPEN') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['mode'],
+      message: 'Internship problems must use OPEN mode.',
+    });
+  }
+
+  if (value.problemType === 'INTERNSHIP' && !value.isIndustryProblem) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['isIndustryProblem'],
+      message: 'Internship problems must be marked as industry problems.',
+    });
+  }
 });
 
 export const innovationProblemUpdateSchema = z.object({
@@ -172,6 +197,8 @@ export const innovationProblemUpdateSchema = z.object({
   tags: z.string().optional().or(z.literal('')),
   mode: z.enum(['OPEN', 'CLOSED']).optional(),
   status: z.enum(['OPENED', 'CLOSED', 'ARCHIVED']).optional(),
+  problemType: z.enum(['OPEN', 'INTERNSHIP']).optional(),
+  approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
   isIndustryProblem: booleanLikeSchema.optional(),
   industryName: industryNameSchema.optional().or(z.literal('')),
 }).superRefine((value, ctx) => {
@@ -181,6 +208,14 @@ export const innovationProblemUpdateSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['industryName'],
       message: 'Industry name is only allowed when the problem type is industry',
+    });
+  }
+
+  if (value.problemType === 'INTERNSHIP' && value.mode === 'CLOSED') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['mode'],
+      message: 'Internship problems must remain in OPEN mode.',
     });
   }
 });

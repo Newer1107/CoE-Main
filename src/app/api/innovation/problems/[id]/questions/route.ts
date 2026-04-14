@@ -36,6 +36,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         mode: 'OPEN',
         eventId: null,
         status: 'OPENED',
+        approvalStatus: 'APPROVED',
+        problemType: { in: ['OPEN', 'INTERNSHIP'] },
       },
       select: { id: true },
     });
@@ -61,7 +63,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'FACULTY', 'ADMIN')) return errorRes('Forbidden', ['Faculty or admin access required'], 403);
+    if (!authorize(user, 'FACULTY', 'INDUSTRY_PARTNER', 'ADMIN')) {
+      return errorRes('Forbidden', ['Faculty, industry partner, or admin access required'], 403);
+    }
 
     const params = await context.params;
     const problemId = Number(params.id);

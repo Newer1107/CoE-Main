@@ -149,6 +149,8 @@ export default function LoginPage() {
         ? "/admin"
         : role === "FACULTY"
           ? "/faculty"
+          : role === "INDUSTRY_PARTNER"
+            ? "/innovation/faculty"
           : safeNext || "/facility-booking";
 
       // Force a full navigation so server-rendered navbar auth state updates immediately.

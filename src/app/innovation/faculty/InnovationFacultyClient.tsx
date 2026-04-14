@@ -14,6 +14,8 @@ type ProblemRow = {
   title: string;
   description: string;
   tags: string | null;
+  problemType: 'OPEN' | 'INTERNSHIP';
+  approvalStatus: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
   isIndustryProblem: boolean;
   industryName: string | null;
   supportDocumentUrl?: string | null;
@@ -25,7 +27,7 @@ type ProblemRow = {
 };
 
 type InnovationFacultyClientProps = {
-  role: 'FACULTY' | 'ADMIN';
+  role: 'FACULTY' | 'ADMIN' | 'INDUSTRY_PARTNER';
   userId: number;
 };
 
@@ -54,7 +56,7 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     setLoading(true);
     setErrorMessage('');
     try {
-      const data = await fetchJson<ProblemRow[]>('/api/innovation/problems?track=open');
+      const data = await fetchJson<ProblemRow[]>(`/api/innovation/problems?track=open&ownerOnly=true${role === 'ADMIN' ? '&visibility=internal' : ''}`);
       setProblems(data);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Could not load problems');
@@ -71,6 +73,15 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     if (role === 'ADMIN') return problems;
     return problems.filter((problem) => problem.createdById === userId);
   }, [problems, role, userId]);
+
+  const reviewInternshipApproval = async (problemId: number, approvalStatus: 'APPROVED' | 'REJECTED') => {
+    await runAction(async () => {
+      await fetchJson(`/api/innovation/problems/${problemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ approvalStatus }),
+      });
+    }, approvalStatus === 'APPROVED' ? 'Internship opportunity approved.' : 'Internship opportunity rejected.');
+  };
 
   const runAction = async (action: () => Promise<void>, successText: string) => {
     setLoading(true);
@@ -110,10 +121,12 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
     <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
-          Faculty Workspace
+          {role === 'INDUSTRY_PARTNER' ? 'Industry Workspace' : 'Faculty Workspace'}
         </h1>
         <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
-          Manage open problem statements with the new application workflow.
+          {role === 'INDUSTRY_PARTNER'
+            ? 'Create internship opportunities and review student applications.'
+            : 'Manage open problem statements with the new application workflow.'}
         </p>
       </header>
 
@@ -129,7 +142,9 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
           href="/innovation/faculty/problems/create"
           className="border border-[#fd9923] bg-[#fff9f0] p-4 rounded hover:bg-[#ffe6c0] transition-colors"
         >
-          <p className="text-xs font-bold uppercase tracking-wider text-[#fd9923]">+ Create New Problem</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-[#fd9923]">
+            {role === 'INDUSTRY_PARTNER' ? '+ Create Internship Opportunity' : '+ Create New Problem'}
+          </p>
           <p className="text-sm text-[#434651] mt-2">Use the new creation page with custom questions and support document upload.</p>
         </Link>
         <Link
@@ -166,6 +181,12 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                     <p className="text-sm font-bold text-[#002155]">{problem.title}</p>
                     <p className="mt-1 text-xs text-[#434651]">
                       {problem.mode} • {problem.status} • Applications: {problem._count.applications}
+                    </p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Type: {problem.problemType === 'INTERNSHIP' ? 'Internship Opportunity' : 'Open Problem'}
+                    </p>
+                    <p className="mt-1 text-xs text-[#434651]">
+                      Approval: {problem.approvalStatus.replaceAll('_', ' ')}
                     </p>
                     <p className="mt-1 text-xs text-[#434651]">
                       Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
@@ -207,6 +228,22 @@ export default function InnovationFacultyClient({ role, userId }: InnovationFacu
                     >
                       Archive
                     </button>
+                    {role === 'ADMIN' && problem.problemType === 'INTERNSHIP' && problem.approvalStatus === 'PENDING_APPROVAL' ? (
+                      <>
+                        <button
+                          onClick={() => void reviewInternshipApproval(problem.id, 'APPROVED')}
+                          className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                        >
+                          Approve Internship
+                        </button>
+                        <button
+                          onClick={() => void reviewInternshipApproval(problem.id, 'REJECTED')}
+                          className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                        >
+                          Reject Internship
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </article>

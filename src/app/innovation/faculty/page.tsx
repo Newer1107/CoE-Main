@@ -16,7 +16,7 @@ export default async function InnovationFacultyPage() {
     redirect('/login?next=%2Finnovation%2Ffaculty');
   }
 
-  if (!['FACULTY', 'ADMIN'].includes(payload.role)) redirect('/facility-booking');
+  if (!['FACULTY', 'ADMIN', 'INDUSTRY_PARTNER'].includes(payload.role)) redirect('/facility-booking');
 
-  return <InnovationFacultyClient role={payload.role as 'FACULTY' | 'ADMIN'} userId={payload.id} />;
+  return <InnovationFacultyClient role={payload.role as 'FACULTY' | 'ADMIN' | 'INDUSTRY_PARTNER'} userId={payload.id} />;
 }

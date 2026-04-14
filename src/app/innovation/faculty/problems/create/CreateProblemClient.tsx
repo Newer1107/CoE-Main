@@ -12,7 +12,11 @@ interface Question {
   order: number;
 }
 
-export default function CreateProblemClient() {
+type CreateProblemClientProps = {
+  role: 'FACULTY' | 'INDUSTRY_PARTNER' | 'ADMIN';
+};
+
+export default function CreateProblemClient({ role }: CreateProblemClientProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,9 +105,10 @@ export default function CreateProblemClient() {
       requestBody.append('title', formData.title.trim());
       requestBody.append('description', formData.description.trim());
       requestBody.append('tags', formData.tags.trim());
-      requestBody.append('isIndustryProblem', String(formData.isIndustryProblem));
-      requestBody.append('industryName', formData.isIndustryProblem ? formData.industryName.trim() : '');
+      requestBody.append('isIndustryProblem', String(role === 'INDUSTRY_PARTNER' ? true : formData.isIndustryProblem));
+      requestBody.append('industryName', (role === 'INDUSTRY_PARTNER' || formData.isIndustryProblem) ? formData.industryName.trim() : '');
       requestBody.append('mode', 'OPEN');
+      requestBody.append('problemType', role === 'INDUSTRY_PARTNER' ? 'INTERNSHIP' : 'OPEN');
       if (questions.length > 0) {
         requestBody.append(
           'questions',
@@ -149,10 +154,12 @@ export default function CreateProblemClient() {
       {/* Header */}
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
-          Create New Problem
+          {role === 'INDUSTRY_PARTNER' ? 'Create Internship Opportunity' : 'Create New Problem'}
         </h1>
         <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
-          Define a new open problem and create custom application questions for students
+          {role === 'INDUSTRY_PARTNER'
+            ? 'Submit an internship opportunity with optional custom questions for student applicants.'
+            : 'Define a new open problem and create custom application questions for students'}
         </p>
       </header>
 
@@ -218,23 +225,41 @@ export default function CreateProblemClient() {
 
           {/* Industry Problem */}
           <div className="mb-6">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isIndustryProblem}
-                onChange={(e) => setFormData({ ...formData, isIndustryProblem: e.target.checked })}
-                className="w-4 h-4 border border-[#c4c6d3] rounded"
-              />
-              <span className="text-sm font-medium text-[#002155]">Industry Problem</span>
-            </label>
-            {formData.isIndustryProblem && (
-              <input
-                type="text"
-                value={formData.industryName}
-                onChange={(e) => setFormData({ ...formData, industryName: e.target.value })}
-                placeholder="Company/Industry name"
-                className="mt-3 w-full px-4 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50"
-              />
+            {role === 'INDUSTRY_PARTNER' ? (
+              <>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] mb-2">
+                  Internship Opportunity (Pending Admin Approval)
+                </p>
+                <input
+                  type="text"
+                  value={formData.industryName}
+                  onChange={(e) => setFormData({ ...formData, industryName: e.target.value, isIndustryProblem: true })}
+                  placeholder="Company/Industry name"
+                  className="w-full px-4 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50"
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isIndustryProblem}
+                    onChange={(e) => setFormData({ ...formData, isIndustryProblem: e.target.checked })}
+                    className="w-4 h-4 border border-[#c4c6d3] rounded"
+                  />
+                  <span className="text-sm font-medium text-[#002155]">Industry Problem</span>
+                </label>
+                {formData.isIndustryProblem ? (
+                  <input
+                    type="text"
+                    value={formData.industryName}
+                    onChange={(e) => setFormData({ ...formData, industryName: e.target.value })}
+                    placeholder="Company/Industry name"
+                    className="mt-3 w-full px-4 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50"
+                  />
+                ) : null}
+              </>
             )}
           </div>
 
