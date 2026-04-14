@@ -230,23 +230,29 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
               <span className="font-medium">Applications:</span> {problem._count.applications}
             </p>
           ) : null}
-
-          {problem.problemType === 'INTERNSHIP' ? (
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#002155] text-right">
-              {(problem.industryName?.trim() || 'Industry')} X TCET
-            </p>
-          ) : null}
         </div>
 
-        {problem.supportDocumentUrl && (
-          <a
-            href={problem.supportDocumentUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-block mt-2 text-xs font-bold uppercase tracking-wider text-[#fd9923] underline hover:text-[#e68a00]"
-          >
-            View Support Document
-          </a>
+        {(problem.supportDocumentUrl || problem.problemType === 'INTERNSHIP') && (
+          <div className="mt-2 flex items-center justify-between gap-3">
+            {problem.supportDocumentUrl ? (
+              <a
+                href={problem.supportDocumentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block text-xs font-bold uppercase tracking-wider text-[#fd9923] underline hover:text-[#e68a00]"
+              >
+                View Support Document
+              </a>
+            ) : (
+              <span />
+            )}
+
+            {problem.problemType === 'INTERNSHIP' ? (
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#002155] text-right">
+                {(problem.industryName?.trim() || 'Industry')} X TCET
+              </p>
+            ) : null}
+          </div>
         )}
 
         {isOpen ? (
