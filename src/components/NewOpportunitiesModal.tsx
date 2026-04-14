@@ -66,7 +66,7 @@ export default function NewOpportunitiesModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[999] bg-black/50 backdrop-blur-xs flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-[999] bg-black/50 backdrop-blur-xs flex items-center justify-center px-3 sm:px-4">
             <div className="w-full max-w-2xl bg-white border border-[#c4c6d3] shadow-2xl relative">
 
                 {/* Header */}
@@ -84,7 +84,7 @@ export default function NewOpportunitiesModal({
                 </div>
 
                 {/* Content */}
-                <div className="p-5 max-h-[70vh] overflow-y-auto space-y-6">
+                <div className="p-4 sm:p-5 max-h-[70vh] overflow-y-auto space-y-6">
 
                     {/* Hackathons */}
                     {hackathons.length > 0 && (
@@ -95,13 +95,15 @@ export default function NewOpportunitiesModal({
                             <div className="space-y-2">
                                 {hackathons.map((h) => (
                                     <Link key={h.id} href={`/innovation/events/${h.id}`}>
-                                        <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition flex justify-between items-center">
-                                            <span className="text-sm font-semibold text-[#002155]">
+                                        <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <span className="text-sm font-semibold text-[#002155] break-words">
                                                 {h.title}
                                             </span>
-                                            <span className="text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">
+                                            <span className="inline-flex w-fit text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">
                                                 New
                                             </span>
+                                            </div>
                                         </div>
                                     </Link>
                                 ))}
@@ -118,18 +120,19 @@ export default function NewOpportunitiesModal({
                             <div className="space-y-2">
                                 {problems.map((p) => (
                                     <Link key={p.id} href={p.problemType === 'INTERNSHIP' ? '/industry-internship' : '/innovation/problems'}>
-                                        <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition flex justify-between items-center">
-                                            <div className="min-w-0">
-                                                <span className="text-sm font-semibold text-[#002155] block truncate">
+                                        <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="min-w-0 sm:pr-3">
+                                                <span className="text-sm font-semibold text-[#002155] block break-words">
                                                     {p.title}
                                                 </span>
                                                 {p.problemType === 'INTERNSHIP' ? (
-                                                    <span className="inline-flex mt-1 border border-[#8c4f00] bg-[#fff8ee] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]">
+                                                    <span className="inline-flex mt-1 border border-[#8c4f00] bg-[#fff8ee] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00] w-fit">
                                                         Industry Internship Opportunity
                                                     </span>
                                                 ) : null}
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                                                 {p.problemType === 'INTERNSHIP' ? (
                                                     <span className="text-[10px] bg-[#8c4f00] text-white px-2 py-0.5 font-bold uppercase">
                                                         Internship
@@ -138,6 +141,7 @@ export default function NewOpportunitiesModal({
                                                 <span className="text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">
                                                     New
                                                 </span>
+                                            </div>
                                             </div>
                                         </div>
                                     </Link>
