@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       }
       if (authorize(user, 'ADMIN')) {
         where.problemId = problemId;
-      } else if (user.role === 'INDUSTRY_PARTNER') {
+      } else if (authorize(user, 'INDUSTRY_PARTNER')) {
         if (!requester?.industryId) {
           return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
         }
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         };
       }
     } else if (!authorize(user, 'ADMIN')) {
-      if (user.role === 'INDUSTRY_PARTNER') {
+      if (authorize(user, 'INDUSTRY_PARTNER')) {
         if (!requester?.industryId) {
           return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
         }

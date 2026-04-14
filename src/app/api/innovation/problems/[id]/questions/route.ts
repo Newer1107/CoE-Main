@@ -123,7 +123,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     if (!authorize(user, 'ADMIN')) {
       if (problem.problemType === 'INTERNSHIP') {
-        if (user.role !== 'INDUSTRY_PARTNER') {
+        if (!authorize(user, 'INDUSTRY_PARTNER')) {
           return errorRes('Forbidden', ['Only industry partner users can add questions to internship opportunities'], 403);
         }
 

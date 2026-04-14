@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       role: user.role,
       name: user.name,
       email: user.email,
+      industryId: user.industryId,
       ...(user.uid && { uid: user.uid }),
     };
 
@@ -69,7 +70,17 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       success: true,
       message: 'Login successful.',
-      data: { accessToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, uid: user.uid } },
+      data: {
+        accessToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          uid: user.uid,
+          industryId: user.industryId,
+        },
+      },
     });
 
     response.cookies.set('accessToken', accessToken, {

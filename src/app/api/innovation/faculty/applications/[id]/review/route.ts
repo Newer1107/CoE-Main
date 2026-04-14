@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
     if (!authorize(user, 'ADMIN')) {
       if (application.problem.problemType === 'INTERNSHIP') {
-        if (user.role !== 'INDUSTRY_PARTNER') {
+        if (!authorize(user, 'INDUSTRY_PARTNER')) {
           return errorRes('Forbidden', ['Only industry partner users can review internship applications'], 403);
         }
 

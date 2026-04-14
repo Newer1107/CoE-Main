@@ -42,9 +42,6 @@ export async function GET(req: NextRequest) {
     const industries = await prisma.industry.findMany({
       include: {
         users: {
-          where: {
-            role: 'INDUSTRY_PARTNER',
-          },
           select: {
             id: true,
             name: true,
@@ -95,10 +92,12 @@ export async function POST(req: NextRequest) {
     const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
+      const shouldKeepPrimaryRole = existingUser.role === 'ADMIN' || existingUser.role === 'FACULTY';
+
       const updatedExistingUser = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
-          role: 'INDUSTRY_PARTNER',
+          role: shouldKeepPrimaryRole ? existingUser.role : 'INDUSTRY_PARTNER',
           industryId: targetIndustry.id,
           status: 'ACTIVE',
           isVerified: true,

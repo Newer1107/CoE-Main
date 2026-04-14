@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
         return errorRes('Forbidden', ['Only faculty, industry partner, or admin can use ownerOnly filter'], 403);
       }
 
-      if (user.role === 'INDUSTRY_PARTNER') {
+      if (authorize(user, 'INDUSTRY_PARTNER') && !authorize(user, 'ADMIN')) {
         const industryId = await getIndustryMembershipForUser(user.id);
         if (!industryId) {
           return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
@@ -170,19 +170,20 @@ export async function POST(req: NextRequest) {
     const parsed = innovationProblemCreateSchema.safeParse(body);
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
 
-    const isIndustryPartner = user.role === 'INDUSTRY_PARTNER';
-    const requestedProblemType = isIndustryPartner ? 'INTERNSHIP' : (parsed.data.problemType || 'OPEN');
-    const requesterIndustryId = isIndustryPartner ? await getIndustryMembershipForUser(user.id) : null;
+    const hasIndustryAccess = authorize(user, 'INDUSTRY_PARTNER');
+    const isPrimaryIndustryPartner = user.role === 'INDUSTRY_PARTNER';
+    const requestedProblemType = isPrimaryIndustryPartner ? 'INTERNSHIP' : (parsed.data.problemType || 'OPEN');
+    const requesterIndustryId = hasIndustryAccess ? await getIndustryMembershipForUser(user.id) : null;
 
-    if (isIndustryPartner && !requesterIndustryId) {
+    if (hasIndustryAccess && !requesterIndustryId) {
       return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
     }
 
-    if (requestedProblemType === 'INTERNSHIP' && !isIndustryPartner) {
+    if (requestedProblemType === 'INTERNSHIP' && !hasIndustryAccess) {
       return errorRes('Forbidden', ['Internship problems can only be created by industry partners'], 403);
     }
 
-    if (isIndustryPartner && parsed.data.eventId) {
+    if (isPrimaryIndustryPartner && parsed.data.eventId) {
       return errorRes('Validation failed', ['Industry partners cannot attach problems to hackathon events'], 400);
     }
 

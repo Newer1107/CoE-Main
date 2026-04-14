@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (!authorize(user, 'ADMIN')) {
       if (existing.problemType === 'INTERNSHIP') {
-        if (user.role !== 'INDUSTRY_PARTNER') {
+        if (!authorize(user, 'INDUSTRY_PARTNER')) {
           return errorRes('Forbidden', ['Only admin or industry partner users can modify internship problems'], 403);
         }
 

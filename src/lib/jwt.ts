@@ -19,6 +19,7 @@ export interface TokenPayload {
   name: string;
   email: string;
   uid?: string;
+  industryId?: number | null;
 }
 
 export const generateAccessToken = (payload: TokenPayload): string => {

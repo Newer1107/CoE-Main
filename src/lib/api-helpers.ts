@@ -58,5 +58,12 @@ export const authenticate = (req: NextRequest): TokenPayload | null => {
  * Check if the user has one of the allowed roles.
  */
 export const authorize = (user: TokenPayload, ...roles: string[]): boolean => {
-  return roles.includes(user.role);
+  if (roles.includes(user.role)) return true;
+
+  // Industry membership is additive: admin/faculty can also act as industry members.
+  if (roles.includes('INDUSTRY_PARTNER') && typeof user.industryId === 'number') {
+    return true;
+  }
+
+  return false;
 };
