@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
     const approvalStatusRaw = (searchParams.get('approvalStatus') || '').toUpperCase();
     const ownerOnlyRaw = (searchParams.get('ownerOnly') || '').toLowerCase();
     const visibilityRaw = (searchParams.get('visibility') || '').toLowerCase();
+    const includeAllStatusesRaw = (searchParams.get('includeAllStatuses') || '').toLowerCase();
+    const includeAllStatuses = includeAllStatusesRaw === '1' || includeAllStatusesRaw === 'true';
 
     if (!['open', 'hackathon', 'all'].includes(trackRaw)) {
       return errorRes('Invalid track filter', ['track must be one of: open, hackathon, all'], 400);
@@ -51,7 +53,6 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Record<string, unknown> = {
-      status: { not: 'ARCHIVED' },
       ...(canViewHackathonTracks ? {} : { mode: 'OPEN', eventId: null }),
     };
 
@@ -84,7 +85,9 @@ export async function GET(req: NextRequest) {
     const isPublicVisibility = visibilityRaw === 'public';
     if (isPublicVisibility || !user || authorize(user, 'STUDENT')) {
       if (!approvalStatusRaw) where.approvalStatus = 'APPROVED';
-      if (!statusRaw) where.status = 'OPENED';
+      if (!statusRaw && !includeAllStatuses) where.status = 'OPENED';
+    } else if (!statusRaw && !includeAllStatuses) {
+      where.status = { not: 'ARCHIVED' };
     }
 
     if (eventIdRaw) {

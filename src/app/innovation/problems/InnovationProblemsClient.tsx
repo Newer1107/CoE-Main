@@ -103,6 +103,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
       params.set('track', 'open');
       params.set('visibility', 'public');
       params.set('problemType', listingType === 'internship' ? 'INTERNSHIP' : 'OPEN');
+      if (listingType === 'internship') params.set('includeAllStatuses', 'true');
 
       const query = params.toString();
       const data = await fetchJson<ProblemRow[]>(`/api/innovation/problems${query ? `?${query}` : ''}`);
@@ -164,6 +165,100 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
     // Reload problems to update counts
     loadProblems();
   };
+
+  const renderProblemCard = (problem: ProblemRow) => {
+    const isOpen = problem.status === 'OPENED' && problem.mode === 'OPEN';
+    const isAlreadyApplied = userApplications.has(problem.id);
+
+    return (
+      <article
+        key={problem.id}
+        className="border border-[#c4c6d3] bg-white p-5 rounded hover:shadow-md transition-shadow"
+      >
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-[#8c4f00] font-bold">
+              {problem.problemType === 'INTERNSHIP' ? 'Internship Opportunity' : problem.mode}
+            </p>
+            {problem.status === 'CLOSED' && (
+              <p className="text-xs uppercase tracking-widest text-red-600 font-bold">Closed</p>
+            )}
+            {problem.status === 'ARCHIVED' && (
+              <p className="text-xs uppercase tracking-widest text-[#747782] font-bold">Archived</p>
+            )}
+            {problem.approvalStatus !== 'APPROVED' ? (
+              <p className="text-xs uppercase tracking-widest text-[#ba1a1a] font-bold">{problem.approvalStatus.replaceAll('_', ' ')}</p>
+            ) : null}
+          </div>
+          {isAlreadyApplied && (
+            <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">
+              ✓ Applied
+            </span>
+          )}
+        </div>
+
+        <h3 className="text-lg font-bold text-[#002155]">{problem.title}</h3>
+
+        <p className="mt-2 text-xs text-[#434651]">
+          Type:{' '}
+          {problem.isIndustryProblem
+            ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}`
+            : 'Normal'}
+        </p>
+
+        <p className="mt-2 text-sm text-[#434651] line-clamp-3">{problem.description}</p>
+
+        {problem.tags && (
+          <p className="mt-2 text-xs text-[#434651]">
+            <span className="font-medium">Tags:</span> {problem.tags}
+          </p>
+        )}
+
+        <p className="mt-1 text-xs text-[#434651]">
+          <span className="font-medium">Applications:</span> {problem._count.applications}
+        </p>
+
+        {problem.supportDocumentUrl && (
+          <a
+            href={problem.supportDocumentUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block mt-2 text-xs font-bold uppercase tracking-wider text-[#fd9923] underline hover:text-[#e68a00]"
+          >
+            View Support Document
+          </a>
+        )}
+
+        {isOpen ? (
+          <div className="mt-4">
+            {isAlreadyApplied ? (
+              <button
+                disabled
+                className="w-full bg-green-100 text-green-800 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded cursor-not-allowed"
+              >
+                ✓ Applied
+              </button>
+            ) : (
+              <button
+                onClick={() => handleApplyClick(problem)}
+                className="w-full bg-[#fd9923] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider rounded hover:bg-[#e68a00] transition-colors"
+              >
+                Apply Now
+              </button>
+            )}
+          </div>
+        ) : null}
+      </article>
+    );
+  };
+
+  const phase1Problems = listingType === 'internship'
+    ? problems.filter((problem) => problem.status === 'CLOSED' || problem.status === 'ARCHIVED')
+    : [];
+
+  const phase2Problems = listingType === 'internship'
+    ? problems.filter((problem) => problem.status === 'OPENED')
+    : [];
 
   return (
     <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
@@ -252,6 +347,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           <option value="">All Statuses</option>
           <option value="OPENED">Open</option>
           <option value="CLOSED">Closed</option>
+          {listingType === 'internship' ? <option value="ARCHIVED">Archived</option> : null}
         </select>
         <button
           onClick={() => loadProblems()}
@@ -289,95 +385,47 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
         {problems.length === 0 ? (
           <div className="border border-dashed border-[#c4c6d3] bg-white p-8 text-center rounded">
             <p className="text-[#434651]">
-              {tagFilter || statusFilter ? 'No problems found for current filters.' : 'No open problems available at the moment.'}
+              {tagFilter || statusFilter
+                ? 'No problems found for current filters.'
+                : listingType === 'internship'
+                  ? 'No internship opportunities available at the moment.'
+                  : 'No open problems available at the moment.'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {problems.map((problem) => {
-              const isOpen = problem.status === 'OPENED' && problem.mode === 'OPEN';
-              const isAlreadyApplied = userApplications.has(problem.id);
-
-              return (
-                <article
-                  key={problem.id}
-                  className="border border-[#c4c6d3] bg-white p-5 rounded hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-[#8c4f00] font-bold">
-                        {problem.problemType === 'INTERNSHIP' ? 'Internship Opportunity' : problem.mode}
-                      </p>
-                      {problem.status === 'CLOSED' && (
-                        <p className="text-xs uppercase tracking-widest text-red-600 font-bold">Closed</p>
-                      )}
-                      {problem.approvalStatus !== 'APPROVED' ? (
-                        <p className="text-xs uppercase tracking-widest text-[#ba1a1a] font-bold">{problem.approvalStatus.replaceAll('_', ' ')}</p>
-                      ) : null}
-                    </div>
-                    {isAlreadyApplied && (
-                      <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">
-                        ✓ Applied
-                      </span>
-                    )}
+          listingType === 'internship' ? (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#8c4f00] mb-3">PHASE 1 · Closed & Archived Statements</h3>
+                {phase1Problems.length === 0 ? (
+                  <div className="border border-dashed border-[#c4c6d3] bg-white p-6 rounded text-sm text-[#434651]">
+                    No closed or archived internship statements right now.
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {phase1Problems.map(renderProblemCard)}
+                  </div>
+                )}
+              </div>
 
-                  <h3 className="text-lg font-bold text-[#002155]">{problem.title}</h3>
-
-                  <p className="mt-2 text-xs text-[#434651]">
-                    Type:{' '}
-                    {problem.isIndustryProblem
-                      ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}`
-                      : 'Normal'}
-                  </p>
-
-                  <p className="mt-2 text-sm text-[#434651] line-clamp-3">{problem.description}</p>
-
-                  {problem.tags && (
-                    <p className="mt-2 text-xs text-[#434651]">
-                      <span className="font-medium">Tags:</span> {problem.tags}
-                    </p>
-                  )}
-
-                  <p className="mt-1 text-xs text-[#434651]">
-                    <span className="font-medium">Applications:</span> {problem._count.applications}
-                  </p>
-
-                  {problem.supportDocumentUrl && (
-                    <a
-                      href={problem.supportDocumentUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-block mt-2 text-xs font-bold uppercase tracking-wider text-[#fd9923] underline hover:text-[#e68a00]"
-                    >
-                      View Support Document
-                    </a>
-                  )}
-
-                  {/* Action Button */}
-                  {isOpen ? (
-                    <div className="mt-4">
-                      {isAlreadyApplied ? (
-                        <button
-                          disabled
-                          className="w-full bg-green-100 text-green-800 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded cursor-not-allowed"
-                        >
-                          ✓ Applied
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleApplyClick(problem)}
-                          className="w-full bg-[#fd9923] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider rounded hover:bg-[#e68a00] transition-colors"
-                        >
-                          Apply Now
-                        </button>
-                      )}
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#0b6b2e] mb-3">PHASE 2 · Open Statements</h3>
+                {phase2Problems.length === 0 ? (
+                  <div className="border border-dashed border-[#c4c6d3] bg-white p-6 rounded text-sm text-[#434651]">
+                    No open internship statements right now.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {phase2Problems.map(renderProblemCard)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {problems.map(renderProblemCard)}
+            </div>
+          )
         )}
       </section>
 
