@@ -222,11 +222,21 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           </p>
         )}
 
-        {shouldShowApplicationInfo ? (
-          <p className="mt-1 text-xs text-[#434651]">
-            <span className="font-medium">Applications:</span> {problem._count.applications}
-          </p>
-        ) : null}
+        <div
+          className={`mt-1 flex items-center gap-3 ${shouldShowApplicationInfo ? 'justify-between' : 'justify-end'}`}
+        >
+          {shouldShowApplicationInfo ? (
+            <p className="text-xs text-[#434651]">
+              <span className="font-medium">Applications:</span> {problem._count.applications}
+            </p>
+          ) : null}
+
+          {problem.problemType === 'INTERNSHIP' ? (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#002155] text-right">
+              {(problem.industryName?.trim() || 'Industry')} X TCET
+            </p>
+          ) : null}
+        </div>
 
         {problem.supportDocumentUrl && (
           <a
