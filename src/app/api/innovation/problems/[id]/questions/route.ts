@@ -107,6 +107,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       select: {
         id: true,
         createdById: true,
+        problemType: true,
+        industryId: true,
       },
     });
 
@@ -114,9 +116,23 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       return errorRes('Problem not found', ['Open problem not found'], 404);
     }
 
-    // Check if user is faculty/admin or created this problem
-    if (!authorize(user, 'ADMIN') && problem.createdById !== user.id) {
-      return errorRes('Forbidden', ['You can only add questions to your own problems'], 403);
+    const currentUserRecord = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { industryId: true },
+    });
+
+    if (!authorize(user, 'ADMIN')) {
+      if (problem.problemType === 'INTERNSHIP') {
+        if (user.role !== 'INDUSTRY_PARTNER') {
+          return errorRes('Forbidden', ['Only industry partner users can add questions to internship opportunities'], 403);
+        }
+
+        if (!currentUserRecord?.industryId || !problem.industryId || currentUserRecord.industryId !== problem.industryId) {
+          return errorRes('Forbidden', ['You can only add questions to opportunities owned by your industry'], 403);
+        }
+      } else if (problem.createdById !== user.id) {
+        return errorRes('Forbidden', ['You can only add questions to your own problems'], 403);
+      }
     }
 
     const createdQuestions = await prisma.$transaction(

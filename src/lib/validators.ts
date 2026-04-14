@@ -41,10 +41,23 @@ export const facultyRegisterSchema = z.object({
 });
 
 export const industryPartnerCreateSchema = z.object({
-  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
   email: z.string().trim().email('Invalid email address'),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').optional(),
   phone: z.string().trim().min(10, 'Phone must be at least 10 digits').optional().or(z.literal('')),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  industryId: z.coerce.number().int().positive('industryId must be a positive integer').optional(),
+  industryName: z.string().trim().min(2, 'Industry name must be at least 2 characters').max(120).optional().or(z.literal('')),
+}).superRefine((value, ctx) => {
+  const hasIndustryId = typeof value.industryId === 'number';
+  const hasIndustryName = typeof value.industryName === 'string' && value.industryName.trim().length > 0;
+
+  if (!hasIndustryId && !hasIndustryName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['industryName'],
+      message: 'Either industryId or industryName is required',
+    });
+  }
 });
 
 export const loginSchema = z.object({

@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const problemIdRaw = searchParams.get('problemId');
     const statusRaw = searchParams.get('status');
+    const requester = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { industryId: true },
+    });
 
     const where: Record<string, unknown> = {};
 
@@ -24,12 +28,39 @@ export async function GET(req: NextRequest) {
       if (!Number.isInteger(problemId) || problemId <= 0) {
         return errorRes('Invalid filter', ['problemId must be a positive integer'], 400);
       }
-      where.problemId = problemId;
+      if (authorize(user, 'ADMIN')) {
+        where.problemId = problemId;
+      } else if (user.role === 'INDUSTRY_PARTNER') {
+        if (!requester?.industryId) {
+          return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
+        }
+        where.problem = {
+          id: problemId,
+          industryId: requester.industryId,
+          problemType: 'INTERNSHIP',
+        };
+      } else {
+        where.problem = {
+          id: problemId,
+          createdById: user.id,
+        };
+      }
     } else if (!authorize(user, 'ADMIN')) {
-      // Faculty can only see applications for their own problems
-      where.problem = {
-        createdById: user.id,
-      };
+      if (user.role === 'INDUSTRY_PARTNER') {
+        if (!requester?.industryId) {
+          return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
+        }
+
+        where.problem = {
+          industryId: requester.industryId,
+          problemType: 'INTERNSHIP',
+        };
+      } else {
+        // Faculty can only see applications for their own problems
+        where.problem = {
+          createdById: user.id,
+        };
+      }
     }
 
     if (statusRaw) {
@@ -44,7 +75,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         user: { select: { id: true, name: true, email: true, uid: true } },
-        problem: { select: { id: true, title: true } },
+        problem: { select: { id: true, title: true, problemType: true, industryId: true } },
         profile: { select: { skills: true, experience: true, interests: true, resumeUrl: true } },
         answers: {
           include: { question: { select: { id: true, questionText: true } } },

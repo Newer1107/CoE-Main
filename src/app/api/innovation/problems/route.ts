@@ -5,6 +5,15 @@ import { innovationProblemCreateSchema } from '@/lib/validators';
 import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
 import { sanitizeFilename } from '@/lib/innovation';
 
+const getIndustryMembershipForUser = async (userId: number) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { industryId: true },
+  });
+
+  return user?.industryId ?? null;
+};
+
 // GET /api/innovation/problems
 export async function GET(req: NextRequest) {
   try {
@@ -61,7 +70,13 @@ export async function GET(req: NextRequest) {
         return errorRes('Forbidden', ['Only faculty, industry partner, or admin can use ownerOnly filter'], 403);
       }
 
-      if (!authorize(user, 'ADMIN')) {
+      if (user.role === 'INDUSTRY_PARTNER') {
+        const industryId = await getIndustryMembershipForUser(user.id);
+        if (!industryId) {
+          return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
+        }
+        where.industryId = industryId;
+      } else if (!authorize(user, 'ADMIN')) {
         where.createdById = user.id;
       }
     }
@@ -157,6 +172,11 @@ export async function POST(req: NextRequest) {
 
     const isIndustryPartner = user.role === 'INDUSTRY_PARTNER';
     const requestedProblemType = isIndustryPartner ? 'INTERNSHIP' : (parsed.data.problemType || 'OPEN');
+    const requesterIndustryId = isIndustryPartner ? await getIndustryMembershipForUser(user.id) : null;
+
+    if (isIndustryPartner && !requesterIndustryId) {
+      return errorRes('Forbidden', ['Industry partner account is not linked to an industry. Contact admin.'], 403);
+    }
 
     if (requestedProblemType === 'INTERNSHIP' && !isIndustryPartner) {
       return errorRes('Forbidden', ['Internship problems can only be created by industry partners'], 403);
@@ -207,6 +227,7 @@ export async function POST(req: NextRequest) {
         mode: parsed.data.eventId ? 'CLOSED' : parsed.data.mode,
         status: parsed.data.eventId ? 'CLOSED' : 'OPENED',
         createdById: user.id,
+        industryId: finalProblemType === 'INTERNSHIP' ? requesterIndustryId : null,
         eventId: parsed.data.eventId ?? null,
       },
       include: {

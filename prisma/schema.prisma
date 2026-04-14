@@ -127,8 +127,22 @@ model User {
   hackathonInterests HackathonInterest[]
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
   attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
+  industryId Int?
+  industry   Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
 
+  @@index([industryId])
   @@map("users")
+}
+
+model Industry {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  users     User[]
+  problems  Problem[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("industries")
 }
 
 model Problem {
@@ -144,6 +158,8 @@ model Problem {
   status      ProblemStatus   @default(CLOSED)
   createdById Int
   createdBy   User            @relation("ProblemAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  industryId  Int?
+  industry    Industry?       @relation(fields: [industryId], references: [id], onDelete: SetNull)
   eventId     Int?
   event       HackathonEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
   claims      Claim[]
@@ -155,6 +171,7 @@ model Problem {
   updatedAt   DateTime        @updatedAt
 
   @@index([createdById])
+  @@index([industryId])
   @@index([eventId])
   @@index([status])
   @@index([mode])

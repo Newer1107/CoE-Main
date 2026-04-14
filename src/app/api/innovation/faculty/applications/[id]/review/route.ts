@@ -36,20 +36,34 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
-      include: { problem: { select: { createdById: true } } },
+      include: { problem: { select: { createdById: true, problemType: true, industryId: true } } },
     });
 
     if (!application) {
       return errorRes('Application not found', ['Application does not exist'], 404);
     }
 
-    // Check authorization: only faculty who created the problem or admin can review
-    if (!authorize(user, 'ADMIN') && application.problem.createdById !== user.id) {
-      return errorRes(
-        'Forbidden',
-        ['You can only review applications for your own problems'],
-        403
-      );
+    const requester = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { industryId: true },
+    });
+
+    if (!authorize(user, 'ADMIN')) {
+      if (application.problem.problemType === 'INTERNSHIP') {
+        if (user.role !== 'INDUSTRY_PARTNER') {
+          return errorRes('Forbidden', ['Only industry partner users can review internship applications'], 403);
+        }
+
+        if (!requester?.industryId || !application.problem.industryId || requester.industryId !== application.problem.industryId) {
+          return errorRes('Forbidden', ['You can only review applications for your industry opportunities'], 403);
+        }
+      } else if (application.problem.createdById !== user.id) {
+        return errorRes(
+          'Forbidden',
+          ['You can only review applications for your own problems'],
+          403
+        );
+      }
     }
 
     const updated = await prisma.application.update({

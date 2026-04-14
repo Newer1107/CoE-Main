@@ -20,16 +20,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const existing = await prisma.problem.findUnique({ where: { id: problemId } });
     if (!existing) return errorRes('Problem not found', [], 404);
 
+    const currentUserRecord = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { industryId: true },
+    });
+    const requesterIndustryId = currentUserRecord?.industryId ?? null;
+
     if (existing.eventId && !authorize(user, 'ADMIN')) {
       return errorRes('Forbidden', ['Only admin can manage hackathon event problem statements'], 403);
     }
 
-    if (!authorize(user, 'ADMIN') && existing.createdById !== user.id) {
-      return errorRes('Forbidden', ['You can only modify your own problems'], 403);
-    }
+    if (!authorize(user, 'ADMIN')) {
+      if (existing.problemType === 'INTERNSHIP') {
+        if (user.role !== 'INDUSTRY_PARTNER') {
+          return errorRes('Forbidden', ['Only admin or industry partner users can modify internship problems'], 403);
+        }
 
-    if (existing.problemType === 'INTERNSHIP' && !authorize(user, 'ADMIN', 'INDUSTRY_PARTNER')) {
-      return errorRes('Forbidden', ['Only admin or the assigned industry partner can modify internship problems'], 403);
+        if (!requesterIndustryId || !existing.industryId || requesterIndustryId !== existing.industryId) {
+          return errorRes('Forbidden', ['You can only modify internship problems owned by your industry'], 403);
+        }
+      } else if (existing.createdById !== user.id) {
+        return errorRes('Forbidden', ['You can only modify your own problems'], 403);
+      }
     }
 
     const body = await req.json();

@@ -524,6 +524,22 @@ type IndustryPartnerSummary = {
   role: string;
   status: string;
   createdAt: string;
+  industry: {
+    id: number;
+    name: string;
+  } | null;
+};
+
+type IndustryDirectoryRow = {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  _count: {
+    users: number;
+    problems: number;
+  };
+  users: IndustryPartnerSummary[];
 };
 
 type OperationsTab = "overview" | "bookings" | "faculty" | "tickets" | "content" | "emails" | "industry";
@@ -700,9 +716,14 @@ export default function AdminPanelClient({
         role: entry.role,
         status: entry.status,
         createdAt: entry.createdAt,
+          industry: null,
       }))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   );
+        const [industryDirectory, setIndustryDirectory] = useState<IndustryDirectoryRow[]>([]);
+        const [loadingIndustryDirectory, setLoadingIndustryDirectory] = useState(false);
+        const [selectedIndustryOption, setSelectedIndustryOption] = useState<string>("NEW");
+        const [industryNameInput, setIndustryNameInput] = useState("");
   const [industryPartnerName, setIndustryPartnerName] = useState("");
   const [industryPartnerEmail, setIndustryPartnerEmail] = useState("");
   const [industryPartnerPhone, setIndustryPartnerPhone] = useState("");
@@ -1892,6 +1913,33 @@ export default function AdminPanelClient({
     }
   };
 
+  const loadIndustryDirectory = async () => {
+    try {
+      setLoadingIndustryDirectory(true);
+      const payload = await apiCall("/api/admin/industry-partners", {
+        method: "GET",
+      });
+
+      const directory = (payload?.data || []) as IndustryDirectoryRow[];
+      setIndustryDirectory(directory);
+
+      const flattenedPartners = directory
+        .flatMap((industry) =>
+          (industry.users || []).map((member) => ({
+            ...member,
+            industry: { id: industry.id, name: industry.name },
+          }))
+        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setIndustryPartners(flattenedPartners);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not load industry directory.");
+    } finally {
+      setLoadingIndustryDirectory(false);
+    }
+  };
+
   const handleCreateIndustryPartner = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatusMessage("");
@@ -1902,10 +1950,12 @@ export default function AdminPanelClient({
       const payload = await apiCall("/api/admin/industry-partners", {
         method: "POST",
         body: JSON.stringify({
-          name: industryPartnerName.trim(),
+          name: industryPartnerName.trim() || undefined,
           email: industryPartnerEmail.trim(),
           phone: industryPartnerPhone.trim() || undefined,
-          password: industryPartnerPassword,
+          password: industryPartnerPassword || undefined,
+          industryId: selectedIndustryOption !== "NEW" ? Number(selectedIndustryOption) : undefined,
+          industryName: selectedIndustryOption === "NEW" ? industryNameInput.trim() : undefined,
         }),
       });
 
@@ -1914,10 +1964,15 @@ export default function AdminPanelClient({
         setIndustryPartners((prev) => [created, ...prev.filter((item) => item.id !== created.id)]);
       }
 
+      await loadIndustryDirectory();
+
       setIndustryPartnerName("");
       setIndustryPartnerEmail("");
       setIndustryPartnerPhone("");
       setIndustryPartnerPassword("");
+      if (selectedIndustryOption === "NEW") {
+        setIndustryNameInput("");
+      }
       setStatusMessage("Industry partner account created successfully.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Could not create industry partner account.");
@@ -1925,6 +1980,12 @@ export default function AdminPanelClient({
       setCreatingIndustryPartner(false);
     }
   };
+
+  useEffect(() => {
+    if (operationsTab !== "industry") return;
+    void loadIndustryDirectory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationsTab]);
 
   const stageDecision = (claimId: number, status: StagedHackathonDecision) => {
     setStagedDecisions((prev) => {
@@ -2206,18 +2267,41 @@ export default function AdminPanelClient({
       <section className="mb-10 space-y-5">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <article className="border border-[#c4c6d3] bg-white p-5">
-            <h2 className="font-headline text-2xl text-[#002155]">Create Industry Partner Account</h2>
+            <h2 className="font-headline text-2xl text-[#002155]">Add Industry Team Member</h2>
             <p className="mt-2 text-sm text-[#434651]">
-              Create login credentials for companies so they can publish internship opportunities and review applications.
+              Assign an existing user by email to an industry, or create a new industry partner account when the email does not exist.
             </p>
 
             <form className="mt-4 space-y-3" onSubmit={handleCreateIndustryPartner}>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#434651]">Select Industry</label>
+              <select
+                value={selectedIndustryOption}
+                onChange={(e) => setSelectedIndustryOption(e.target.value)}
+                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+              >
+                <option value="NEW">+ Create New Industry</option>
+                {industryDirectory.map((industry) => (
+                  <option key={`industry-option-${industry.id}`} value={String(industry.id)}>
+                    {industry.name}
+                  </option>
+                ))}
+              </select>
+
+              {selectedIndustryOption === "NEW" ? (
+                <input
+                  required
+                  value={industryNameInput}
+                  onChange={(e) => setIndustryNameInput(e.target.value)}
+                  className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                  placeholder="New industry/company name"
+                />
+              ) : null}
+
               <input
-                required
                 value={industryPartnerName}
                 onChange={(e) => setIndustryPartnerName(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
-                placeholder="Contact person name"
+                placeholder="Contact person name (required for new account)"
               />
               <input
                 required
@@ -2225,7 +2309,7 @@ export default function AdminPanelClient({
                 value={industryPartnerEmail}
                 onChange={(e) => setIndustryPartnerEmail(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
-                placeholder="work-email@company.com"
+                placeholder="Member email"
               />
               <input
                 value={industryPartnerPhone}
@@ -2234,13 +2318,12 @@ export default function AdminPanelClient({
                 placeholder="Phone (optional)"
               />
               <input
-                required
                 type="password"
                 minLength={8}
                 value={industryPartnerPassword}
                 onChange={(e) => setIndustryPartnerPassword(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
-                placeholder="Temporary password"
+                placeholder="Temporary password (required for new account)"
               />
 
               <button
@@ -2248,7 +2331,7 @@ export default function AdminPanelClient({
                 disabled={creatingIndustryPartner}
                 className="bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
               >
-                {creatingIndustryPartner ? "Creating..." : "Create Partner"}
+                {creatingIndustryPartner ? "Saving..." : "Assign To Industry"}
               </button>
             </form>
           </article>
@@ -2270,12 +2353,43 @@ export default function AdminPanelClient({
                 Internship Applications
               </Link>
             </div>
+
+            <button
+              type="button"
+              onClick={() => void loadIndustryDirectory()}
+              disabled={loadingIndustryDirectory}
+              className="mt-3 border border-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#002155] disabled:opacity-60"
+            >
+              {loadingIndustryDirectory ? "Refreshing..." : "Refresh Industry Directory"}
+            </button>
           </article>
         </div>
 
         <article className="border border-[#c4c6d3] bg-white p-5">
-          <h2 className="font-headline text-2xl text-[#002155]">Industry Partners</h2>
-          <p className="mt-2 text-sm text-[#434651]">Active partner accounts created for internship workflows.</p>
+          <h2 className="font-headline text-2xl text-[#002155]">Industries</h2>
+          <p className="mt-2 text-sm text-[#434651]">Shared ownership groups used by industry partner members.</p>
+
+          {industryDirectory.length === 0 ? (
+            <p className="mt-4 border border-dashed border-[#c4c6d3] p-4 text-sm text-[#434651]">
+              No industries configured yet.
+            </p>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {industryDirectory.map((industry) => (
+                <div key={`industry-card-${industry.id}`} className="border border-[#e3e2df] bg-[#faf9f5] p-3">
+                  <p className="text-sm font-bold text-[#002155]">{industry.name}</p>
+                  <p className="mt-1 text-xs text-[#434651]">
+                    Members: {industry.users.length} • Internship Problems: {industry._count.problems}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="border border-[#c4c6d3] bg-white p-5">
+          <h2 className="font-headline text-2xl text-[#002155]">Industry Members</h2>
+          <p className="mt-2 text-sm text-[#434651]">All users mapped to industries for shared internship dashboards.</p>
 
           {industryPartners.length === 0 ? (
             <p className="mt-4 border border-dashed border-[#c4c6d3] p-4 text-sm text-[#434651]">
@@ -2286,6 +2400,7 @@ export default function AdminPanelClient({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#f5f4f0] text-left text-xs uppercase tracking-widest text-[#434651]">
+                    <th className="px-3 py-2">Industry</th>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Email</th>
                     <th className="px-3 py-2">Phone</th>
@@ -2296,6 +2411,7 @@ export default function AdminPanelClient({
                 <tbody>
                   {industryPartners.map((partner) => (
                     <tr key={partner.id} className="border-t border-[#ecebe7]">
+                      <td className="px-3 py-2 text-[#434651]">{partner.industry?.name || "Unassigned"}</td>
                       <td className="px-3 py-2 text-[#002155] font-medium">{partner.name}</td>
                       <td className="px-3 py-2 text-[#434651]">{partner.email}</td>
                       <td className="px-3 py-2 text-[#434651]">{partner.phone || "-"}</td>
