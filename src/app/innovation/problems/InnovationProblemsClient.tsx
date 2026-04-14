@@ -55,6 +55,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [problems, setProblems] = useState<ProblemRow[]>([]);
+  const [showInternshipIntroModal, setShowInternshipIntroModal] = useState(false);
   const [tagFilter, setTagFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { pushToast } = useToast();
@@ -120,6 +121,12 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (listingType === 'internship') {
+      setShowInternshipIntroModal(true);
+    }
+  }, [listingType]);
+
   const handleApplyClick = (problem: ProblemRow) => {
     if (!role) {
       pushToast("You need to log in before applying.", "info");
@@ -169,6 +176,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
   const renderProblemCard = (problem: ProblemRow) => {
     const isOpen = problem.status === 'OPENED' && problem.mode === 'OPEN';
     const isAlreadyApplied = userApplications.has(problem.id);
+    const shouldShowApplicationInfo = listingType !== 'internship' || isOpen;
 
     return (
       <article
@@ -190,7 +198,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
               <p className="text-xs uppercase tracking-widest text-[#ba1a1a] font-bold">{problem.approvalStatus.replaceAll('_', ' ')}</p>
             ) : null}
           </div>
-          {isAlreadyApplied && (
+          {isAlreadyApplied && shouldShowApplicationInfo && (
             <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">
               ✓ Applied
             </span>
@@ -214,9 +222,11 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           </p>
         )}
 
-        <p className="mt-1 text-xs text-[#434651]">
-          <span className="font-medium">Applications:</span> {problem._count.applications}
-        </p>
+        {shouldShowApplicationInfo ? (
+          <p className="mt-1 text-xs text-[#434651]">
+            <span className="font-medium">Applications:</span> {problem._count.applications}
+          </p>
+        ) : null}
 
         {problem.supportDocumentUrl && (
           <a
@@ -396,19 +406,6 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           listingType === 'internship' ? (
             <div className="space-y-8">
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-[#8c4f00] mb-3">PHASE 1 · Closed & Archived Statements</h3>
-                {phase1Problems.length === 0 ? (
-                  <div className="border border-dashed border-[#c4c6d3] bg-white p-6 rounded text-sm text-[#434651]">
-                    No closed or archived internship statements right now.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    {phase1Problems.map(renderProblemCard)}
-                  </div>
-                )}
-              </div>
-
-              <div>
                 <h3 className="text-sm font-bold uppercase tracking-widest text-[#0b6b2e] mb-3">PHASE 2 · Open Statements</h3>
                 {phase2Problems.length === 0 ? (
                   <div className="border border-dashed border-[#c4c6d3] bg-white p-6 rounded text-sm text-[#434651]">
@@ -417,6 +414,19 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
                 ) : (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     {phase2Problems.map(renderProblemCard)}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#8c4f00] mb-3">PHASE 1 · Closed & Archived Statements</h3>
+                {phase1Problems.length === 0 ? (
+                  <div className="border border-dashed border-[#c4c6d3] bg-white p-6 rounded text-sm text-[#434651]">
+                    No closed or archived internship statements right now.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {phase1Problems.map(renderProblemCard)}
                   </div>
                 )}
               </div>
@@ -442,6 +452,47 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           onSuccess={handleApplySuccess}
         />
       )}
+
+      {showInternshipIntroModal && listingType === 'internship' ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#001a42]/70 px-4 py-8">
+          <div className="w-full max-w-3xl rounded-xl border border-[#c4c6d3] bg-white shadow-xl">
+            <div className="border-b border-[#e3e2df] px-5 py-4 md:px-6">
+              <h2 className="text-xl md:text-2xl font-bold text-[#002155]">Industry Internship Program - Phase 1 Completed</h2>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-5 md:px-6">
+              <p className="text-sm md:text-base leading-relaxed text-[#2f3340]">
+                We successfully completed Phase 1 of our Industry Internship Initiative, offering students the opportunity to work on real-world problem statements across domains like AI, automation, web and mobile development, and intelligent systems.
+              </p>
+
+              <p className="mt-4 text-sm md:text-base leading-relaxed text-[#2f3340]">
+                Through this initiative, students gained hands-on experience, collaborated with peers, and worked under industry mentorship to build practical, scalable solutions.
+              </p>
+
+              <p className="mt-4 text-sm md:text-base leading-relaxed text-[#2f3340]">
+                Now, we are expanding further. We are actively collaborating with more industry partners to bring even more impactful projects, learning opportunities, and internship experiences in upcoming phases.
+              </p>
+
+              <p className="mt-4 text-sm md:text-base leading-relaxed text-[#2f3340] font-semibold">
+                If you want to work on real problems, build meaningful projects, and stand out - this is your chance.
+              </p>
+
+              <p className="mt-4 text-sm md:text-base leading-relaxed text-[#0b6b2e] font-bold uppercase tracking-wider">
+                Apply now and be part of the next phase.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-[#e3e2df] px-5 py-4 md:px-6">
+              <button
+                onClick={() => setShowInternshipIntroModal(false)}
+                className="rounded bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#003380]"
+              >
+                Continue to Internship Board
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
