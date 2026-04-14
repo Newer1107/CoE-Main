@@ -221,7 +221,7 @@ export default async function HomePage() {
               {
                 title: "Industry Internship",
                 subtitle: "Real-world exposure",
-                href: "#",
+                href: "/industry-internship",
                 image: "/Industry Internship.png",
               },
               {
