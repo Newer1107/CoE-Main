@@ -15,7 +15,9 @@ const PUBLIC_PATH_PATTERNS = [
   /^innovation\/events\/\d+\/notice\//,
   /^innovation\/open-problems\/\d+\/support\//,
   /^innovation\/events\/\d+\/problems\/\d+\/support\//,
-  /^innovation\/programs\/(?:\d+\/)?notice\//,
+  // Program notices are public by product requirement.
+  // Allow all objects under innovation/programs to avoid false 401s across key variants.
+  /^innovation\/programs\//,
 ];
 
 const isPublicObjectKey = (objectKey: string) => PUBLIC_PATH_PATTERNS.some((pattern) => pattern.test(objectKey));
