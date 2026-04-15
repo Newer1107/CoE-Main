@@ -830,11 +830,6 @@ export default function InnovationEventClient({
                     PROBLEM STATEMENT {selectedProblemIndex !== null ? selectedProblemIndex + 1 : ""}
                     {" "}of {problems.length}
                   </p>
-                  {selectedProblem.isIndustryProblem ? (
-                    <span className="inline-flex items-center rounded-full border border-[#8c4f00] bg-[#fff1d6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]">
-                      Premium Industry Track
-                    </span>
-                  ) : null}
                 </div>
                 <h4 className="mt-1 text-xl font-bold text-[#002155]">{selectedProblem.title}</h4>
                 <p className="mt-1 text-xs text-[#434651]">
