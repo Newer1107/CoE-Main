@@ -1,6 +1,7 @@
 import { getObjectStat, getObjectStream } from '@/lib/minio';
 import { authenticate, errorRes } from '@/lib/api-helpers';
 import { NextRequest } from 'next/server';
+import { Readable } from 'stream';
 
 const PUBLIC_PATH_PATTERNS = [
   /^hero-slides\//,
@@ -38,17 +39,14 @@ export async function GET(
       getObjectStat(objectKey).catch(() => null),
     ]);
 
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream as AsyncIterable<Buffer | string>) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-
     const contentType =
       (stat?.metaData?.['content-type'] as string | undefined) ||
       (stat?.metaData?.['Content-Type'] as string | undefined) ||
       'application/octet-stream';
 
-    return new Response(Buffer.concat(chunks), {
+    const webStream = Readable.toWeb(stream as Readable) as ReadableStream;
+
+    return new Response(webStream, {
       status: 200,
       headers: {
         'Content-Type': contentType,
