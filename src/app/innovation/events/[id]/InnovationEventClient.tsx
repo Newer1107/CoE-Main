@@ -797,11 +797,6 @@ export default function InnovationEventClient({
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-xs uppercase tracking-widest text-[#8c4f00]">PROBLEM STATEMENT {index + 1}</p>
-                  {problem.isIndustryProblem ? (
-                    <span className="inline-flex items-center rounded-full border border-[#8c4f00] bg-[#fff1d6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]">
-                      Premium Industry Track
-                    </span>
-                  ) : null}
                 </div>
                 <p className="mt-1 text-sm font-bold text-[#002155]">{problem.title}</p>
                 <p className="mt-1 text-xs text-[#434651]">
