@@ -49,6 +49,20 @@ const formatEmailDateTime = (value: string | Date | null | undefined) => {
   }).format(parsed);
 };
 
+const formatTicketEmailDateTime = (value: string | Date | null | undefined) => {
+  if (!value) return 'N/A';
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'N/A';
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(parsed);
+};
+
 const send = async (
   to: string | string[],
   subject: string,
@@ -561,7 +575,7 @@ export const sendTicketIssuedEmail = async (
     teamMembers?: Array<{ name: string; email: string; role: string }>;
   }
 ) => {
-  const scheduledAtText = formatEmailDateTime(details.scheduledAt);
+  const scheduledAtText = formatTicketEmailDateTime(details.scheduledAt);
   const teamMemberRows = (details.teamMembers || [])
     .map(
       (member) =>
