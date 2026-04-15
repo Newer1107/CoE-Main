@@ -125,6 +125,8 @@ model User {
   applications      Application[]
   tickets           Ticket[]
   hackathonInterests HackathonInterest[]
+  programsCreated   InnovationProgram[] @relation("ProgramCreator")
+  programInterests  ProgramInterest[]
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
   attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
   industryId Int?
@@ -332,6 +334,42 @@ model HackathonInterest {
   @@index([eventId, hasDetails])
   @@index([eventId, createdAt])
   @@map("hackathon_interests")
+}
+
+model InnovationProgram {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @db.Text
+  programType   String
+  venue         String
+  eventDate     DateTime
+  startTime     DateTime
+  endTime       DateTime
+  noticeFileKey String?
+  createdById   Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy     User              @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  interests     ProgramInterest[]
+
+  @@index([eventDate])
+  @@index([createdById])
+  @@map("innovation_programs")
+}
+
+model ProgramInterest {
+  id         String   @id @default(cuid())
+  userId     Int
+  programId  String
+  createdAt  DateTime @default(now())
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program    InnovationProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId])
+  @@index([programId, createdAt])
+  @@map("program_interests")
 }
 
 model Otp {

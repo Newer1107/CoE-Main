@@ -358,6 +358,27 @@ export const innovationEventStatusSchema = z.object({
   status: z.enum(['UPCOMING', 'ACTIVE', 'JUDGING', 'CLOSED']),
 });
 
+export const innovationProgramCreateSchema = z.object({
+  title: z.string().trim().min(2, 'Title must be at least 2 characters'),
+  description: z.string().trim().min(5, 'Description must be at least 5 characters'),
+  programType: z.string().trim().min(2, 'Program type is required'),
+  venue: z.string().trim().min(2, 'Venue is required'),
+  eventDate: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid eventDate'),
+  startTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid startTime'),
+  endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime'),
+});
+
+export const innovationProgramUpdateSchema = z.object({
+  title: z.string().trim().min(2, 'Title must be at least 2 characters').optional(),
+  description: z.string().trim().min(5, 'Description must be at least 5 characters').optional(),
+  programType: z.string().trim().min(2, 'Program type is required').optional(),
+  venue: z.string().trim().min(2, 'Venue is required').optional(),
+  eventDate: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid eventDate').optional(),
+  startTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid startTime').optional(),
+  endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime').optional(),
+  removeNoticeFile: z.boolean().optional(),
+});
+
 export const innovationBulkClaimDecisionSchema = z.object({
   stage: z.enum(['SCREENING', 'JUDGING']),
   eventId: z.coerce.number().int().positive().optional(),

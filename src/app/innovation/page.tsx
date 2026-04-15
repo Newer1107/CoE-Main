@@ -23,6 +23,22 @@ export default async function InnovationLandingPage() {
 
   const canSeeFacultyWorkspace = role === 'FACULTY' || role === 'ADMIN' || role === 'INDUSTRY_PARTNER';
   const canSeeMySubmissions = role === 'STUDENT';
+  const canManagePrograms = role === 'ADMIN';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const programs = await prisma.innovationProgram.findMany({
+    where: {
+      eventDate: {
+        gte: today,
+      },
+    },
+    include: {
+      _count: { select: { interests: true } },
+    },
+    orderBy: [{ eventDate: 'asc' }, { startTime: 'asc' }],
+    take: 6,
+  });
 
   const events = await prisma.hackathonEvent.findMany({
     where: { status: { in: ['ACTIVE', 'UPCOMING'] } },
@@ -89,6 +105,49 @@ export default async function InnovationLandingPage() {
             {role === 'INDUSTRY_PARTNER' ? 'Industry Workspace' : 'Faculty Workspace'}
           </Link>
         ) : null}
+        <Link
+          href="/innovation/programs"
+          className="border border-[#0b6b2e] text-[#0b6b2e] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+        >
+          Innovation Programs
+        </Link>
+        {canManagePrograms ? (
+          <Link
+            href="/innovation/admin/programs"
+            className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+          >
+            Manage Programs
+          </Link>
+        ) : null}
+      </section>
+
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-headline text-2xl text-[#002155]">Upcoming Innovation Programs</h2>
+          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">{programs.length} programs</span>
+        </div>
+
+        {programs.length === 0 ? (
+          <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No upcoming programs right now.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {programs.map((program) => (
+              <article key={program.id} className="border border-[#c4c6d3] bg-white p-5">
+                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">{program.programType}</p>
+                <h3 className="mt-1 text-lg font-bold text-[#002155]">{program.title}</h3>
+                <p className="mt-2 text-xs text-[#434651]">Venue: {program.venue}</p>
+                <p className="mt-1 text-xs text-[#434651]">Date: {formatIstDateTime(program.eventDate)}</p>
+                <p className="mt-1 text-xs text-[#434651]">Interested: {program._count.interests}</p>
+                <Link
+                  href={`/innovation/programs/${program.id}`}
+                  className="inline-flex mt-4 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider"
+                >
+                  View Program
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mb-10">
