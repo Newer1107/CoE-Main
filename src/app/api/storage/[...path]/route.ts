@@ -8,6 +8,11 @@ const PUBLIC_PATH_PATTERNS = [
   /^news\//,
   /^events\//,
   /^grants\//,
+  // Public event/hackathon notice files stored directly under event root.
+  // Example: innovation/events/12/1713150000000-notice.pdf
+  /^innovation\/events\/\d+\/[^/]+$/,
+  // Optional notice subfolder support for future public event docs.
+  /^innovation\/events\/\d+\/notice\//,
   /^innovation\/open-problems\/\d+\/support\//,
   /^innovation\/events\/\d+\/problems\/\d+\/support\//,
   /^innovation\/programs\/(?:\d+\/)?notice\//,
