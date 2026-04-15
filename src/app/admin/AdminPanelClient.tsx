@@ -45,6 +45,93 @@ type FacultyUser = {
   createdAt: string;
 };
 
+type AdminUserDetail = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  uid: string | null;
+  isVerified: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  industry: {
+    id: number;
+    name: string;
+  } | null;
+  studentProfile: {
+    id: number;
+    skills: string | null;
+    experience: string | null;
+    interests: string | null;
+    resumeUrl: string | null;
+    resumeFileName: string | null;
+    resumeDownloadUrl: string | null;
+    isComplete: boolean;
+    updatedAt: string;
+  } | null;
+  bookings: Array<{
+    id: number;
+    purpose: string;
+    date: string;
+    timeSlot: string;
+    lab: string;
+    status: string;
+    createdAt: string;
+  }>;
+  applications: Array<{
+    id: number;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    problem: {
+      id: number;
+      title: string;
+    };
+  }>;
+  tickets: Array<{
+    id: number;
+    ticketId: string;
+    type: string;
+    status: string;
+    title: string;
+    subjectName: string;
+    scheduledAt: string | null;
+    issuedAt: string;
+    usedAt: string | null;
+    cancelledAt: string | null;
+  }>;
+  problemsAuthored: Array<{
+    id: number;
+    title: string;
+    mode: string;
+    status: string;
+    createdAt: string;
+  }>;
+  claimMemberships: Array<{
+    id: number;
+    role: string;
+    claim: {
+      id: number;
+      teamName: string | null;
+      status: string;
+      updatedAt: string;
+      problem: {
+        id: number;
+        title: string;
+      };
+    };
+  }>;
+  _count: {
+    bookings: number;
+    applications: number;
+    tickets: number;
+    problemsAuthored: number;
+    problemsCreated: number;
+  };
+};
+
 type Stats = {
   totalStudents: number;
   totalFaculty: number;
@@ -774,6 +861,9 @@ export default function AdminPanelClient({
   const [creatingIndustryPartner, setCreatingIndustryPartner] = useState(false);
   const [innovationTab, setInnovationTab] = useState<InnovationTab>("events");
   const [innovationAnalyticsTab, setInnovationAnalyticsTab] = useState<InnovationAnalyticsTab>("participants");
+  const [selectedUserDetailId, setSelectedUserDetailId] = useState<number | null>(null);
+  const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
+  const [loadingUserDetail, setLoadingUserDetail] = useState(false);
 
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState<number | "ALL">("ALL");
   const [analyticsProblemFilter, setAnalyticsProblemFilter] = useState<number | "ALL">("ALL");
@@ -816,7 +906,10 @@ export default function AdminPanelClient({
   const scannerFrameRef = useRef<number | null>(null);
   const scannerRunningRef = useRef(false);
 
-  const recentUsers = useMemo(() => users.slice(0, 12), [users]);
+  const allUsers = useMemo(
+    () => [...users].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [users]
+  );
   const prepBookings = useMemo(() => {
     const now = new Date();
 
@@ -1778,6 +1871,30 @@ export default function AdminPanelClient({
     } finally {
       setBusyFacultyId(null);
     }
+  };
+
+  const handleOpenUserDetails = async (id: number) => {
+    try {
+      setErrorMessage("");
+      setSelectedUserDetailId(id);
+      setSelectedUserDetail(null);
+      setLoadingUserDetail(true);
+
+      const payload = await apiCall(`/api/admin/users/${id}`, { method: "GET" });
+      setSelectedUserDetail((payload?.data || null) as AdminUserDetail | null);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not load user details.");
+      setSelectedUserDetailId(null);
+      setSelectedUserDetail(null);
+    } finally {
+      setLoadingUserDetail(false);
+    }
+  };
+
+  const closeUserDetailsModal = () => {
+    setSelectedUserDetailId(null);
+    setSelectedUserDetail(null);
+    setLoadingUserDetail(false);
   };
 
   const handleHeroUpload = async (event: React.FormEvent) => {
@@ -3374,7 +3491,7 @@ export default function AdminPanelClient({
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-headline text-2xl text-[#002155]">Recent Users</h2>
+          <h2 className="font-headline text-2xl text-[#002155]">All Users Directory</h2>
           <span className="text-xs uppercase tracking-widest text-[#434651] font-label">{users.length} total</span>
         </div>
 
@@ -3383,26 +3500,169 @@ export default function AdminPanelClient({
             <thead className="bg-[#f5f4f0] text-[#434651] uppercase text-xs tracking-wider">
               <tr>
                 <th className="text-left px-4 py-3">Name</th>
-                <th className="text-left px-4 py-3">Email</th>
-                <th className="text-left px-4 py-3">Role</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Verified</th>
+                <th className="text-left px-4 py-3">Phone</th>
+                <th className="text-left px-4 py-3">UID</th>
               </tr>
             </thead>
             <tbody>
-              {recentUsers.map((user) => (
+              {allUsers.map((user) => (
                 <tr key={user.id} className="border-t border-[#e3e2df]">
-                  <td className="px-4 py-3">{user.name}</td>
-                  <td className="px-4 py-3">{user.email}</td>
-                  <td className="px-4 py-3">{user.role}</td>
-                  <td className="px-4 py-3">{user.status}</td>
-                  <td className="px-4 py-3">{user.isVerified ? "Yes" : "No"}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleOpenUserDetails(user.id)}
+                      className="text-[#002155] font-semibold underline underline-offset-4"
+                    >
+                      {user.name}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">{user.phone || "Not provided"}</td>
+                  <td className="px-4 py-3">{user.uid || "Not provided"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+
+      {selectedUserDetailId !== null ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#00122f]/70 p-4 md:p-8 overflow-y-auto">
+          <div className="w-full max-w-4xl border border-[#c4c6d3] bg-white">
+            <div className="flex items-center justify-between border-b border-[#e3e2df] px-5 py-4">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-[#434651] font-label">User Details</p>
+                <h3 className="mt-1 font-headline text-2xl text-[#002155]">
+                  {selectedUserDetail?.name || `User #${selectedUserDetailId}`}
+                </h3>
+              </div>
+              <button
+                onClick={closeUserDetailsModal}
+                className="border border-[#c4c6d3] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#434651]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-5 space-y-6">
+              {loadingUserDetail ? <p className="text-sm text-[#434651]">Loading full user details...</p> : null}
+
+              {!loadingUserDetail && selectedUserDetail ? (
+                <>
+                  <section className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="border border-[#e3e2df] p-4">
+                      <p className="font-bold text-[#002155]">Account</p>
+                      <p className="mt-2 text-[#434651]">Name: {selectedUserDetail.name}</p>
+                      <p className="text-[#434651]">Email: {selectedUserDetail.email}</p>
+                      <p className="text-[#434651]">Phone: {selectedUserDetail.phone || "Not provided"}</p>
+                      <p className="text-[#434651]">UID: {selectedUserDetail.uid || "Not provided"}</p>
+                      <p className="text-[#434651]">Role: {selectedUserDetail.role}</p>
+                      <p className="text-[#434651]">Status: {selectedUserDetail.status}</p>
+                      <p className="text-[#434651]">Verified: {selectedUserDetail.isVerified ? "Yes" : "No"}</p>
+                      <p className="text-[#434651]">Created: {new Date(selectedUserDetail.createdAt).toLocaleString()}</p>
+                      <p className="text-[#434651]">Updated: {new Date(selectedUserDetail.updatedAt).toLocaleString()}</p>
+                    </div>
+
+                    <div className="border border-[#e3e2df] p-4">
+                      <p className="font-bold text-[#002155]">Counts</p>
+                      <p className="mt-2 text-[#434651]">Bookings: {selectedUserDetail._count.bookings}</p>
+                      <p className="text-[#434651]">Applications: {selectedUserDetail._count.applications}</p>
+                      <p className="text-[#434651]">Claims: {selectedUserDetail._count.problemsCreated}</p>
+                      <p className="text-[#434651]">Tickets: {selectedUserDetail._count.tickets}</p>
+                      <p className="text-[#434651]">Problems Authored: {selectedUserDetail._count.problemsAuthored}</p>
+                      <p className="mt-3 font-bold text-[#002155]">Industry</p>
+                      <p className="text-[#434651]">
+                        {selectedUserDetail.industry
+                          ? `${selectedUserDetail.industry.name} (#${selectedUserDetail.industry.id})`
+                          : "Not mapped"}
+                      </p>
+                    </div>
+                  </section>
+
+                  <section className="border border-[#e3e2df] p-4 text-sm">
+                    <p className="font-bold text-[#002155]">Student Profile</p>
+                    {selectedUserDetail.studentProfile ? (
+                      <>
+                        <p className="mt-2 text-[#434651]">Profile Complete: {selectedUserDetail.studentProfile.isComplete ? "Yes" : "No"}</p>
+                        <p className="text-[#434651]">Skills: {selectedUserDetail.studentProfile.skills || "Not provided"}</p>
+                        <p className="text-[#434651]">Experience: {selectedUserDetail.studentProfile.experience || "Not provided"}</p>
+                        <p className="text-[#434651]">Interests: {selectedUserDetail.studentProfile.interests || "Not provided"}</p>
+                        <p className="text-[#434651]">Resume: {selectedUserDetail.studentProfile.resumeFileName || "Not uploaded"}</p>
+                        {selectedUserDetail.studentProfile.resumeDownloadUrl ? (
+                          <a
+                            href={selectedUserDetail.studentProfile.resumeDownloadUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block text-[#002155] font-semibold underline underline-offset-4"
+                          >
+                            Open Resume
+                          </a>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="mt-2 text-[#434651]">No student profile available for this account.</p>
+                    )}
+                  </section>
+
+                  <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                    <div className="border border-[#e3e2df] p-4">
+                      <p className="font-bold text-[#002155]">Bookings</p>
+                      {selectedUserDetail.bookings.length === 0 ? (
+                        <p className="mt-2 text-[#434651]">No bookings</p>
+                      ) : (
+                        <ul className="mt-2 space-y-1 text-[#434651]">
+                          {selectedUserDetail.bookings.map((booking) => (
+                            <li key={booking.id}>#{booking.id} • {booking.lab} • {booking.timeSlot} • {booking.status}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="border border-[#e3e2df] p-4">
+                      <p className="font-bold text-[#002155]">Applications</p>
+                      {selectedUserDetail.applications.length === 0 ? (
+                        <p className="mt-2 text-[#434651]">No applications</p>
+                      ) : (
+                        <ul className="mt-2 space-y-1 text-[#434651]">
+                          {selectedUserDetail.applications.map((application) => (
+                            <li key={application.id}>#{application.id} • {application.problem.title} • {application.status}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="border border-[#e3e2df] p-4">
+                      <p className="font-bold text-[#002155]">Claims / Teams</p>
+                      {selectedUserDetail.claimMemberships.length === 0 ? (
+                        <p className="mt-2 text-[#434651]">No claims</p>
+                      ) : (
+                        <ul className="mt-2 space-y-1 text-[#434651]">
+                          {selectedUserDetail.claimMemberships.map((claimMember) => (
+                            <li key={claimMember.id}>
+                              Claim #{claimMember.claim.id} • {claimMember.claim.problem.title} • {claimMember.claim.status} • {claimMember.role}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="border border-[#e3e2df] p-4">
+                      <p className="font-bold text-[#002155]">Tickets</p>
+                      {selectedUserDetail.tickets.length === 0 ? (
+                        <p className="mt-2 text-[#434651]">No tickets</p>
+                      ) : (
+                        <ul className="mt-2 space-y-1 text-[#434651]">
+                          {selectedUserDetail.tickets.map((ticket) => (
+                            <li key={ticket.id}>{ticket.ticketId} • {ticket.type} • {ticket.status} • {ticket.subjectName}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </section>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       </>
 
