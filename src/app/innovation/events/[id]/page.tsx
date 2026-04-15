@@ -57,6 +57,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
           industryName: true,
           mode: true,
           status: true,
+          supportDocumentKey: true,
         },
       },
     },
@@ -67,6 +68,15 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
   const eventBriefUrl = event.pptFileKey
     ? await getSignedUrl(event.pptFileKey).catch(() => null)
     : null;
+
+  const eventProblems = await Promise.all(
+    event.problems.map(async (problem) => ({
+      ...problem,
+      supportDocumentUrl: problem.supportDocumentKey
+        ? await getSignedUrl(problem.supportDocumentKey).catch(() => null)
+        : null,
+    }))
+  );
 
   let viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null = null;
   let viewerUserId: number | null = null;
@@ -207,7 +217,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
         submissionLockISO={event.submissionLockAt ? event.submissionLockAt.toISOString() : null}
         registrationCloseISO={event.endTime.toISOString()}
         eventBriefUrl={eventBriefUrl}
-        problems={event.problems}
+        problems={eventProblems}
         viewerRole={viewerRole}
         initialRegistration={existingRegistration}
         initialInterest={viewerInterest}

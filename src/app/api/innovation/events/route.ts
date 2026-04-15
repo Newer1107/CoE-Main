@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       return errorRes('Invalid submission lock time', ['submissionLockAt must be on or before endTime'], 400);
     }
 
-    const event = await prisma.$transaction(async (tx) => {
+    const { event, createdProblems } = await prisma.$transaction(async (tx) => {
       const createdEvent = await tx.hackathonEvent.create({
         data: {
           title: parsed.data.title,
@@ -119,20 +119,52 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      await tx.problem.createMany({
-        data: parsed.data.problems.map((problem) => ({
-          title: problem.title,
-          description: problem.description,
-          isIndustryProblem: problem.isIndustryProblem,
-          industryName: problem.isIndustryProblem ? problem.industryName : null,
-          mode: 'CLOSED',
-          createdById: user.id,
-          eventId: createdEvent.id,
-        })),
+      const created = [] as Array<{ id: number }>;
+      for (const problem of parsed.data.problems) {
+        const createdProblem = await tx.problem.create({
+          data: {
+            title: problem.title,
+            description: problem.description,
+            isIndustryProblem: problem.isIndustryProblem,
+            industryName: problem.isIndustryProblem ? problem.industryName : null,
+            mode: 'CLOSED',
+            createdById: user.id,
+            eventId: createdEvent.id,
+          },
+          select: { id: true },
+        });
+        created.push(createdProblem);
+      }
+
+      return {
+        event: createdEvent,
+        createdProblems: created,
+      };
+    });
+
+    const problemFiles = parsed.data.problems.map((_, index) => formData.get(`problemSupportDocument_${index}`) as File | null);
+
+    for (let index = 0; index < createdProblems.length; index += 1) {
+      const file = problemFiles[index];
+      if (!file) continue;
+
+      if (file.type !== 'application/pdf') {
+        return errorRes('Invalid file type', [`Problem #${index + 1} support document must be a PDF file`], 400);
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const objectKey = `innovation/events/${event.id}/problems/${createdProblems[index].id}/support/${Date.now()}-${sanitizeFilename(file.name)}`;
+      const supportDocumentKey = await uploadFileWithObjectKey(objectKey, {
+        buffer,
+        mimetype: file.type,
+        size: buffer.length,
       });
 
-      return createdEvent;
-    });
+      await prisma.problem.update({
+        where: { id: createdProblems[index].id },
+        data: { supportDocumentKey },
+      });
+    }
 
     let pptFileKey: string | null = null;
     if (pptFile) {

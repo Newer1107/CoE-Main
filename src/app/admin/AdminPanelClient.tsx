@@ -193,6 +193,7 @@ type EventProblemInput = {
   description: string;
   isIndustryProblem: boolean;
   industryName: string;
+  supportDocumentFile: File | null;
 };
 
 type EventProblemRow = {
@@ -201,6 +202,9 @@ type EventProblemRow = {
   description: string;
   isIndustryProblem: boolean;
   industryName: string;
+  supportDocumentUrl: string | null;
+  supportDocumentFile: File | null;
+  removeSupportDocument: boolean;
 };
 
 type EventEditDraft = {
@@ -718,6 +722,7 @@ export default function AdminPanelClient({
       description: "",
       isIndustryProblem: false,
       industryName: "",
+      supportDocumentFile: null,
     },
   ]);
   const [eventEditDraft, setEventEditDraft] = useState<EventEditDraft | null>(null);
@@ -1860,14 +1865,22 @@ export default function AdminPanelClient({
   const handleCreateHackathonEvent = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const problemsPayload = eventProblems
+    const preparedProblems = eventProblems
       .map((problem) => ({
         title: problem.title.trim(),
         description: problem.description.trim(),
         isIndustryProblem: problem.isIndustryProblem,
         industryName: problem.isIndustryProblem ? problem.industryName.trim() : "",
+        supportDocumentFile: problem.supportDocumentFile,
       }))
       .filter((problem) => problem.title.length > 0 || problem.description.length > 0);
+
+    const problemsPayload = preparedProblems.map((problem) => ({
+      title: problem.title,
+      description: problem.description,
+      isIndustryProblem: problem.isIndustryProblem,
+      industryName: problem.industryName,
+    }));
 
     if (problemsPayload.length === 0) {
       setErrorMessage("Please add at least one problem statement for the event.");
@@ -1890,6 +1903,11 @@ export default function AdminPanelClient({
       if (eventPptFile) {
         formData.set("pptFile", eventPptFile);
       }
+      preparedProblems.forEach((problem, index) => {
+        if (problem.supportDocumentFile) {
+          formData.set(`problemSupportDocument_${index}`, problem.supportDocumentFile);
+        }
+      });
 
       const res = await fetch("/api/innovation/events", {
         method: "POST",
@@ -1909,7 +1927,7 @@ export default function AdminPanelClient({
       setEventSubmissionLockAt("");
       setEventTotalSessions(1);
       setEventPptFile(null);
-      setEventProblems([{ title: "", description: "", isIndustryProblem: false, industryName: "" }]);
+      setEventProblems([{ title: "", description: "", isIndustryProblem: false, industryName: "", supportDocumentFile: null }]);
       setStatusMessage("Hackathon event created successfully.");
       router.refresh();
     } catch (err) {
@@ -1924,7 +1942,7 @@ export default function AdminPanelClient({
   };
 
   const addEventProblemInput = () => {
-    setEventProblems((prev) => [...prev, { title: "", description: "", isIndustryProblem: false, industryName: "" }]);
+    setEventProblems((prev) => [...prev, { title: "", description: "", isIndustryProblem: false, industryName: "", supportDocumentFile: null }]);
   };
 
   const removeEventProblemInput = (index: number) => {
@@ -1963,6 +1981,9 @@ export default function AdminPanelClient({
         description: String(problem.description || ""),
         isIndustryProblem: Boolean(problem.isIndustryProblem),
         industryName: String(problem.industryName || ""),
+        supportDocumentUrl: typeof problem.supportDocumentUrl === "string" ? problem.supportDocumentUrl : null,
+        supportDocumentFile: null,
+        removeSupportDocument: false,
       }));
 
       setEventEditDraft({
@@ -2015,6 +2036,9 @@ export default function AdminPanelClient({
             description: "",
             isIndustryProblem: false,
             industryName: "",
+            supportDocumentUrl: null,
+            supportDocumentFile: null,
+            removeSupportDocument: false,
           },
         ],
       };
@@ -2109,29 +2133,50 @@ export default function AdminPanelClient({
 
       for (const problem of normalizedProblems) {
         if (problem.id) {
-          await apiCall(`/api/innovation/problems/${problem.id}`, {
+          const problemFormData = new FormData();
+          problemFormData.set("title", problem.title);
+          problemFormData.set("description", problem.description);
+          problemFormData.set("isIndustryProblem", String(problem.isIndustryProblem));
+          problemFormData.set("industryName", problem.isIndustryProblem ? problem.industryName : "");
+          if (problem.removeSupportDocument) {
+            problemFormData.set("removeSupportDocument", "true");
+          }
+          if (problem.supportDocumentFile) {
+            problemFormData.set("supportDocument", problem.supportDocumentFile);
+          }
+
+          const problemUpdateRes = await fetch(`/api/innovation/problems/${problem.id}`, {
             method: "PATCH",
-            body: JSON.stringify({
-              title: problem.title,
-              description: problem.description,
-              isIndustryProblem: problem.isIndustryProblem,
-              industryName: problem.isIndustryProblem ? problem.industryName : "",
-            }),
+            body: problemFormData,
+            credentials: "include",
           });
+          const problemUpdatePayload = await problemUpdateRes.json().catch(() => ({}));
+          if (!problemUpdateRes.ok) {
+            throw new Error(problemUpdatePayload?.message || `Could not update problem #${problem.id}.`);
+          }
         } else {
-          await apiCall(`/api/innovation/problems`, {
+          const problemCreateFormData = new FormData();
+          problemCreateFormData.set("title", problem.title);
+          problemCreateFormData.set("description", problem.description);
+          problemCreateFormData.set("tags", "");
+          problemCreateFormData.set("mode", "CLOSED");
+          problemCreateFormData.set("problemType", "OPEN");
+          problemCreateFormData.set("eventId", String(eventEditDraft.eventId));
+          problemCreateFormData.set("isIndustryProblem", String(problem.isIndustryProblem));
+          problemCreateFormData.set("industryName", problem.isIndustryProblem ? problem.industryName : "");
+          if (problem.supportDocumentFile) {
+            problemCreateFormData.set("supportDocument", problem.supportDocumentFile);
+          }
+
+          const problemCreateRes = await fetch(`/api/innovation/problems`, {
             method: "POST",
-            body: JSON.stringify({
-              title: problem.title,
-              description: problem.description,
-              tags: "",
-              mode: "CLOSED",
-              problemType: "OPEN",
-              eventId: eventEditDraft.eventId,
-              isIndustryProblem: problem.isIndustryProblem,
-              industryName: problem.isIndustryProblem ? problem.industryName : "",
-            }),
+            body: problemCreateFormData,
+            credentials: "include",
           });
+          const problemCreatePayload = await problemCreateRes.json().catch(() => ({}));
+          if (!problemCreateRes.ok) {
+            throw new Error(problemCreatePayload?.message || "Could not create new event problem statement.");
+          }
         }
       }
 
@@ -3548,6 +3593,16 @@ export default function AdminPanelClient({
                       placeholder="Problem description"
                     />
 
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Problem PDF (optional)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={(e) => updateEventProblem(idx, { supportDocumentFile: e.target.files?.[0] ?? null })}
+                        className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <label className="flex items-center gap-2 text-sm text-[#434651]">
                         <input
@@ -3908,6 +3963,45 @@ export default function AdminPanelClient({
                                       className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[70px]"
                                       placeholder="Problem description"
                                     />
+
+                                    <div className="space-y-2">
+                                      {problem.supportDocumentUrl ? (
+                                        <a
+                                          href={problem.supportDocumentUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline"
+                                        >
+                                          View Existing Problem PDF
+                                        </a>
+                                      ) : null}
+                                      <input
+                                        type="file"
+                                        accept=".pdf,application/pdf"
+                                        onChange={(e) =>
+                                          updateEventEditorProblem(idx, {
+                                            supportDocumentFile: e.target.files?.[0] ?? null,
+                                            removeSupportDocument: false,
+                                          })
+                                        }
+                                        className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                                      />
+                                      {problem.supportDocumentUrl ? (
+                                        <label className="flex items-center gap-2 text-xs text-[#434651]">
+                                          <input
+                                            type="checkbox"
+                                            checked={problem.removeSupportDocument}
+                                            onChange={(e) =>
+                                              updateEventEditorProblem(idx, {
+                                                removeSupportDocument: e.target.checked,
+                                                supportDocumentFile: e.target.checked ? null : problem.supportDocumentFile,
+                                              })
+                                            }
+                                          />
+                                          Remove existing problem PDF
+                                        </label>
+                                      ) : null}
+                                    </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                       <label className="flex items-center gap-2 text-sm text-[#434651]">

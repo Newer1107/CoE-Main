@@ -2,7 +2,17 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationProblemUpdateSchema } from '@/lib/validators';
-import { getSignedUrl } from '@/lib/minio';
+import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
+import { sanitizeFilename } from '@/lib/innovation';
+
+const parseBooleanLike = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['true', '1', 'yes', 'on'].includes(normalized);
+  }
+  return false;
+};
 
 // PATCH /api/innovation/problems/[id]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -44,7 +54,44 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    const body = await req.json();
+    const contentType = req.headers.get('content-type') || '';
+    let body: Record<string, unknown> = {};
+    let supportDocumentFile: File | null = null;
+    let removeSupportDocument = false;
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+
+      const titleRaw = formData.get('title');
+      const descriptionRaw = formData.get('description');
+      const tagsRaw = formData.get('tags');
+      const modeRaw = formData.get('mode');
+      const statusRaw = formData.get('status');
+      const problemTypeRaw = formData.get('problemType');
+      const approvalStatusRaw = formData.get('approvalStatus');
+      const isIndustryProblemRaw = formData.get('isIndustryProblem');
+      const industryNameRaw = formData.get('industryName');
+      const removeSupportDocumentRaw = formData.get('removeSupportDocument');
+
+      body = {
+        ...(titleRaw !== null ? { title: String(titleRaw).trim() } : {}),
+        ...(descriptionRaw !== null ? { description: String(descriptionRaw).trim() } : {}),
+        ...(tagsRaw !== null ? { tags: String(tagsRaw).trim() } : {}),
+        ...(modeRaw !== null ? { mode: String(modeRaw).trim().toUpperCase() } : {}),
+        ...(statusRaw !== null ? { status: String(statusRaw).trim().toUpperCase() } : {}),
+        ...(problemTypeRaw !== null ? { problemType: String(problemTypeRaw).trim().toUpperCase() } : {}),
+        ...(approvalStatusRaw !== null ? { approvalStatus: String(approvalStatusRaw).trim().toUpperCase() } : {}),
+        ...(isIndustryProblemRaw !== null ? { isIndustryProblem: parseBooleanLike(isIndustryProblemRaw) } : {}),
+        ...(industryNameRaw !== null ? { industryName: String(industryNameRaw).trim() } : {}),
+      };
+
+      removeSupportDocument = removeSupportDocumentRaw !== null ? parseBooleanLike(removeSupportDocumentRaw) : false;
+      supportDocumentFile = formData.get('supportDocument') as File | null;
+    } else {
+      body = await req.json();
+      removeSupportDocument = parseBooleanLike(body.removeSupportDocument);
+    }
+
     const parsed = innovationProblemUpdateSchema.safeParse(body);
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
 
@@ -106,6 +153,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof parsed.data.status !== 'undefined') updateData.status = parsed.data.status;
     if (typeof parsed.data.isIndustryProblem !== 'undefined') updateData.isIndustryProblem = parsed.data.isIndustryProblem;
     if (typeof parsed.data.approvalStatus !== 'undefined') updateData.approvalStatus = parsed.data.approvalStatus;
+
+    if (supportDocumentFile) {
+      if (supportDocumentFile.type !== 'application/pdf') {
+        return errorRes('Invalid file type', ['Support document must be a PDF file'], 400);
+      }
+
+      const buffer = Buffer.from(await supportDocumentFile.arrayBuffer());
+      const objectKey = existing.eventId
+        ? `innovation/events/${existing.eventId}/problems/${existing.id}/support/${Date.now()}-${sanitizeFilename(supportDocumentFile.name)}`
+        : `innovation/open-problems/${existing.id}/support/${Date.now()}-${sanitizeFilename(supportDocumentFile.name)}`;
+
+      const supportDocumentKey = await uploadFileWithObjectKey(objectKey, {
+        buffer,
+        mimetype: supportDocumentFile.type,
+        size: buffer.length,
+      });
+
+      updateData.supportDocumentKey = supportDocumentKey;
+    } else if (removeSupportDocument) {
+      updateData.supportDocumentKey = null;
+    }
 
     const problem = await prisma.problem.update({
       where: { id: problemId },

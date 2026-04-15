@@ -242,8 +242,9 @@ export async function POST(req: NextRequest) {
 
     let supportDocumentKey: string | null = null;
     if (supportDocumentFile) {
-      if (problem.eventId || problem.mode !== 'OPEN') {
-        return errorRes('Invalid support document upload', ['Support document is allowed only for OPEN problem statements'], 400);
+      const canAttachSupportDocument = Boolean(problem.eventId) || problem.mode === 'OPEN';
+      if (!canAttachSupportDocument) {
+        return errorRes('Invalid support document upload', ['Support document is allowed for OPEN statements or hackathon event problem statements'], 400);
       }
 
       const allowedMime = ['application/pdf'];
@@ -252,7 +253,9 @@ export async function POST(req: NextRequest) {
       }
 
       const buffer = Buffer.from(await supportDocumentFile.arrayBuffer());
-      const objectKey = `innovation/open-problems/${problem.id}/support/${Date.now()}-${sanitizeFilename(supportDocumentFile.name)}`;
+      const objectKey = problem.eventId
+        ? `innovation/events/${problem.eventId}/problems/${problem.id}/support/${Date.now()}-${sanitizeFilename(supportDocumentFile.name)}`
+        : `innovation/open-problems/${problem.id}/support/${Date.now()}-${sanitizeFilename(supportDocumentFile.name)}`;
 
       supportDocumentKey = await uploadFileWithObjectKey(objectKey, {
         buffer,

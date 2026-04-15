@@ -52,6 +52,7 @@ type ProblemLite = {
   description: string;
   isIndustryProblem: boolean;
   industryName: string | null;
+  supportDocumentUrl: string | null;
   mode: string;
   status: string;
 };
@@ -807,6 +808,11 @@ export default function InnovationEventClient({
                     {problem.industryName} x TCET Collaboration
                   </p>
                 ) : null}
+                {problem.supportDocumentUrl ? (
+                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-[#0b6b2e]">
+                    Problem PDF Available
+                  </p>
+                ) : null}
                 <p className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]">Click to view details</p>
               </button>
             ))}
@@ -853,6 +859,16 @@ export default function InnovationEventClient({
               </button>
             </div>
             <p className="mt-4 text-sm text-[#434651] whitespace-pre-wrap break-words">{renderTextWithClickableLinks(selectedProblem.description)}</p>
+            {selectedProblem.supportDocumentUrl ? (
+              <a
+                href={selectedProblem.supportDocumentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex mt-4 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline"
+              >
+                Open Problem PDF
+              </a>
+            ) : null}
           </div>
         </div>
       ) : null}
