@@ -1,16 +1,33 @@
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { errorRes, successRes } from '@/lib/api-helpers';
+import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { sendNewProblemStatementEmail } from '@/lib/mailer';
 import { processEmailQueue } from '@/lib/email-delivery';
+import { NextRequest } from 'next/server';
 
 type ProblemWithCreator = Prisma.ProblemGetPayload<{
   include: { createdBy: true };
 }>;
 
+const isAuthorizedCron = (req: NextRequest) => {
+  const expectedSecret = process.env.CRON_SECRET?.trim();
+  const providedSecret = (req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret') || '').trim();
+
+  if (expectedSecret) {
+    return providedSecret === expectedSecret;
+  }
+
+  const user = authenticate(req);
+  return Boolean(user && authorize(user, 'ADMIN'));
+};
+
 // GET /api/cron/problem-statement-notification
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    if (!isAuthorizedCron(req)) {
+      return errorRes('Forbidden', ['Invalid cron secret or admin credentials required'], 403);
+    }
+
     // Find all unnotified open problem statements
     const unnotifiedProblems = (await prisma.problem.findMany({
       where: {

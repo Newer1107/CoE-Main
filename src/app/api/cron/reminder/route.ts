@@ -1,5 +1,19 @@
 import prisma from '@/lib/prisma';
 import { sendBookingReminderEmail } from '@/lib/mailer';
+import { NextRequest } from 'next/server';
+import { authenticate, authorize } from '@/lib/api-helpers';
+
+function isAuthorizedCron(req: NextRequest) {
+  const expectedSecret = process.env.CRON_SECRET?.trim();
+  const providedSecret = (req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret') || '').trim();
+
+  if (expectedSecret) {
+    return providedSecret === expectedSecret;
+  }
+
+  const user = authenticate(req);
+  return Boolean(user && authorize(user, 'ADMIN'));
+}
 
 /**
  * Combines booking.date + booking.timeSlot into a proper Date object
@@ -14,8 +28,12 @@ function getBookingStartDateTime(date: Date, timeSlot: string): Date {
   return bookingDateTime;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    if (!isAuthorizedCron(req)) {
+      return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    }
+
     const now = new Date();
     const thirtyMinsLater = new Date(now.getTime() + 30 * 60 * 1000);
 

@@ -1,7 +1,21 @@
 import { getObjectStat, getObjectStream } from '@/lib/minio';
+import { authenticate, errorRes } from '@/lib/api-helpers';
+import { NextRequest } from 'next/server';
+
+const PUBLIC_PATH_PATTERNS = [
+  /^hero-slides\//,
+  /^news\//,
+  /^events\//,
+  /^grants\//,
+  /^innovation\/open-problems\/\d+\/support\//,
+  /^innovation\/events\/\d+\/problems\/\d+\/support\//,
+  /^innovation\/programs\/(?:\d+\/)?notice\//,
+];
+
+const isPublicObjectKey = (objectKey: string) => PUBLIC_PATH_PATTERNS.some((pattern) => pattern.test(objectKey));
 
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
@@ -11,6 +25,13 @@ export async function GET(
     }
 
     const objectKey = path.map((segment) => decodeURIComponent(segment)).join('/');
+
+    if (!isPublicObjectKey(objectKey)) {
+      const user = authenticate(req);
+      if (!user) {
+        return errorRes('Unauthorized', [], 401);
+      }
+    }
 
     const [stream, stat] = await Promise.all([
       getObjectStream(objectKey),

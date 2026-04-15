@@ -1,15 +1,18 @@
 import { NextRequest } from 'next/server';
-import { errorRes, successRes } from '@/lib/api-helpers';
+import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { processEmailQueue } from '@/lib/email-delivery';
 
 function isAuthorizedCron(req: NextRequest) {
-  const expectedSecret = process.env.CRON_SECRET;
-  if (!expectedSecret) return true;
+  const expectedSecret = process.env.CRON_SECRET?.trim();
+  const headerSecret = (req.headers.get('x-cron-secret') || '').trim();
+  const querySecret = (new URL(req.url).searchParams.get('secret') || '').trim();
 
-  const headerSecret = req.headers.get('x-cron-secret');
-  const querySecret = new URL(req.url).searchParams.get('secret');
+  if (expectedSecret) {
+    return headerSecret === expectedSecret || querySecret === expectedSecret;
+  }
 
-  return headerSecret === expectedSecret || querySecret === expectedSecret;
+  const user = authenticate(req);
+  return Boolean(user && authorize(user, 'ADMIN'));
 }
 
 // GET /api/cron/email-queue

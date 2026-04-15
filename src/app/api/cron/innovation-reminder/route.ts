@@ -1,6 +1,6 @@
 import prisma from '@/lib/prisma';
 import { NextRequest } from 'next/server';
-import { errorRes, successRes } from '@/lib/api-helpers';
+import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { getEventParticipantEmails } from '@/lib/innovation';
 import { processEmailQueue } from '@/lib/email-delivery';
 import {
@@ -10,6 +10,18 @@ import {
 } from '@/lib/mailer';
 
 type InnovationCronMode = 'ALL' | 'UPCOMING_ALL_STUDENTS' | 'ACTIVATE_REGISTERED' | 'ENDING_REMINDER';
+
+const isAuthorizedCron = (req: NextRequest) => {
+  const expectedSecret = process.env.CRON_SECRET?.trim();
+  const providedSecret = (req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret') || '').trim();
+
+  if (expectedSecret) {
+    return providedSecret === expectedSecret;
+  }
+
+  const user = authenticate(req);
+  return Boolean(user && authorize(user, 'ADMIN'));
+};
 
 const parseMode = (raw: string | null): InnovationCronMode => {
   const normalized = (raw || '').trim().toUpperCase();
@@ -22,6 +34,10 @@ const parseMode = (raw: string | null): InnovationCronMode => {
 // GET /api/cron/innovation-reminder
 export async function GET(req: NextRequest) {
   try {
+    if (!isAuthorizedCron(req)) {
+      return errorRes('Forbidden', ['Invalid cron secret or admin credentials required'], 403);
+    }
+
     const search = req.nextUrl.searchParams;
     const mode = parseMode(search.get('mode'));
     const eventIdRaw = search.get('eventId');
