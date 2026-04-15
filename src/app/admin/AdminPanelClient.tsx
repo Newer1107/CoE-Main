@@ -86,6 +86,7 @@ type InnovationEvent = {
   totalSessions?: number;
   totalInterested: number;
   totalInterestedWithDetails: number;
+  pptFileUrl?: string | null;
 };
 
 type InnovationEventInterest = {
@@ -192,6 +193,30 @@ type EventProblemInput = {
   description: string;
   isIndustryProblem: boolean;
   industryName: string;
+};
+
+type EventProblemRow = {
+  id?: number;
+  title: string;
+  description: string;
+  isIndustryProblem: boolean;
+  industryName: string;
+};
+
+type EventEditDraft = {
+  eventId: number;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  submissionLockAt: string;
+  totalSessions: number;
+  registrationOpen: boolean;
+  status: InnovationEvent["status"];
+  pptFile: File | null;
+  removePptFile: boolean;
+  problems: EventProblemRow[];
+  deletedProblemIds: number[];
 };
 
 type InnovationLeaderboardRow = {
@@ -545,10 +570,12 @@ type IndustryDirectoryRow = {
 type OperationsTab = "overview" | "bookings" | "faculty" | "tickets" | "content" | "emails" | "industry";
 
 const apiCall = async (url: string, options?: RequestInit) => {
+  const isFormDataBody = options?.body instanceof FormData;
+
   const res = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormDataBody ? {} : { "Content-Type": "application/json" }),
       ...(options?.headers ?? {}),
     },
     credentials: "include",
@@ -635,6 +662,14 @@ const formatIstDateTime = (value: string | null | undefined) => {
   return parsed.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 };
 
+const toDateTimeLocalValue = (value: string | null | undefined) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
 export default function AdminPanelClient({
   stats,
   pendingBookings,
@@ -685,6 +720,9 @@ export default function AdminPanelClient({
       industryName: "",
     },
   ]);
+  const [eventEditDraft, setEventEditDraft] = useState<EventEditDraft | null>(null);
+  const [eventEditLoading, setEventEditLoading] = useState(false);
+  const [eventEditSaving, setEventEditSaving] = useState(false);
 
   const [emailSnapshot, setEmailSnapshot] = useState<EmailQueueSnapshot | null>(null);
   const [loadingEmailSnapshot, setLoadingEmailSnapshot] = useState(false);
@@ -1891,6 +1929,220 @@ export default function AdminPanelClient({
 
   const removeEventProblemInput = (index: number) => {
     setEventProblems((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== index)));
+  };
+
+  const loadEventEditor = async (eventRow: InnovationEvent) => {
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setEventEditDraft({
+        eventId: eventRow.id,
+        title: eventRow.title,
+        description: eventRow.description || "",
+        startTime: toDateTimeLocalValue(eventRow.startTime),
+        endTime: toDateTimeLocalValue(eventRow.endTime),
+        submissionLockAt: toDateTimeLocalValue(eventRow.submissionLockAt),
+        totalSessions: Math.max(1, eventRow.totalSessions ?? 1),
+        registrationOpen: eventRow.registrationOpen,
+        status: eventRow.status,
+        pptFile: null,
+        removePptFile: false,
+        problems: [],
+        deletedProblemIds: [],
+      });
+      setEventEditLoading(true);
+
+      const payload = await apiCall(
+        `/api/innovation/problems?track=all&eventId=${eventRow.id}&visibility=internal&includeAllStatuses=true`,
+        { method: "GET" }
+      );
+
+      const problems = ((payload?.data || []) as Array<any>).map((problem) => ({
+        id: problem.id as number,
+        title: String(problem.title || ""),
+        description: String(problem.description || ""),
+        isIndustryProblem: Boolean(problem.isIndustryProblem),
+        industryName: String(problem.industryName || ""),
+      }));
+
+      setEventEditDraft({
+        eventId: eventRow.id,
+        title: eventRow.title,
+        description: eventRow.description || "",
+        startTime: toDateTimeLocalValue(eventRow.startTime),
+        endTime: toDateTimeLocalValue(eventRow.endTime),
+        submissionLockAt: toDateTimeLocalValue(eventRow.submissionLockAt),
+        totalSessions: Math.max(1, eventRow.totalSessions ?? 1),
+        registrationOpen: eventRow.registrationOpen,
+        status: eventRow.status,
+        pptFile: null,
+        removePptFile: false,
+        problems,
+        deletedProblemIds: [],
+      });
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not load event editor data.");
+    } finally {
+      setEventEditLoading(false);
+    }
+  };
+
+  const closeEventEditor = () => {
+    setEventEditDraft(null);
+    setEventEditLoading(false);
+    setEventEditSaving(false);
+  };
+
+  const updateEventEditorProblem = (index: number, updates: Partial<EventProblemRow>) => {
+    setEventEditDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        problems: prev.problems.map((problem, idx) => (idx === index ? { ...problem, ...updates } : problem)),
+      };
+    });
+  };
+
+  const addEventEditorProblem = () => {
+    setEventEditDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        problems: [
+          ...prev.problems,
+          {
+            title: "",
+            description: "",
+            isIndustryProblem: false,
+            industryName: "",
+          },
+        ],
+      };
+    });
+  };
+
+  const removeEventEditorProblem = (index: number) => {
+    setEventEditDraft((prev) => {
+      if (!prev) return prev;
+      const target = prev.problems[index];
+      if (!target) return prev;
+
+      const nextDeleted = target.id ? [...prev.deletedProblemIds, target.id] : prev.deletedProblemIds;
+      return {
+        ...prev,
+        problems: prev.problems.filter((_, idx) => idx !== index),
+        deletedProblemIds: Array.from(new Set(nextDeleted)),
+      };
+    });
+  };
+
+  const saveEventEditor = async () => {
+    if (!eventEditDraft) return;
+
+    const normalizedProblems = eventEditDraft.problems
+      .map((problem) => ({
+        ...problem,
+        title: problem.title.trim(),
+        description: problem.description.trim(),
+        industryName: problem.industryName.trim(),
+      }))
+      .filter((problem) => problem.title.length > 0 || problem.description.length > 0);
+
+    if (normalizedProblems.length === 0) {
+      setErrorMessage("Please keep at least one problem statement for the event.");
+      return;
+    }
+
+    if (normalizedProblems.some((problem) => problem.title.length < 2 || problem.description.length < 5)) {
+      setErrorMessage("Each problem statement must include a valid title and description.");
+      return;
+    }
+
+    if (
+      normalizedProblems.some(
+        (problem) => problem.isIndustryProblem && problem.industryName.trim().length < 2
+      )
+    ) {
+      setErrorMessage("Industry problems must include a valid industry name.");
+      return;
+    }
+
+    if (!eventEditDraft.startTime || !eventEditDraft.endTime || !eventEditDraft.submissionLockAt) {
+      setErrorMessage("Start time, end time, and submission lock time are required.");
+      return;
+    }
+
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setEventEditSaving(true);
+
+      const formData = new FormData();
+      formData.set("title", eventEditDraft.title.trim());
+      formData.set("description", eventEditDraft.description.trim());
+      formData.set("startTime", new Date(eventEditDraft.startTime).toISOString());
+      formData.set("endTime", new Date(eventEditDraft.endTime).toISOString());
+      formData.set("submissionLockAt", new Date(eventEditDraft.submissionLockAt).toISOString());
+      formData.set("totalSessions", String(eventEditDraft.totalSessions));
+      formData.set("registrationOpen", String(eventEditDraft.registrationOpen));
+      formData.set("status", eventEditDraft.status);
+      if (eventEditDraft.removePptFile) {
+        formData.set("removePptFile", "true");
+      }
+      if (eventEditDraft.pptFile) {
+        formData.set("pptFile", eventEditDraft.pptFile);
+      }
+
+      const eventUpdateRes = await fetch(`/api/innovation/events/${eventEditDraft.eventId}`, {
+        method: "PATCH",
+        body: formData,
+        credentials: "include",
+      });
+      const eventUpdatePayload = await eventUpdateRes.json().catch(() => ({}));
+      if (!eventUpdateRes.ok) {
+        throw new Error(eventUpdatePayload?.message || "Could not update hackathon event details.");
+      }
+
+      for (const problemId of eventEditDraft.deletedProblemIds) {
+        await apiCall(`/api/innovation/problems/${problemId}`, { method: "DELETE" });
+      }
+
+      for (const problem of normalizedProblems) {
+        if (problem.id) {
+          await apiCall(`/api/innovation/problems/${problem.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              title: problem.title,
+              description: problem.description,
+              isIndustryProblem: problem.isIndustryProblem,
+              industryName: problem.isIndustryProblem ? problem.industryName : "",
+            }),
+          });
+        } else {
+          await apiCall(`/api/innovation/problems`, {
+            method: "POST",
+            body: JSON.stringify({
+              title: problem.title,
+              description: problem.description,
+              tags: "",
+              mode: "CLOSED",
+              problemType: "OPEN",
+              eventId: eventEditDraft.eventId,
+              isIndustryProblem: problem.isIndustryProblem,
+              industryName: problem.isIndustryProblem ? problem.industryName : "",
+            }),
+          });
+        }
+      }
+
+      setStatusMessage("Hackathon event and problem statements updated successfully.");
+      closeEventEditor();
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not save event editor changes.");
+    } finally {
+      setEventEditSaving(false);
+    }
   };
 
   const handleToggleEventRegistration = async (eventRow: InnovationEvent) => {
@@ -3392,6 +3644,16 @@ export default function AdminPanelClient({
                       <p className="mt-1 text-xs text-[#434651]">
                         Submission lock: {formatIstDateTime(event.submissionLockAt)}
                       </p>
+                      {event.pptFileUrl ? (
+                        <a
+                          href={event.pptFileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex mt-2 text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline"
+                        >
+                          View Event PPT/PDF
+                        </a>
+                      ) : null}
                       <p className="mt-1 text-xs text-[#434651]">Interest: {totalInterested} students ({totalWithDetails} with team details)</p>
 
                       <details className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-3">
@@ -3472,6 +3734,18 @@ export default function AdminPanelClient({
                         >
                           Leaderboard
                         </button>
+                        <button
+                          onClick={() => {
+                            if (eventEditDraft?.eventId === event.id) {
+                              closeEventEditor();
+                            } else {
+                              void loadEventEditor(event);
+                            }
+                          }}
+                          className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                        >
+                          {eventEditDraft?.eventId === event.id ? "Close Editor" : "Edit Event & Problems"}
+                        </button>
                         <Link
                           href={`/innovation/events/${event.id}`}
                           className="border border-[#8c4f00] text-[#8c4f00] px-3 py-2 text-xs font-bold uppercase tracking-wider"
@@ -3479,6 +3753,211 @@ export default function AdminPanelClient({
                           View Event Page
                         </Link>
                       </div>
+
+                      {eventEditDraft?.eventId === event.id ? (
+                        <div className="mt-4 border border-[#d8d6cf] bg-[#faf9f5] p-4 space-y-4">
+                          {eventEditLoading ? (
+                            <p className="text-sm text-[#434651]">Loading event editor...</p>
+                          ) : (
+                            <>
+                              <p className="text-sm font-bold uppercase tracking-wider text-[#002155]">Edit Hackathon Event</p>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input
+                                  value={eventEditDraft.title}
+                                  onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))}
+                                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                                  placeholder="Event title"
+                                />
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={30}
+                                  value={eventEditDraft.totalSessions}
+                                  onChange={(e) => {
+                                    const next = Number(e.target.value);
+                                    if (!Number.isFinite(next) || next <= 0) return;
+                                    setEventEditDraft((prev) => (prev ? { ...prev, totalSessions: Math.min(30, Math.floor(next)) } : prev));
+                                  }}
+                                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                                  placeholder="Total sessions"
+                                />
+                              </div>
+
+                              <textarea
+                                value={eventEditDraft.description}
+                                onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
+                                className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[80px]"
+                                placeholder="Event description"
+                              />
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                  <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">Start Time</label>
+                                  <input
+                                    type="datetime-local"
+                                    value={eventEditDraft.startTime}
+                                    onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, startTime: e.target.value } : prev))}
+                                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">End Time</label>
+                                  <input
+                                    type="datetime-local"
+                                    value={eventEditDraft.endTime}
+                                    onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, endTime: e.target.value } : prev))}
+                                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">Submission Lock</label>
+                                  <input
+                                    type="datetime-local"
+                                    value={eventEditDraft.submissionLockAt}
+                                    onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, submissionLockAt: e.target.value } : prev))}
+                                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <label className="flex items-center gap-2 text-sm text-[#434651]">
+                                  <input
+                                    type="checkbox"
+                                    checked={eventEditDraft.registrationOpen}
+                                    onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, registrationOpen: e.target.checked } : prev))}
+                                  />
+                                  Submissions Open
+                                </label>
+
+                                <select
+                                  value={eventEditDraft.status}
+                                  onChange={(e) =>
+                                    setEventEditDraft((prev) =>
+                                      prev ? { ...prev, status: e.target.value as InnovationEvent["status"] } : prev
+                                    )
+                                  }
+                                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                                >
+                                  <option value="UPCOMING">UPCOMING</option>
+                                  <option value="ACTIVE">ACTIVE</option>
+                                  <option value="JUDGING">JUDGING</option>
+                                  <option value="CLOSED">CLOSED</option>
+                                </select>
+
+                                <input
+                                  type="file"
+                                  accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
+                                  onChange={(e) =>
+                                    setEventEditDraft((prev) =>
+                                      prev ? { ...prev, pptFile: e.target.files?.[0] ?? null, removePptFile: false } : prev
+                                    )
+                                  }
+                                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                                />
+                              </div>
+
+                              <label className="flex items-center gap-2 text-xs text-[#434651]">
+                                <input
+                                  type="checkbox"
+                                  checked={eventEditDraft.removePptFile}
+                                  onChange={(e) =>
+                                    setEventEditDraft((prev) =>
+                                      prev ? { ...prev, removePptFile: e.target.checked, pptFile: e.target.checked ? null : prev.pptFile } : prev
+                                    )
+                                  }
+                                />
+                                Remove existing event PPT/PDF
+                              </label>
+
+                              <div className="border border-[#e3e2df] bg-white p-3 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-bold text-[#002155]">Problem Statements</p>
+                                  <button
+                                    type="button"
+                                    onClick={addEventEditorProblem}
+                                    className="border border-[#002155] text-[#002155] px-3 py-1 text-xs font-bold uppercase tracking-wider"
+                                  >
+                                    Add Problem
+                                  </button>
+                                </div>
+
+                                {eventEditDraft.problems.map((problem, idx) => (
+                                  <div key={`edit-problem-${problem.id ?? `new-${idx}`}`} className="border border-[#d8d6cf] p-3 bg-[#faf9f5] space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs uppercase tracking-widest text-[#434651]">Problem #{idx + 1}</p>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeEventEditorProblem(idx)}
+                                        className="text-xs font-bold uppercase tracking-wider text-[#ba1a1a]"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+
+                                    <input
+                                      value={problem.title}
+                                      onChange={(e) => updateEventEditorProblem(idx, { title: e.target.value })}
+                                      className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                                      placeholder="Problem title"
+                                    />
+                                    <textarea
+                                      value={problem.description}
+                                      onChange={(e) => updateEventEditorProblem(idx, { description: e.target.value })}
+                                      className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[70px]"
+                                      placeholder="Problem description"
+                                    />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                      <label className="flex items-center gap-2 text-sm text-[#434651]">
+                                        <input
+                                          type="checkbox"
+                                          checked={problem.isIndustryProblem}
+                                          onChange={(e) =>
+                                            updateEventEditorProblem(idx, {
+                                              isIndustryProblem: e.target.checked,
+                                              industryName: e.target.checked ? problem.industryName : "",
+                                            })
+                                          }
+                                        />
+                                        Industry Problem
+                                      </label>
+
+                                      {problem.isIndustryProblem ? (
+                                        <input
+                                          value={problem.industryName}
+                                          onChange={(e) => updateEventEditorProblem(idx, { industryName: e.target.value })}
+                                          className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                                          placeholder="Industry name"
+                                        />
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void saveEventEditor()}
+                                  disabled={eventEditSaving}
+                                  className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                                >
+                                  {eventEditSaving ? "Saving..." : "Save Event Changes"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={closeEventEditor}
+                                  className="border border-[#747782] text-[#434651] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
