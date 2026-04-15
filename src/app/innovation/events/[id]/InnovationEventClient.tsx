@@ -789,13 +789,29 @@ export default function InnovationEventClient({
                   setSelectedProblem(problem);
                   setSelectedProblemIndex(index);
                 }}
-                className="border border-[#c4c6d3] bg-white p-4 text-left hover:border-[#002155] focus:outline-none focus:ring-2 focus:ring-[#002155]"
+                className={`p-4 text-left focus:outline-none focus:ring-2 focus:ring-[#002155] ${
+                  problem.isIndustryProblem
+                    ? 'border border-[#b77a2f] bg-gradient-to-br from-[#fff9ec] via-[#fff5e0] to-[#fdf0d0] shadow-[0_8px_20px_rgba(183,122,47,0.14)] hover:border-[#8c4f00] hover:shadow-[0_12px_24px_rgba(183,122,47,0.2)]'
+                    : 'border border-[#c4c6d3] bg-white hover:border-[#002155]'
+                }`}
               >
-                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">PROBLEM STATEMENT {index + 1}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs uppercase tracking-widest text-[#8c4f00]">PROBLEM STATEMENT {index + 1}</p>
+                  {problem.isIndustryProblem ? (
+                    <span className="inline-flex items-center rounded-full border border-[#8c4f00] bg-[#fff1d6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]">
+                      Premium Industry Track
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm font-bold text-[#002155]">{problem.title}</p>
                 <p className="mt-1 text-xs text-[#434651]">
                   Type: {problem.isIndustryProblem ? `Industry${problem.industryName ? ` (${problem.industryName})` : ''}` : 'Normal'}
                 </p>
+                {problem.isIndustryProblem && problem.industryName ? (
+                  <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-[#8c4f00]">
+                    {problem.industryName} x TCET Collaboration
+                  </p>
+                ) : null}
                 <p className="mt-2 text-xs font-bold uppercase tracking-wider text-[#002155]">Click to view details</p>
               </button>
             ))}
@@ -805,17 +821,35 @@ export default function InnovationEventClient({
 
       {selectedProblem ? (
         <div className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-2xl border border-[#c4c6d3] bg-white p-5">
+          <div
+            className={`w-full max-w-2xl p-5 ${
+              selectedProblem.isIndustryProblem
+                ? 'border border-[#b77a2f] bg-gradient-to-br from-[#fff9ec] via-[#fff7e7] to-[#fff1d6]'
+                : 'border border-[#c4c6d3] bg-white'
+            }`}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-widest text-[#8c4f00]">
-                  PROBLEM STATEMENT {selectedProblemIndex !== null ? selectedProblemIndex + 1 : ""}
-                  {" "}of {problems.length}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs uppercase tracking-widest text-[#8c4f00]">
+                    PROBLEM STATEMENT {selectedProblemIndex !== null ? selectedProblemIndex + 1 : ""}
+                    {" "}of {problems.length}
+                  </p>
+                  {selectedProblem.isIndustryProblem ? (
+                    <span className="inline-flex items-center rounded-full border border-[#8c4f00] bg-[#fff1d6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]">
+                      Premium Industry Track
+                    </span>
+                  ) : null}
+                </div>
                 <h4 className="mt-1 text-xl font-bold text-[#002155]">{selectedProblem.title}</h4>
                 <p className="mt-1 text-xs text-[#434651]">
                   Type: {selectedProblem.isIndustryProblem ? `Industry${selectedProblem.industryName ? ` (${selectedProblem.industryName})` : ''}` : 'Normal'}
                 </p>
+                {selectedProblem.isIndustryProblem && selectedProblem.industryName ? (
+                  <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-[#8c4f00]">
+                    {selectedProblem.industryName} x TCET Collaboration
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
