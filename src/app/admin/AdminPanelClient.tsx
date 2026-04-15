@@ -1464,6 +1464,15 @@ export default function AdminPanelClient({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const handleExportAttendanceCsv = () => {
+    const params = buildAnalyticsQueryParams({
+      search: debouncedAttendanceSearch || undefined,
+    });
+
+    const url = `/api/innovation/admin/analytics/attendance/export?${params.toString()}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const handleMarkTeamAttendance = async (
     team: AttendanceAnalyticsData["items"][number],
     status: "PRESENT" | "NOT_PRESENT"
@@ -5185,6 +5194,12 @@ export default function AdminPanelClient({
                   placeholder="Search team/member/email"
                   className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[280px]"
                 />
+                <button
+                  onClick={handleExportAttendanceCsv}
+                  className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                >
+                  Export Attendance CSV
+                </button>
               </div>
             </div>
 
