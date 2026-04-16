@@ -21,7 +21,20 @@ export async function GET(req: NextRequest) {
       include: {
         problem: {
           include: {
-            event: { select: { id: true, title: true, status: true, startTime: true, endTime: true, totalSessions: true } },
+            event: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                startTime: true,
+                endTime: true,
+                totalSessions: true,
+                sessionUploadLocks: {
+                  orderBy: { session: 'asc' },
+                  select: { session: true, isOpen: true, updatedAt: true },
+                },
+              },
+            },
             createdBy: { select: { id: true, name: true, email: true } },
           },
         },
@@ -53,12 +66,10 @@ export async function GET(req: NextRequest) {
         );
         const totalSessions = claim.problem.event?.totalSessions ?? 1;
         const uploadedSessionSet = new Set(sessionDocuments.map((doc) => doc.session));
-        const missingSessions: number[] = [];
-        for (let session = 1; session <= totalSessions; session += 1) {
-          if (!uploadedSessionSet.has(session)) {
-            missingSessions.push(session);
-          }
-        }
+        const uploadableSessions = claim.problem.event?.status === 'ACTIVE'
+          ? (claim.problem.event.sessionUploadLocks || []).filter((lock) => lock.isOpen).map((lock) => lock.session)
+          : [];
+        const missingSessions = uploadableSessions.filter((session) => !uploadedSessionSet.has(session));
 
         const draftUploaded = Boolean(claim.submissionFileKey || claim.submissionUrl);
 
@@ -71,6 +82,7 @@ export async function GET(req: NextRequest) {
             requiredCount: 1 + totalSessions,
             uploadedCount: (draftUploaded ? 1 : 0) + sessionDocuments.length,
             missingSessions,
+            uploadableSessions,
           },
           technicalDocumentUrl: null,
           pptFileUrl: null,

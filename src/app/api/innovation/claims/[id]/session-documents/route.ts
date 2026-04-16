@@ -34,6 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               select: {
                 id: true,
                 title: true,
+                status: true,
                 totalSessions: true,
                 sessionUploadLocks: {
                   orderBy: { session: 'asc' },
@@ -93,12 +94,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     );
 
     const uploadedSessionSet = new Set(sessionDocuments.map((doc) => doc.session));
-    const missingSessions: number[] = [];
-    for (let session = 1; session <= claim.problem.event.totalSessions; session += 1) {
-      if (!uploadedSessionSet.has(session)) {
-        missingSessions.push(session);
-      }
-    }
+    const allSessions = Array.from({ length: claim.problem.event.totalSessions }, (_, index) => index + 1);
+    const uploadableSessions = canViewAll
+      ? allSessions
+      : claim.problem.event.status === 'ACTIVE'
+        ? claim.problem.event.sessionUploadLocks.filter((lock) => lock.isOpen).map((lock) => lock.session)
+        : [];
+    const missingSessions = uploadableSessions.filter((session) => !uploadedSessionSet.has(session));
 
     const uploadedCount = (claim.submissionFileKey || claim.submissionUrl ? 1 : 0) + sessionDocuments.length;
 
@@ -110,8 +112,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         event: {
           id: claim.problem.event.id,
           title: claim.problem.event.title,
+          status: claim.problem.event.status,
           totalSessions: claim.problem.event.totalSessions,
           sessionUploadLocks: claim.problem.event.sessionUploadLocks,
+          uploadableSessions,
         },
         draftDocument: {
           submissionUrl: claim.submissionUrl,
@@ -178,6 +182,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             event: {
               select: {
                 id: true,
+                status: true,
                 totalSessions: true,
                 sessionUploadLocks: {
                   where: {
@@ -217,6 +222,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (session > claim.problem.event.totalSessions) {
       return errorRes('Invalid session', [`Session must be between 1 and ${claim.problem.event.totalSessions}`], 400);
+    }
+
+    if (claim.problem.event.status !== 'ACTIVE') {
+      return errorRes('Event not open', ['Session document uploads are allowed only after the event is opened'], 403);
     }
 
     const sessionLock = claim.problem.event.sessionUploadLocks[0];
