@@ -2,6 +2,7 @@ import { ClaimStatus, MemberAttendanceStatus, Prisma } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes } from '@/lib/api-helpers';
+import { getSignedUrl } from '@/lib/minio';
 import {
   buildInnovationAnalyticsClaimWhere,
   mapClaimStatusToStage,
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
         id: true,
         teamName: true,
         status: true,
+        submissionFileKey: true,
         updatedAt: true,
         problem: {
           select: {
@@ -115,6 +117,12 @@ export async function GET(req: NextRequest) {
                 uid: true,
               },
             },
+          },
+        },
+        sessionDocuments: {
+          select: {
+            session: true,
+            documentKey: true,
           },
         },
         tickets: {
@@ -158,6 +166,8 @@ export async function GET(req: NextRequest) {
       'Submission Status',
       'Stage',
       'Total Sessions',
+      'Draft Document Uploaded',
+      'Draft Document Link',
       'Member Name',
       'Member Email',
       'Member Phone',
@@ -173,7 +183,14 @@ export async function GET(req: NextRequest) {
       headers.push(`Session ${session} Marked By`);
     }
 
+    for (let session = 1; session <= maxSessions; session += 1) {
+      headers.push(`Session ${session} Document Uploaded`);
+      headers.push(`Session ${session} Document Link`);
+    }
+
     headers.push('Sessions Present Count');
+    headers.push('Documents Uploaded Count');
+    headers.push('Documents Required Count');
     headers.push('Updated At');
 
     const lines: string[] = [];
@@ -181,6 +198,20 @@ export async function GET(req: NextRequest) {
     for (const claim of claims) {
       const totalSessions = claim.problem.event?.totalSessions ?? 1;
       const teamTicket = claim.tickets[0] || null;
+      const sessionDocumentBySession = new Map<number, string>();
+
+      await Promise.all(
+        claim.sessionDocuments.map(async (doc) => {
+          const documentUrl = await getSignedUrl(doc.documentKey).catch(() => '');
+          sessionDocumentBySession.set(doc.session, documentUrl);
+        })
+      );
+
+      const draftDocumentUrl = claim.submissionFileKey
+        ? await getSignedUrl(claim.submissionFileKey).catch(() => '')
+        : '';
+      const documentsUploadedCount = (draftDocumentUrl ? 1 : 0) + claim.sessionDocuments.length;
+      const documentsRequiredCount = 1 + totalSessions;
 
       const attendanceBySession = new Map<number, Map<number, AttendanceRow>>();
       for (const row of teamTicket?.attendanceRecords || []) {
@@ -202,6 +233,8 @@ export async function GET(req: NextRequest) {
           claim.status,
           mapClaimStatusToStage(claim.status as ClaimStatus),
           totalSessions,
+          draftDocumentUrl ? 'YES' : 'NO',
+          draftDocumentUrl,
           member.user.name,
           member.user.email,
           member.user.phone || '',
@@ -232,7 +265,21 @@ export async function GET(req: NextRequest) {
           );
         }
 
+        for (let session = 1; session <= maxSessions; session += 1) {
+          const isOutsideEventSessions = session > totalSessions;
+
+          if (isOutsideEventSessions) {
+            rowValues.push('N/A', '');
+            continue;
+          }
+
+          const sessionDocumentUrl = sessionDocumentBySession.get(session) || '';
+          rowValues.push(sessionDocumentUrl ? 'YES' : 'NO', sessionDocumentUrl);
+        }
+
         rowValues.push(presentSessionCount);
+        rowValues.push(documentsUploadedCount);
+        rowValues.push(documentsRequiredCount);
         rowValues.push(claim.updatedAt.toISOString());
 
         lines.push(rowValues.map(csvEscape).join(','));

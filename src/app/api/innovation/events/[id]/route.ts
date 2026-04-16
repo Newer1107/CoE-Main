@@ -73,7 +73,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof parsed.data.description !== 'undefined') updateData.description = parsed.data.description || null;
     if (typeof parsed.data.startTime !== 'undefined') updateData.startTime = new Date(parsed.data.startTime);
     if (typeof parsed.data.endTime !== 'undefined') updateData.endTime = new Date(parsed.data.endTime);
-    if (typeof parsed.data.submissionLockAt !== 'undefined') updateData.submissionLockAt = new Date(parsed.data.submissionLockAt);
+    if (typeof parsed.data.submissionLockAt !== 'undefined') {
+      updateData.submissionLockAt = parsed.data.submissionLockAt ? new Date(parsed.data.submissionLockAt) : null;
+    }
     if (typeof parsed.data.totalSessions !== 'undefined') updateData.totalSessions = parsed.data.totalSessions;
     if (typeof parsed.data.registrationOpen !== 'undefined') updateData.registrationOpen = parsed.data.registrationOpen;
 
@@ -81,9 +83,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const nextEnd = (updateData.endTime as Date | undefined) ?? event.endTime;
     if (nextEnd <= nextStart) return errorRes('Invalid event timing', ['endTime must be after startTime'], 400);
 
-    const nextSubmissionLock = (updateData.submissionLockAt as Date | undefined) ?? event.submissionLockAt;
+    const hasSubmissionLockUpdate = Object.prototype.hasOwnProperty.call(updateData, 'submissionLockAt');
+    const nextSubmissionLock = hasSubmissionLockUpdate
+      ? (updateData.submissionLockAt as Date | null)
+      : event.submissionLockAt;
     if (nextSubmissionLock && nextSubmissionLock > nextEnd) {
       return errorRes('Invalid submission lock time', ['submissionLockAt must be on or before endTime'], 400);
+    }
+
+    if (typeof parsed.data.totalSessions !== 'undefined' && parsed.data.totalSessions < event.totalSessions) {
+      const higherSessionSubmission = await prisma.sessionDocument.findFirst({
+        where: {
+          session: { gt: parsed.data.totalSessions },
+          claim: {
+            problem: {
+              eventId,
+            },
+          },
+        },
+        select: { id: true, session: true },
+      });
+
+      if (higherSessionSubmission) {
+        return errorRes(
+          'Invalid session reduction',
+          [`Cannot reduce total sessions below ${higherSessionSubmission.session} because documents already exist for higher sessions.`],
+          400,
+        );
+      }
     }
 
     if (typeof parsed.data.status !== 'undefined' && parsed.data.status !== event.status) {
@@ -117,8 +144,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       updateData.pptFileKey = null;
     }
 
-    if (Object.keys(updateData).length > 0) {
-      await prisma.hackathonEvent.update({ where: { id: eventId }, data: updateData });
+    if (Object.keys(updateData).length > 0 || typeof parsed.data.totalSessions !== 'undefined') {
+      await prisma.$transaction(async (tx) => {
+        if (Object.keys(updateData).length > 0) {
+          await tx.hackathonEvent.update({ where: { id: eventId }, data: updateData });
+        }
+
+        const targetTotalSessions = (updateData.totalSessions as number | undefined) ?? event.totalSessions;
+        const existingLocks = await tx.hackathonSessionUploadLock.findMany({
+          where: { eventId },
+          select: { session: true },
+        });
+        const existingSessionSet = new Set(existingLocks.map((row) => row.session));
+
+        const toCreate: Array<{ eventId: number; session: number; isOpen: boolean; updatedByUserId: number }> = [];
+        for (let session = 1; session <= targetTotalSessions; session += 1) {
+          if (!existingSessionSet.has(session)) {
+            toCreate.push({
+              eventId,
+              session,
+              isOpen: false,
+              updatedByUserId: user.id,
+            });
+          }
+        }
+
+        if (toCreate.length > 0) {
+          await tx.hackathonSessionUploadLock.createMany({ data: toCreate });
+        }
+
+        await tx.hackathonSessionUploadLock.deleteMany({
+          where: {
+            eventId,
+            session: { gt: targetTotalSessions },
+          },
+        });
+      });
     }
 
     const updated = await prisma.hackathonEvent.findUnique({
@@ -126,6 +187,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       include: {
         _count: { select: { problems: true } },
         problems: { select: { id: true, title: true, status: true, mode: true } },
+        sessionUploadLocks: {
+          orderBy: { session: 'asc' },
+          select: { session: true, isOpen: true, updatedAt: true },
+        },
       },
     });
 

@@ -127,6 +127,8 @@ model User {
   hackathonInterests HackathonInterest[]
   programsCreated   InnovationProgram[] @relation("ProgramCreator")
   programInterests  ProgramInterest[]
+  uploadedSessionDocuments SessionDocument[] @relation("SessionDocumentUploader")
+  sessionUploadLockUpdates HackathonSessionUploadLock[] @relation("SessionUploadLockUpdater")
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
   attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
   industryId Int?
@@ -206,6 +208,7 @@ model Claim {
   reminderSent      Boolean       @default(false)
   tickets           Ticket[]
   attendanceRecords TicketAttendance[]
+  sessionDocuments  SessionDocument[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -228,6 +231,43 @@ model ClaimMember {
   @@index([claimId])
   @@index([userId])
   @@map("claim_members")
+}
+
+model SessionDocument {
+  id               Int      @id @default(autoincrement())
+  claimId          Int
+  claim            Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  session          Int
+  documentUrl      String?
+  documentKey      String
+  uploadedByUserId Int
+  uploadedBy       User     @relation("SessionDocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: Cascade)
+  uploadedAt       DateTime @default(now())
+
+  @@unique([claimId, session])
+  @@index([claimId])
+  @@index([session])
+  @@index([uploadedAt])
+  @@index([uploadedByUserId])
+  @@map("session_documents")
+}
+
+model HackathonSessionUploadLock {
+  id              Int            @id @default(autoincrement())
+  eventId         Int
+  event           HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  session         Int
+  isOpen          Boolean        @default(false)
+  updatedByUserId Int?
+  updatedBy       User?          @relation("SessionUploadLockUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([eventId, session])
+  @@index([eventId])
+  @@index([session])
+  @@index([updatedByUserId])
+  @@map("hackathon_session_upload_locks")
 }
 
 model StudentProfile {
@@ -307,6 +347,7 @@ model HackathonEvent {
   createdBy   User        @relation("HackathonCreator", fields: [createdById], references: [id], onDelete: Cascade)
   problems    Problem[]
   interests   HackathonInterest[]
+  sessionUploadLocks HackathonSessionUploadLock[]
   pptFileKey  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

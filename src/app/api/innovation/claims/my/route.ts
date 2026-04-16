@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       include: {
         problem: {
           include: {
-            event: { select: { id: true, title: true, status: true, startTime: true, endTime: true } },
+            event: { select: { id: true, title: true, status: true, startTime: true, endTime: true, totalSessions: true } },
             createdBy: { select: { id: true, name: true, email: true } },
           },
         },
@@ -30,18 +30,52 @@ export async function GET(req: NextRequest) {
             user: { select: { id: true, name: true, email: true } },
           },
         },
+        sessionDocuments: {
+          orderBy: { session: 'asc' },
+          select: {
+            session: true,
+            documentKey: true,
+            uploadedAt: true,
+          },
+        },
       },
       orderBy: { updatedAt: 'desc' },
     });
 
     const hackathonPayload = await Promise.all(
-      hackathonClaims.map(async (claim) => ({
-        ...claim,
-        submissionType: 'HACKATHON' as const,
-        submissionFileUrl: claim.submissionFileKey ? await getSignedUrl(claim.submissionFileKey).catch(() => null) : null,
-        technicalDocumentUrl: null,
-        pptFileUrl: null,
-      }))
+      hackathonClaims.map(async (claim) => {
+        const sessionDocuments = await Promise.all(
+          claim.sessionDocuments.map(async (doc) => ({
+            session: doc.session,
+            uploadedAt: doc.uploadedAt,
+            documentFileUrl: await getSignedUrl(doc.documentKey).catch(() => null),
+          }))
+        );
+        const totalSessions = claim.problem.event?.totalSessions ?? 1;
+        const uploadedSessionSet = new Set(sessionDocuments.map((doc) => doc.session));
+        const missingSessions: number[] = [];
+        for (let session = 1; session <= totalSessions; session += 1) {
+          if (!uploadedSessionSet.has(session)) {
+            missingSessions.push(session);
+          }
+        }
+
+        const draftUploaded = Boolean(claim.submissionFileKey || claim.submissionUrl);
+
+        return {
+          ...claim,
+          submissionType: 'HACKATHON' as const,
+          submissionFileUrl: claim.submissionFileKey ? await getSignedUrl(claim.submissionFileKey).catch(() => null) : null,
+          sessionDocuments,
+          documentSummary: {
+            requiredCount: 1 + totalSessions,
+            uploadedCount: (draftUploaded ? 1 : 0) + sessionDocuments.length,
+            missingSessions,
+          },
+          technicalDocumentUrl: null,
+          pptFileUrl: null,
+        };
+      })
     );
 
     return successRes(hackathonPayload, 'My hackathon claims retrieved. For open problem applications, please use /api/innovation/applications/my');

@@ -88,6 +88,12 @@ type InnovationEvent = {
   startTime: string;
   endTime: string;
   submissionLockAt: string | null;
+  totalSessions: number;
+  sessionUploadLocks?: Array<{
+    session: number;
+    isOpen: boolean;
+    updatedAt: string;
+  }>;
   totalInterested: number;
   totalInterestedWithDetails: number;
 };

@@ -170,7 +170,12 @@ type InnovationEvent = {
   startTime: string;
   endTime: string;
   submissionLockAt: string | null;
-  totalSessions?: number;
+  totalSessions: number;
+  sessionUploadLocks?: Array<{
+    session: number;
+    isOpen: boolean;
+    updatedAt: string;
+  }>;
   totalInterested: number;
   totalInterestedWithDetails: number;
   pptFileUrl?: string | null;
@@ -300,7 +305,6 @@ type EventEditDraft = {
   description: string;
   startTime: string;
   endTime: string;
-  submissionLockAt: string;
   totalSessions: number;
   registrationOpen: boolean;
   status: InnovationEvent["status"];
@@ -799,7 +803,6 @@ export default function AdminPanelClient({
   const [eventDescription, setEventDescription] = useState("");
   const [eventStartTime, setEventStartTime] = useState("");
   const [eventEndTime, setEventEndTime] = useState("");
-  const [eventSubmissionLockAt, setEventSubmissionLockAt] = useState("");
   const [eventTotalSessions, setEventTotalSessions] = useState(1);
   const [eventPptFile, setEventPptFile] = useState<File | null>(null);
   const [eventCreating, setEventCreating] = useState(false);
@@ -815,6 +818,7 @@ export default function AdminPanelClient({
   const [eventEditDraft, setEventEditDraft] = useState<EventEditDraft | null>(null);
   const [eventEditLoading, setEventEditLoading] = useState(false);
   const [eventEditSaving, setEventEditSaving] = useState(false);
+  const [sessionLockMutationKey, setSessionLockMutationKey] = useState<string | null>(null);
 
   const [emailSnapshot, setEmailSnapshot] = useState<EmailQueueSnapshot | null>(null);
   const [loadingEmailSnapshot, setLoadingEmailSnapshot] = useState(false);
@@ -2023,7 +2027,6 @@ export default function AdminPanelClient({
       formData.set("description", eventDescription);
       formData.set("startTime", new Date(eventStartTime).toISOString());
       formData.set("endTime", new Date(eventEndTime).toISOString());
-      formData.set("submissionLockAt", new Date(eventSubmissionLockAt).toISOString());
       formData.set("totalSessions", String(eventTotalSessions));
       formData.set("problems", JSON.stringify(problemsPayload));
       if (eventPptFile) {
@@ -2050,7 +2053,6 @@ export default function AdminPanelClient({
       setEventDescription("");
       setEventStartTime("");
       setEventEndTime("");
-      setEventSubmissionLockAt("");
       setEventTotalSessions(1);
       setEventPptFile(null);
       setEventProblems([{ title: "", description: "", isIndustryProblem: false, industryName: "", supportDocumentFile: null }]);
@@ -2085,7 +2087,6 @@ export default function AdminPanelClient({
         description: eventRow.description || "",
         startTime: toDateTimeLocalValue(eventRow.startTime),
         endTime: toDateTimeLocalValue(eventRow.endTime),
-        submissionLockAt: toDateTimeLocalValue(eventRow.submissionLockAt),
         totalSessions: Math.max(1, eventRow.totalSessions ?? 1),
         registrationOpen: eventRow.registrationOpen,
         status: eventRow.status,
@@ -2118,7 +2119,6 @@ export default function AdminPanelClient({
         description: eventRow.description || "",
         startTime: toDateTimeLocalValue(eventRow.startTime),
         endTime: toDateTimeLocalValue(eventRow.endTime),
-        submissionLockAt: toDateTimeLocalValue(eventRow.submissionLockAt),
         totalSessions: Math.max(1, eventRow.totalSessions ?? 1),
         registrationOpen: eventRow.registrationOpen,
         status: eventRow.status,
@@ -2217,8 +2217,8 @@ export default function AdminPanelClient({
       return;
     }
 
-    if (!eventEditDraft.startTime || !eventEditDraft.endTime || !eventEditDraft.submissionLockAt) {
-      setErrorMessage("Start time, end time, and submission lock time are required.");
+    if (!eventEditDraft.startTime || !eventEditDraft.endTime) {
+      setErrorMessage("Start time and end time are required.");
       return;
     }
 
@@ -2232,7 +2232,6 @@ export default function AdminPanelClient({
       formData.set("description", eventEditDraft.description.trim());
       formData.set("startTime", new Date(eventEditDraft.startTime).toISOString());
       formData.set("endTime", new Date(eventEditDraft.endTime).toISOString());
-      formData.set("submissionLockAt", new Date(eventEditDraft.submissionLockAt).toISOString());
       formData.set("totalSessions", String(eventEditDraft.totalSessions));
       formData.set("registrationOpen", String(eventEditDraft.registrationOpen));
       formData.set("status", eventEditDraft.status);
@@ -2333,6 +2332,28 @@ export default function AdminPanelClient({
       setErrorMessage(err instanceof Error ? err.message : "Could not update registration status.");
     } finally {
       setBusyInnovationEventId(null);
+    }
+  };
+
+  const handleToggleSessionUploadLock = async (eventId: number, session: number, isOpen: boolean) => {
+    const mutationKey = `${eventId}:${session}`;
+
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setSessionLockMutationKey(mutationKey);
+
+      await apiCall(`/api/innovation/events/${eventId}/session-upload-locks`, {
+        method: "PATCH",
+        body: JSON.stringify({ session, isOpen }),
+      });
+
+      setStatusMessage(`Session ${session} uploads ${isOpen ? "opened" : "closed"} for event #${eventId}.`);
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not update session upload lock.");
+    } finally {
+      setSessionLockMutationKey(null);
     }
   };
 
@@ -3769,7 +3790,7 @@ export default function AdminPanelClient({
                 placeholder="Event description (optional)"
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Start Time</label>
                   <input
@@ -3787,16 +3808,6 @@ export default function AdminPanelClient({
                     required
                     value={eventEndTime}
                     onChange={(e) => setEventEndTime(e.target.value)}
-                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Submission Lock</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={eventSubmissionLockAt}
-                    onChange={(e) => setEventSubmissionLockAt(e.target.value)}
                     className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                   />
                 </div>
@@ -3820,6 +3831,10 @@ export default function AdminPanelClient({
                   />
                 </div>
               </div>
+
+              <p className="text-xs text-[#434651]">
+                Session document upload windows are controlled after event creation using per-session OPEN/CLOSE toggles.
+              </p>
 
               <div className="border border-[#e3e2df] p-4 bg-[#faf9f5] space-y-4">
                 <div className="flex items-center justify-between">
@@ -3965,9 +3980,7 @@ export default function AdminPanelClient({
                       <p className="mt-1 text-xs text-[#434651]">Submissions: {event.registrationOpen ? "OPEN" : "CLOSED"}</p>
                       <p className="mt-1 text-xs text-[#434651]">Required sessions: {event.totalSessions ?? 1}</p>
                       <p className="mt-1 text-xs text-[#434651]">{formatIstDateTime(event.startTime)} to {formatIstDateTime(event.endTime)}</p>
-                      <p className="mt-1 text-xs text-[#434651]">
-                        Submission lock: {formatIstDateTime(event.submissionLockAt)}
-                      </p>
+                      <p className="mt-1 text-xs text-[#434651]">Session uploads: Admin-controlled (per-session open/close)</p>
                       {event.pptFileUrl ? (
                         <a
                           href={event.pptFileUrl}
@@ -4078,6 +4091,33 @@ export default function AdminPanelClient({
                         </Link>
                       </div>
 
+                      <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">Session Document Upload Locks</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {Array.from({ length: Math.max(1, event.totalSessions ?? 1) }, (_, idx) => {
+                            const session = idx + 1;
+                            const current = event.sessionUploadLocks?.find((row) => row.session === session);
+                            const isOpen = Boolean(current?.isOpen);
+                            const mutationKey = `${event.id}:${session}`;
+
+                            return (
+                              <button
+                                key={`session-lock-${event.id}-${session}`}
+                                onClick={() => void handleToggleSessionUploadLock(event.id, session, !isOpen)}
+                                disabled={sessionLockMutationKey === mutationKey}
+                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                  isOpen
+                                    ? "bg-[#0b6b2e] text-white border-[#0b6b2e]"
+                                    : "bg-white text-[#ba1a1a] border-[#ba1a1a]"
+                                }`}
+                              >
+                                S{session}: {sessionLockMutationKey === mutationKey ? "Saving..." : isOpen ? "OPEN" : "CLOSED"}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {eventEditDraft?.eventId === event.id ? (
                         <div className="mt-4 border border-[#d8d6cf] bg-[#faf9f5] p-4 space-y-4">
                           {eventEditLoading ? (
@@ -4115,7 +4155,7 @@ export default function AdminPanelClient({
                                 placeholder="Event description"
                               />
 
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
                                   <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">Start Time</label>
                                   <input
@@ -4134,16 +4174,11 @@ export default function AdminPanelClient({
                                     className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                                   />
                                 </div>
-                                <div>
-                                  <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">Submission Lock</label>
-                                  <input
-                                    type="datetime-local"
-                                    value={eventEditDraft.submissionLockAt}
-                                    onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, submissionLockAt: e.target.value } : prev))}
-                                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
-                                  />
-                                </div>
                               </div>
+
+                              <p className="text-xs text-[#434651]">
+                                Session upload access is managed from the Session Document Upload Locks panel above.
+                              </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <label className="flex items-center gap-2 text-sm text-[#434651]">

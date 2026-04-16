@@ -22,6 +22,10 @@ export async function GET() {
         _count: { select: { problems: true, interests: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         interests: { select: { hasDetails: true } },
+        sessionUploadLocks: {
+          orderBy: { session: 'asc' },
+          select: { session: true, isOpen: true, updatedAt: true },
+        },
       },
       orderBy: [{ startTime: 'asc' }],
     });
@@ -62,7 +66,8 @@ export async function POST(req: NextRequest) {
     const description = ((formData.get('description') as string) || '').trim();
     const startTime = (formData.get('startTime') as string) || '';
     const endTime = (formData.get('endTime') as string) || '';
-    const submissionLockAt = (formData.get('submissionLockAt') as string) || '';
+    const submissionLockAtRaw = formData.get('submissionLockAt') as string | null;
+    const submissionLockAt = submissionLockAtRaw && submissionLockAtRaw.trim().length > 0 ? submissionLockAtRaw : undefined;
     const totalSessionsRaw = (formData.get('totalSessions') as string) || '1';
     const rawProblems = (formData.get('problems') as string) || '[]';
     const pptFile = formData.get('pptFile') as File | null;
@@ -100,9 +105,9 @@ export async function POST(req: NextRequest) {
 
     const start = new Date(parsed.data.startTime);
     const end = new Date(parsed.data.endTime);
-    const submissionLockDate = new Date(parsed.data.submissionLockAt);
+    const submissionLockDate = parsed.data.submissionLockAt ? new Date(parsed.data.submissionLockAt) : null;
     if (end <= start) return errorRes('Invalid event timing', ['endTime must be after startTime'], 400);
-    if (submissionLockDate > end) {
+    if (submissionLockDate && submissionLockDate > end) {
       return errorRes('Invalid submission lock time', ['submissionLockAt must be on or before endTime'], 400);
     }
 
@@ -117,6 +122,15 @@ export async function POST(req: NextRequest) {
           totalSessions: parsed.data.totalSessions,
           createdById: user.id,
         },
+      });
+
+      await tx.hackathonSessionUploadLock.createMany({
+        data: Array.from({ length: parsed.data.totalSessions }, (_, index) => ({
+          eventId: createdEvent.id,
+          session: index + 1,
+          isOpen: index === 0,
+          updatedByUserId: user.id,
+        })),
       });
 
       const created = [] as Array<{ id: number }>;

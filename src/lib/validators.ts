@@ -243,6 +243,11 @@ export const innovationClaimSubmitSchema = z.object({
   submissionUrl: z.string().url().optional().or(z.literal('')),
 });
 
+export const innovationSessionDocumentUploadSchema = z.object({
+  session: z.coerce.number().int().min(1),
+  documentUrl: z.string().url().optional().or(z.literal('')),
+});
+
 export const innovationClaimReviewSchema = z.object({
   status: z.enum(['ACCEPTED', 'REVISION_REQUESTED', 'REJECTED']),
   score: z.coerce.number().int().min(0).max(100).optional(),
@@ -294,7 +299,7 @@ export const innovationEventCreateSchema = z.object({
   description: z.string().optional().or(z.literal('')),
   startTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid startTime'),
   endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime'),
-  submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt'),
+  submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt').optional(),
   totalSessions: z.coerce.number().int().min(1).max(30).default(1),
   problems: z
     .array(
@@ -330,10 +335,15 @@ export const innovationEventUpdateSchema = z.object({
   description: z.string().optional().or(z.literal('')),
   startTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid startTime').optional(),
   endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime').optional(),
-  submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt').optional(),
+  submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt').optional().or(z.literal('')),
   totalSessions: z.coerce.number().int().min(1).max(30).optional(),
   registrationOpen: z.boolean().optional(),
   status: z.enum(['UPCOMING', 'ACTIVE', 'JUDGING', 'CLOSED']).optional(),
+});
+
+export const innovationSessionUploadLockUpdateSchema = z.object({
+  session: z.coerce.number().int().min(1),
+  isOpen: z.boolean(),
 });
 
 export const innovationEventRegisterSchema = z.object({
