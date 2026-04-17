@@ -113,6 +113,39 @@ type ViewerInterestSummary = {
   teamSize: number | null;
 };
 
+type SessionDocumentRow = {
+  id: number;
+  session: number;
+  documentUrl: string | null;
+  uploadedAt: string;
+  uploadedByUserId: number;
+  documentFileUrl: string | null;
+};
+
+type SessionDocumentResponse = {
+  claimId: number;
+  teamName: string | null;
+  status: string;
+  event: {
+    id: number;
+    title: string;
+    status: 'UPCOMING' | 'ACTIVE' | 'JUDGING' | 'CLOSED';
+    totalSessions: number;
+    uploadableSessions: number[];
+    sessionUploadLocks: Array<{
+      session: number;
+      isOpen: boolean;
+      updatedAt: string;
+    }>;
+  };
+  sessionDocuments: SessionDocumentRow[];
+  summary: {
+    requiredCount: number;
+    uploadedCount: number;
+    missingSessions: number[];
+  };
+};
+
 type InnovationEventClientProps = {
   eventId: number;
   title: string;
@@ -179,6 +212,10 @@ export default function InnovationEventClient({
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [sessionDocumentData, setSessionDocumentData] = useState<SessionDocumentResponse | null>(null);
+  const [sessionDocumentLoading, setSessionDocumentLoading] = useState(false);
+  const [sessionDocumentUploadBusySession, setSessionDocumentUploadBusySession] = useState<number | null>(null);
+  const [sessionDocumentFiles, setSessionDocumentFiles] = useState<Record<number, File | null>>({});
 
   const trackSafe = (eventName: string, params?: Record<string, string | number | boolean>) => {
     try {
@@ -207,6 +244,42 @@ export default function InnovationEventClient({
 
     void loadLeaderboard();
   }, [eventId, status]);
+
+  useEffect(() => {
+    if (!registrationSummary?.claimId || viewerRole !== 'STUDENT') {
+      setSessionDocumentData(null);
+      return;
+    }
+
+    const loadSessionDocumentData = async () => {
+      setSessionDocumentLoading(true);
+
+      try {
+        const res = await fetch(`/api/innovation/claims/${registrationSummary.claimId}/session-documents`, {
+          credentials: 'include',
+        });
+
+        const payload = (await res.json()) as {
+          success: boolean;
+          message: string;
+          data: SessionDocumentResponse;
+        };
+
+        if (!res.ok || !payload.success) {
+          throw new Error(payload.message || 'Could not load session documents');
+        }
+
+        setSessionDocumentData(payload.data);
+      } catch (err) {
+        setSessionDocumentData(null);
+        setErrorMessage(err instanceof Error ? err.message : 'Could not load session documents');
+      } finally {
+        setSessionDocumentLoading(false);
+      }
+    };
+
+    void loadSessionDocumentData();
+  }, [registrationSummary?.claimId, viewerRole]);
 
   useEffect(() => {
     const memberCount = Math.max(teamSize - 1, 0);
@@ -648,6 +721,70 @@ export default function InnovationEventClient({
     }
   };
 
+  const handleSessionDocumentUpload = async (session: number) => {
+    if (!registrationSummary?.claimId) return;
+
+    const file = sessionDocumentFiles[session] || null;
+    if (!file) {
+      const message = `Please select a file for Session ${session}.`;
+      setErrorMessage(message);
+      pushToast(message, 'error');
+      return;
+    }
+
+    setSessionDocumentUploadBusySession(session);
+    setErrorMessage('');
+    setStatusMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.set('session', String(session));
+      formData.set('file', file);
+
+      const res = await fetch(`/api/innovation/claims/${registrationSummary.claimId}/session-documents`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      const payload = (await res.json()) as {
+        success: boolean;
+        message: string;
+      };
+
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.message || `Could not upload Session ${session} document`);
+      }
+
+      setSessionDocumentFiles((prev) => ({
+        ...prev,
+        [session]: null,
+      }));
+
+      setStatusMessage(payload.message || `Session ${session} document uploaded successfully.`);
+      pushToast(`Session ${session} document uploaded`, 'success');
+
+      const refreshRes = await fetch(`/api/innovation/claims/${registrationSummary.claimId}/session-documents`, {
+        credentials: 'include',
+      });
+      const refreshPayload = (await refreshRes.json()) as {
+        success: boolean;
+        message: string;
+        data: SessionDocumentResponse;
+      };
+
+      if (refreshRes.ok && refreshPayload.success) {
+        setSessionDocumentData(refreshPayload.data);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : `Could not upload Session ${session} document`;
+      setErrorMessage(message);
+      pushToast(message, 'error');
+    } finally {
+      setSessionDocumentUploadBusySession(null);
+    }
+  };
+
   return (
     <>
       {statusMessage ? <p className="mb-4 border border-green-300 bg-green-50 text-green-800 px-4 py-3 text-sm">{statusMessage}</p> : null}
@@ -918,6 +1055,83 @@ export default function InnovationEventClient({
             </a>
           ) : (
             <p className="mt-4 text-xs text-[#8c4f00]">PPT/PDF link is currently unavailable.</p>
+          )}
+        </section>
+      ) : null}
+
+      {registrationSummary && viewerRole === 'STUDENT' ? (
+        <section className="mb-8 border border-[#c4c6d3] bg-white p-5">
+          <h3 className="font-headline text-2xl text-[#002155]">Session Documents</h3>
+          <p className="mt-2 text-sm text-[#434651]">
+            Upload one document for each session after admin opens that session window.
+          </p>
+
+          {sessionDocumentLoading ? (
+            <p className="mt-4 text-sm text-[#434651]">Loading session upload status...</p>
+          ) : sessionDocumentData ? (
+            <>
+              <p className="mt-2 text-xs text-[#434651]">
+                Event status: {sessionDocumentData.event.status} | Uploaded: {sessionDocumentData.summary.uploadedCount}/{sessionDocumentData.summary.requiredCount}
+              </p>
+
+              {sessionDocumentData.event.uploadableSessions.length === 0 ? (
+                <p className="mt-3 border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-3 text-sm text-[#434651]">
+                  No session uploads are open right now. Once the event is opened and a session is unlocked by admin, upload appears here.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {sessionDocumentData.event.uploadableSessions.map((session) => {
+                    const uploaded = sessionDocumentData.sessionDocuments.find((doc) => doc.session === session) || null;
+
+                    return (
+                      <article key={`session-upload-${session}`} className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                        <p className="text-xs uppercase tracking-widest text-[#8c4f00]">Session {session}</p>
+
+                        {uploaded ? (
+                          <>
+                            <p className="mt-1 text-sm font-semibold text-[#0b6b2e]">Uploaded</p>
+                            <p className="mt-1 text-xs text-[#434651]">Uploaded at: {formatIstDateTime(uploaded.uploadedAt)}</p>
+                            {uploaded.documentFileUrl ? (
+                              <a
+                                href={uploaded.documentFileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex mt-2 text-xs font-bold uppercase tracking-wider text-[#002155] underline"
+                              >
+                                Open Session {session} Document
+                              </a>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="file"
+                              onChange={(e) =>
+                                setSessionDocumentFiles((prev) => ({
+                                  ...prev,
+                                  [session]: e.target.files?.[0] ?? null,
+                                }))
+                              }
+                              className="mt-2 w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void handleSessionDocumentUpload(session)}
+                              disabled={sessionDocumentUploadBusySession === session}
+                              className="mt-3 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                            >
+                              {sessionDocumentUploadBusySession === session ? 'Uploading...' : `Upload Session ${session} Document`}
+                            </button>
+                          </>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="mt-4 text-sm text-[#434651]">Session document data is not available right now.</p>
           )}
         </section>
       ) : null}

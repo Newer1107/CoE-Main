@@ -4,12 +4,14 @@ import { successRes, errorRes, authenticate, authorize } from '@/lib/api-helpers
 import { dispatchEmail } from '@/lib/email-delivery';
 import { bookingCreateSchema } from '@/lib/validators';
 
-// POST /api/bookings — student creates booking
+// POST /api/bookings — student/faculty creates booking
 export async function POST(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'STUDENT')) return errorRes('Forbidden. Students only.', [], 403);
+    if (!authorize(user, 'STUDENT', 'FACULTY')) {
+      return errorRes('Forbidden.', ['Only students and faculty can create bookings.'], 403);
+    }
 
     const body = await req.json();
     const parsed = bookingCreateSchema.safeParse(body);
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/bookings — not used directly (use /api/bookings/my for students)
+// GET /api/bookings — not used directly (use /api/bookings/my for users)
 export async function GET() {
-  return errorRes('Use /api/bookings/my for student bookings or /api/admin/bookings for admin.', [], 400);
+  return errorRes('Use /api/bookings/my for your bookings or /api/admin/bookings for admin.', [], 400);
 }

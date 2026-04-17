@@ -3,12 +3,12 @@ import prisma from '@/lib/prisma';
 import { successRes, errorRes, authenticate, authorize } from '@/lib/api-helpers';
 import { logActivity } from '@/lib/activity-log';
 
-// DELETE /api/bookings/[id] — student cancels own pending booking
+// DELETE /api/bookings/[id] — student/faculty cancels own pending booking
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'STUDENT')) return errorRes('Forbidden', [], 403);
+    if (!authorize(user, 'STUDENT', 'FACULTY')) return errorRes('Forbidden', [], 403);
 
     const { id } = await params;
     const bookingId = parseInt(id);
