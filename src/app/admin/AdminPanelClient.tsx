@@ -280,6 +280,10 @@ const clampRubricScore = (value: number, max: number) => {
   return Math.round(value);
 };
 
+const getRubricTotalScore = (rubrics: HackathonRubrics) => {
+  return rubricFieldConfig.reduce((sum, field) => sum + rubrics[field.key], 0);
+};
+
 type EventProblemInput = {
   title: string;
   description: string;
@@ -2474,6 +2478,42 @@ export default function AdminPanelClient({
     return judgingRubricsByClaimId[claim.id] ?? getDefaultRubricsForClaim(claim);
   };
 
+  const liveJudgingLeaderboard = useMemo(() => {
+    const rows = filteredManagedSubmissions
+      .filter((claim) => ["SHORTLISTED", "ACCEPTED", "REJECTED"].includes(claim.status))
+      .map((claim) => {
+        const hasDraftRubrics = Boolean(judgingRubricsByClaimId[claim.id]);
+        const draftScore = hasDraftRubrics ? getRubricTotalScore(getJudgingRubrics(claim)) : null;
+        const score = draftScore ?? claim.finalScore;
+
+        return {
+          claimId: claim.id,
+          teamName: claim.teamName || `Team-${claim.id}`,
+          score,
+          updatedAt: claim.updatedAt,
+          hasDraftRubrics,
+          status: claim.status,
+        };
+      })
+      .filter((row): row is {
+        claimId: number;
+        teamName: string;
+        score: number;
+        updatedAt: string;
+        hasDraftRubrics: boolean;
+        status: ManagedHackathonSubmission["status"];
+      } => typeof row.score === "number")
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      });
+
+    return rows.map((row, index) => ({
+      rank: index + 1,
+      ...row,
+    }));
+  }, [filteredManagedSubmissions, judgingRubricsByClaimId, getJudgingRubrics]);
+
   const syncScreeningDecisions = async () => {
     if (managedSubmissionEventFilter === "ALL") {
       setErrorMessage("Select a specific event before syncing screening decisions.");
@@ -4479,85 +4519,116 @@ export default function AdminPanelClient({
                   {judgingSubmissions.length === 0 ? (
                     <p className="border border-dashed border-[#c4c6d3] bg-white p-4 text-sm text-[#434651]">No shortlisted teams waiting for judging.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {judgingSubmissions.map((claim) => {
-                        const rubricDraft = getJudgingRubrics(claim);
-                        const teamLeader = claim.members.find((member) => member.role === "LEAD") ?? claim.members[0] ?? null;
-                        const teamLeaderPhone = teamLeader?.user.phone?.trim() || "Not available";
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+                      <div className="space-y-3">
+                        {judgingSubmissions.map((claim) => {
+                          const rubricDraft = getJudgingRubrics(claim);
+                          const liveFinalScore = getRubricTotalScore(rubricDraft);
+                          const teamLeader = claim.members.find((member) => member.role === "LEAD") ?? claim.members[0] ?? null;
+                          const teamLeaderPhone = teamLeader?.user.phone?.trim() || "Not available";
 
-                        return (
-                          <article key={`judging-${claim.id}`} className="border border-[#c4c6d3] bg-white p-5">
-                            <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
-                            <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
-                            <p className="mt-1 text-xs text-[#434651]">
-                              Team Leader: {teamLeader ? `${teamLeader.user.name} (${teamLeader.user.email})` : "Unknown"} • Contact: {teamLeaderPhone}
-                            </p>
-                            <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
-                            <p className="mt-1 text-xs text-[#434651]">Attendance: {claim.attendanceSummary.presentCount}/{claim.attendanceSummary.totalMembers} present</p>
-                            <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>
-                            <div className="mt-2 flex flex-wrap gap-3">
-                              {claim.submissionUrl ? (
-                                <a href={claim.submissionUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                                  Submission URL
-                                </a>
-                              ) : null}
-                              {claim.submissionFileUrl ? (
-                                <a href={claim.submissionFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
-                                  Submission PPT/PDF
-                                </a>
-                              ) : null}
-                            </div>
-
-                            <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
-                              <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (Score Out Of Weight)</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                {rubricFieldConfig.map((field) => (
-                                  <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
-                                    {field.label} ({field.weight}%)
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={field.weight}
-                                      step={1}
-                                      value={rubricDraft[field.key]}
-                                      onChange={(e) => updateJudgingRubric(claim.id, field.key, Number(e.target.value))}
-                                      className="mt-1 w-full border border-[#c4c6d3] px-2 py-2 text-sm"
-                                    />
-                                  </label>
-                                ))}
+                          return (
+                            <article key={`judging-${claim.id}`} className="border border-[#c4c6d3] bg-white p-5">
+                              <p className="text-sm font-bold text-[#002155]">Claim #{claim.id} • {claim.problem.title}</p>
+                              <p className="mt-1 text-xs text-[#434651]">Team: {claim.teamName || `Team-${claim.id}`}</p>
+                              <p className="mt-1 text-xs text-[#434651]">
+                                Team Leader: {teamLeader ? `${teamLeader.user.name} (${teamLeader.user.email})` : "Unknown"} • Contact: {teamLeaderPhone}
+                              </p>
+                              <p className="mt-1 text-xs text-[#434651]">Members: {claim.members.map((member) => member.user.name).join(", ")}</p>
+                              <p className="mt-1 text-xs text-[#434651]">Attendance: {claim.attendanceSummary.presentCount}/{claim.attendanceSummary.totalMembers} present</p>
+                              <p className="mt-1 text-xs text-[#434651]">Updated: {new Date(claim.updatedAt).toLocaleString()}</p>
+                              <div className="mt-2 flex flex-wrap gap-3">
+                                {claim.submissionUrl ? (
+                                  <a href={claim.submissionUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                                    Submission URL
+                                  </a>
+                                ) : null}
+                                {claim.submissionFileUrl ? (
+                                  <a href={claim.submissionFileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-wider text-[#8c4f00] underline">
+                                    Submission PPT/PDF
+                                  </a>
+                                ) : null}
                               </div>
-                            </div>
 
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <button
-                                onClick={() => stageDecision(claim.id, "ACCEPTED")}
-                                disabled={syncingStage !== null}
-                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
-                                  stagedDecisions[claim.id] === "ACCEPTED"
-                                    ? "bg-[#0b6b2e] text-white border-[#0b6b2e]"
-                                    : "bg-white text-[#0b6b2e] border-[#0b6b2e]"
-                                }`}
-                              >
-                                Final Select
-                              </button>
-                              <button
-                                onClick={() => stageDecision(claim.id, "REJECTED")}
-                                disabled={syncingStage !== null}
-                                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
-                                  stagedDecisions[claim.id] === "REJECTED"
-                                    ? "bg-[#ba1a1a] text-white border-[#ba1a1a]"
-                                    : "bg-white text-[#ba1a1a] border-[#ba1a1a]"
-                                }`}
-                              >
-                                Final Reject
-                              </button>
-                            </div>
-                            <p className="mt-2 text-xs text-[#434651]">
-                              Current staged decision: <span className="font-bold">{stagedDecisions[claim.id] || "Not marked"}</span>
-                            </p>
-                          </article>
-                        );
-                      })}
+                              <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
+                                <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (Score Out Of Weight)</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                  {rubricFieldConfig.map((field) => (
+                                    <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
+                                      {field.label} ({field.weight}%)
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={field.weight}
+                                        step={1}
+                                        value={rubricDraft[field.key]}
+                                        onChange={(e) => updateJudgingRubric(claim.id, field.key, Number(e.target.value))}
+                                        className="mt-1 w-full border border-[#c4c6d3] px-2 py-2 text-sm"
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="mt-3 border border-[#dce9da] bg-[#f4faf2] px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs font-bold uppercase tracking-wider text-[#0b6b2e]">Live Final Marks</p>
+                                <p className="text-sm font-bold text-[#0b6b2e]">{liveFinalScore}/100</p>
+                              </div>
+                              {claim.finalScore !== null ? (
+                                <p className="mt-1 text-xs text-[#434651]">Saved Final Score: {claim.finalScore}</p>
+                              ) : null}
+
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => stageDecision(claim.id, "ACCEPTED")}
+                                  disabled={syncingStage !== null}
+                                  className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                    stagedDecisions[claim.id] === "ACCEPTED"
+                                      ? "bg-[#0b6b2e] text-white border-[#0b6b2e]"
+                                      : "bg-white text-[#0b6b2e] border-[#0b6b2e]"
+                                  }`}
+                                >
+                                  Final Select
+                                </button>
+                                <button
+                                  onClick={() => stageDecision(claim.id, "REJECTED")}
+                                  disabled={syncingStage !== null}
+                                  className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border disabled:opacity-60 ${
+                                    stagedDecisions[claim.id] === "REJECTED"
+                                      ? "bg-[#ba1a1a] text-white border-[#ba1a1a]"
+                                      : "bg-white text-[#ba1a1a] border-[#ba1a1a]"
+                                  }`}
+                                >
+                                  Final Reject
+                                </button>
+                              </div>
+                              <p className="mt-2 text-xs text-[#434651]">
+                                Current staged decision: <span className="font-bold">{stagedDecisions[claim.id] || "Not marked"}</span>
+                              </p>
+                            </article>
+                          );
+                        })}
+                      </div>
+
+                      <aside className="border border-[#c4c6d3] bg-white p-4 xl:sticky xl:top-6">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#002155]">Live Leaderboard</h4>
+                        <p className="mt-1 text-[11px] text-[#434651]">Updates instantly while entering rubric marks.</p>
+                        {liveJudgingLeaderboard.length === 0 ? (
+                          <p className="mt-3 text-sm text-[#434651]">No teams with scores yet.</p>
+                        ) : (
+                          <div className="mt-3 space-y-2">
+                            {liveJudgingLeaderboard.map((row) => (
+                              <div key={`live-leaderboard-${row.claimId}`} className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2">
+                                <p className="text-xs font-bold text-[#002155]">#{row.rank} {row.teamName}</p>
+                                <p className="text-sm font-bold text-[#0b6b2e]">{row.score}/100</p>
+                                <p className="text-[11px] text-[#434651]">
+                                  {row.hasDraftRubrics ? "Draft (unsynced)" : "Saved"} • {row.status}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </aside>
                     </div>
                   )}
                 </div>
