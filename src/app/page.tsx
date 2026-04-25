@@ -203,7 +203,7 @@ export default async function HomePage() {
               {
                 title: "Project Showcase",
                 subtitle: "Display innovations",
-                href: "https://showcase.tcetcercd.in",
+                href: "https://showcase.tcetcercd.in/showcase",
                 image: "/Project Showcase.png",
               },
               {
