@@ -330,6 +330,7 @@ erDiagram
 ### 4.2 Session lifecycle
 
 - Login sets `accessToken` (short-lived) and `refreshToken` (long-lived)
+- Login and refresh also set `coe_shared_token` for cross-subdomain dashboard auth
 - Protected APIs validate token via cookie or bearer token
 - Refresh endpoint rotates access token
 - Logout clears auth cookies

@@ -12,6 +12,7 @@ const parsePositiveInt = (value: string | undefined, fallback: number): number =
 
 export const ACCESS_TOKEN_TTL_SECONDS = parsePositiveInt(process.env.JWT_ACCESS_TTL_SECONDS, 8 * 60 * 60);
 export const REFRESH_TOKEN_TTL_SECONDS = parsePositiveInt(process.env.JWT_REFRESH_TTL_SECONDS, 7 * 24 * 60 * 60);
+export const SHARED_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface TokenPayload {
   id: number;
@@ -22,12 +23,22 @@ export interface TokenPayload {
   industryId?: number | null;
 }
 
+export interface SharedTokenPayload {
+  email: string;
+  role: 'ADMIN' | 'FACULTY' | 'STUDENT' | 'INDUSTRY';
+  status: 'ACTIVE' | 'PENDING' | 'REJECTED';
+}
+
 export const generateAccessToken = (payload: TokenPayload): string => {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
   return jwt.sign(payload, REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_TTL_SECONDS });
+};
+
+export const generateSharedToken = (payload: SharedTokenPayload): string => {
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: SHARED_TOKEN_TTL_SECONDS });
 };
 
 export const verifyAccessToken = (token: string): TokenPayload => {

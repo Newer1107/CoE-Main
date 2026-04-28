@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
-import { ACCESS_TOKEN_TTL_SECONDS, verifyRefreshToken, generateAccessToken, TokenPayload } from '@/lib/jwt';
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  SHARED_TOKEN_TTL_SECONDS,
+  verifyRefreshToken,
+  generateAccessToken,
+  generateSharedToken,
+  TokenPayload,
+} from '@/lib/jwt';
 import prisma from '@/lib/prisma';
+import { buildSharedTokenPayload, getSharedCookieOptions, SHARED_COOKIE_NAME } from '@/lib/shared-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +28,7 @@ export async function POST(req: NextRequest) {
         email: true,
         uid: true,
         industryId: true,
+        status: true,
       },
     });
 
@@ -37,7 +46,9 @@ export async function POST(req: NextRequest) {
     };
 
     const accessToken = generateAccessToken(payload);
+    const sharedToken = generateSharedToken(buildSharedTokenPayload(currentUser));
     const secureCookies = useSecureCookies();
+    const sharedCookieOptions = getSharedCookieOptions();
 
     const response = successRes({ accessToken }, 'Token refreshed successfully.');
     response.cookies.set('accessToken', accessToken, {
@@ -46,6 +57,11 @@ export async function POST(req: NextRequest) {
       sameSite: 'lax',
       maxAge: ACCESS_TOKEN_TTL_SECONDS,
       path: '/',
+    });
+
+    response.cookies.set(SHARED_COOKIE_NAME, sharedToken, {
+      ...sharedCookieOptions,
+      maxAge: SHARED_TOKEN_TTL_SECONDS,
     });
 
     return response;

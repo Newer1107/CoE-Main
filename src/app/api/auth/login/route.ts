@@ -6,10 +6,13 @@ import { loginSchema } from '@/lib/validators';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
+  SHARED_TOKEN_TTL_SECONDS,
   generateAccessToken,
   generateRefreshToken,
+  generateSharedToken,
   TokenPayload,
 } from '@/lib/jwt';
+import { buildSharedTokenPayload, getSharedCookieOptions, SHARED_COOKIE_NAME } from '@/lib/shared-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,7 +68,9 @@ export async function POST(req: NextRequest) {
 
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
+    const sharedToken = generateSharedToken(buildSharedTokenPayload(user));
     const secureCookies = useSecureCookies();
+    const sharedCookieOptions = getSharedCookieOptions();
 
     const response = NextResponse.json({
       success: true,
@@ -98,6 +103,11 @@ export async function POST(req: NextRequest) {
       sameSite: 'lax',
       maxAge: REFRESH_TOKEN_TTL_SECONDS,
       path: '/',
+    });
+
+    response.cookies.set(SHARED_COOKIE_NAME, sharedToken, {
+      ...sharedCookieOptions,
+      maxAge: SHARED_TOKEN_TTL_SECONDS,
     });
 
     return response;
