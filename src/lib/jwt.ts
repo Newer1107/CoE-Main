@@ -25,6 +25,7 @@ export interface TokenPayload {
 
 export interface SharedTokenPayload {
   email: string;
+  name: string;
   role: 'ADMIN' | 'FACULTY' | 'STUDENT' | 'INDUSTRY';
   status: 'ACTIVE' | 'PENDING' | 'REJECTED';
 }
