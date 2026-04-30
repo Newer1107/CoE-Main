@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
 import { trackEvent } from "@/lib/analytics";
+import { DEFAULT_CALLBACK_URL, isValidCallbackUrl } from "@/lib/callback-url";
 
 type ParsedUidDetails = {
   normalizedUid: string;
@@ -20,7 +21,9 @@ export default function LoginPage() {
   const { pushToast } = useToast();
   const hasShownBookingRequiredToast = useRef(false);
   const lastAutoSubmittedOtp = useRef<string | null>(null);
-  const [activeAuthMode, setActiveAuthMode] = useState<"login" | "register-student" | "register-faculty">("login");
+  const [activeAuthMode, setActiveAuthMode] = useState<
+    "login" | "register-student" | "register-faculty"
+  >("login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [registerName, setRegisterName] = useState("");
@@ -93,7 +96,12 @@ export default function LoginPage() {
 
   const getSafeNextPath = () => {
     const next = searchParams.get("next") || "";
-    if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/login")) {
+    if (
+      !next ||
+      !next.startsWith("/") ||
+      next.startsWith("//") ||
+      next.startsWith("/login")
+    ) {
       return null;
     }
     return next;
@@ -116,7 +124,8 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        const reason = res.status >= 500 ? "server_error" : "invalid_credentials";
+        const reason =
+          res.status >= 500 ? "server_error" : "invalid_credentials";
         try {
           trackEvent("login_failed", { reason });
         } catch {
@@ -144,14 +153,10 @@ export default function LoginPage() {
         // analytics must never break auth flow
       }
 
-      const safeNext = getSafeNextPath();
-      const destination = role === "ADMIN"
-        ? "/admin"
-        : role === "FACULTY"
-          ? "/faculty"
-          : role === "INDUSTRY_PARTNER"
-            ? "/innovation/faculty"
-          : safeNext || "/facility-booking";
+      const callbackUrl = searchParams.get("callbackUrl") || "";
+      const destination = isValidCallbackUrl(callbackUrl)
+        ? callbackUrl
+        : DEFAULT_CALLBACK_URL;
 
       // Force a full navigation so server-rendered navbar auth state updates immediately.
       window.location.assign(destination);
@@ -180,9 +185,13 @@ export default function LoginPage() {
     lastAutoSubmittedOtp.current = null;
     setOtpLoading(true);
     try {
-      const targetEmail = verificationEmail || (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
+      const targetEmail =
+        verificationEmail ||
+        (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
       if (!targetEmail) {
-        throw new Error("Email is required to resend OTP. Please login using email once.");
+        throw new Error(
+          "Email is required to resend OTP. Please login using email once.",
+        );
       }
 
       const res = await fetch("/api/auth/resend-otp", {
@@ -195,7 +204,8 @@ export default function LoginPage() {
       setStatus("OTP resent. Please check your inbox.");
       pushToast("OTP resent. Please check your inbox.", "success");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to resend OTP.";
+      const message =
+        err instanceof Error ? err.message : "Failed to resend OTP.";
       setError(message);
       pushToast(message, "error");
     } finally {
@@ -208,9 +218,13 @@ export default function LoginPage() {
     setStatus("");
     setOtpLoading(true);
     try {
-      const targetEmail = verificationEmail || (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
+      const targetEmail =
+        verificationEmail ||
+        (identifier.includes("@") ? identifier.trim().toLowerCase() : "");
       if (!targetEmail) {
-        throw new Error("Email is required for OTP verification. Please login using email once.");
+        throw new Error(
+          "Email is required for OTP verification. Please login using email once.",
+        );
       }
 
       const res = await fetch("/api/auth/verify-otp", {
@@ -225,7 +239,8 @@ export default function LoginPage() {
       setStatus("Email verified. Please login again.");
       pushToast("Email verified. You can login now.", "success");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "OTP verification failed.";
+      const message =
+        err instanceof Error ? err.message : "OTP verification failed.";
       setError(message);
       pushToast(message, "error");
     } finally {
@@ -255,15 +270,20 @@ export default function LoginPage() {
     setUidPreview(null);
     setActiveAuthMode("register-faculty");
     setError("");
-    setStatus("Faculty onboarding requests are audited. Proceed with authentic institutional details only.");
+    setStatus(
+      "Faculty onboarding requests are audited. Proceed with authentic institutional details only.",
+    );
   };
 
   const parseUidForPreview = (rawUid: string): ParsedUidDetails | null => {
     const normalizedUid = rawUid.trim().toUpperCase();
-    const match = normalizedUid.match(/^(\d{2})-([A-Z]+)([A-Z])(\d{2,3})-(\d{2})$/);
+    const match = normalizedUid.match(
+      /^(\d{2})-([A-Z]+)([A-Z])(\d{2,3})-(\d{2})$/,
+    );
     if (!match) return null;
 
-    const [, startYearShort, branchPart, division, rollNo, endYearShort] = match;
+    const [, startYearShort, branchPart, division, rollNo, endYearShort] =
+      match;
 
     return {
       normalizedUid,
@@ -286,7 +306,9 @@ export default function LoginPage() {
       if (activeAuthMode === "register-student") {
         const parsedUid = parseUidForPreview(registerUid);
         if (!parsedUid) {
-          throw new Error("Invalid UID format. Use STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).");
+          throw new Error(
+            "Invalid UID format. Use STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).",
+          );
         }
 
         setRegisterUid(parsedUid.normalizedUid);
@@ -335,7 +357,8 @@ export default function LoginPage() {
         }
       }
 
-      const message = err instanceof Error ? err.message : "Registration failed.";
+      const message =
+        err instanceof Error ? err.message : "Registration failed.";
       setError(message);
       pushToast(message, "error");
     } finally {
@@ -352,42 +375,42 @@ export default function LoginPage() {
     let trackedSignUpFailure = false;
 
     try {
-        const res = await fetch("/api/auth/register/student", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: registerName,
-            email: registerEmail,
-            phone: registerPhone,
-            password: registerPassword,
-            uid: uidPreview.normalizedUid,
-          }),
-        });
+      const res = await fetch("/api/auth/register/student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: registerName,
+          email: registerEmail,
+          phone: registerPhone,
+          password: registerPassword,
+          uid: uidPreview.normalizedUid,
+        }),
+      });
 
-        const data = await res.json();
-        if (!res.ok) {
-          const reason = res.status >= 500 ? "server_error" : "validation";
-          try {
-            trackEvent("sign_up_failed", { reason });
-          } catch {
-            // analytics must never break auth flow
-          }
-          trackedSignUpFailure = true;
-          throw new Error(data?.message || "Student registration failed.");
-        }
-
+      const data = await res.json();
+      if (!res.ok) {
+        const reason = res.status >= 500 ? "server_error" : "validation";
         try {
-          trackEvent("sign_up", { method: "email", role: "STUDENT" });
+          trackEvent("sign_up_failed", { reason });
         } catch {
           // analytics must never break auth flow
         }
+        trackedSignUpFailure = true;
+        throw new Error(data?.message || "Student registration failed.");
+      }
 
-        setVerificationEmail(registerEmail.trim().toLowerCase());
-        setNeedsOtp(true);
-        setUidPreview(null);
-        setStatus("Student registration successful. Verify your email with OTP.");
-        pushToast("Registration successful. OTP sent to your email.", "success");
-        setActiveAuthMode("login");
+      try {
+        trackEvent("sign_up", { method: "email", role: "STUDENT" });
+      } catch {
+        // analytics must never break auth flow
+      }
+
+      setVerificationEmail(registerEmail.trim().toLowerCase());
+      setNeedsOtp(true);
+      setUidPreview(null);
+      setStatus("Student registration successful. Verify your email with OTP.");
+      pushToast("Registration successful. OTP sent to your email.", "success");
+      setActiveAuthMode("login");
       setRegisterName("");
       setRegisterEmail("");
       setRegisterPhone("");
@@ -402,7 +425,8 @@ export default function LoginPage() {
         }
       }
 
-      const message = err instanceof Error ? err.message : "Registration failed.";
+      const message =
+        err instanceof Error ? err.message : "Registration failed.";
       setError(message);
       pushToast(message, "error");
     } finally {
@@ -414,18 +438,30 @@ export default function LoginPage() {
     <main className="min-h-screen pt-[120px] pb-16 px-4 md:px-8">
       <section className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5 bg-[#002155] text-white p-8 md:p-10 border border-[#0b2a5a] relative overflow-hidden">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at top, #ffffff 0%, transparent 55%)" }} />
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at top, #ffffff 0%, transparent 55%)",
+            }}
+          />
           <div className="relative z-10 space-y-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[#fd9923]">Secure Access</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-[#fd9923]">
+              Secure Access
+            </p>
             <h1 className="font-headline text-4xl md:text-[44px] leading-tight">
               Login to the
               <span className="block text-[#fd9923]">Center of Excellence</span>
             </h1>
             <p className="text-sm text-white/80 font-body leading-relaxed">
-              Established with a vision to bridge the gap between academic theory and industrial application, the TCET Center of Excellence (CoE) stands as a testament to institutional persistence.
+              Established with a vision to bridge the gap between academic
+              theory and industrial application, the TCET Center of Excellence
+              (CoE) stands as a testament to institutional persistence.
             </p>
             <div className="border-t border-white/20 pt-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70">Need an account?</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/70">
+                Need an account?
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -443,17 +479,24 @@ export default function LoginPage() {
         </div>
 
         <div className="lg:col-span-7 bg-white border border-[#c4c6d3] p-6 md:p-10">
-          <h2 className="font-headline text-2xl md:text-3xl text-[#002155]">Account Login</h2>
+          <h2 className="font-headline text-2xl md:text-3xl text-[#002155]">
+            Account Login
+          </h2>
           <p className="mt-2 text-sm text-[#434651] font-body">
-            Sign in with your @tcetmumbai.in email address or your UID. UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).
+            Sign in with your @tcetmumbai.in email address or your UID. UID
+            format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example:
+            24-COMPD13-28).
           </p>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setActiveAuthMode("login")}
-              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "login" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
-                }`}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                activeAuthMode === "login"
+                  ? "bg-[#002155] text-white border-[#002155]"
+                  : "bg-white text-[#002155] border-[#c4c6d3]"
+              }`}
             >
               Login
             </button>
@@ -463,28 +506,44 @@ export default function LoginPage() {
                 setUidPreview(null);
                 setActiveAuthMode("register-student");
               }}
-              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "register-student" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
-                }`}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                activeAuthMode === "register-student"
+                  ? "bg-[#002155] text-white border-[#002155]"
+                  : "bg-white text-[#002155] border-[#c4c6d3]"
+              }`}
             >
               Register Student
             </button>
             <button
               type="button"
               onClick={openFacultyWarningModal}
-              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${activeAuthMode === "register-faculty" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"
-                }`}
+              className={`border px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                activeAuthMode === "register-faculty"
+                  ? "bg-[#002155] text-white border-[#002155]"
+                  : "bg-white text-[#002155] border-[#c4c6d3]"
+              }`}
             >
               Register Faculty
             </button>
           </div>
 
-          {error ? <p className="mt-4 border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">{error}</p> : null}
-          {status ? <p className="mt-4 border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm">{status}</p> : null}
+          {error ? (
+            <p className="mt-4 border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+              {error}
+            </p>
+          ) : null}
+          {status ? (
+            <p className="mt-4 border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm">
+              {status}
+            </p>
+          ) : null}
 
           {activeAuthMode === "login" ? (
             <form className="mt-6 space-y-5" onSubmit={handleLogin}>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Email or UID</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                  Email or UID
+                </label>
                 <input
                   type="text"
                   required
@@ -493,10 +552,14 @@ export default function LoginPage() {
                   placeholder="name@tcetmumbai.in or 24-COMPD13-28"
                   className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
                 />
-                <p className="text-[11px] text-[#434651]">UID format example: 24-COMPD13-28</p>
+                <p className="text-[11px] text-[#434651]">
+                  UID format example: 24-COMPD13-28
+                </p>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Password</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                  Password
+                </label>
                 <input
                   type="password"
                   required
@@ -505,7 +568,10 @@ export default function LoginPage() {
                   className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
                 />
                 <div className="pt-1 text-right">
-                  <Link href="/forgot-password" className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]">
+                  <Link
+                    href="/forgot-password"
+                    className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]"
+                  >
                     Forgot Password?
                   </Link>
                 </div>
@@ -522,7 +588,9 @@ export default function LoginPage() {
             <form className="mt-6 space-y-5" onSubmit={handleRegister}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Full Name</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                    Full Name
+                  </label>
                   <input
                     type="text"
                     required
@@ -532,7 +600,9 @@ export default function LoginPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Institutional Email</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                    Institutional Email
+                  </label>
                   <input
                     type="email"
                     required
@@ -543,7 +613,9 @@ export default function LoginPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Phone</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                    Phone
+                  </label>
                   <input
                     type="text"
                     required
@@ -554,7 +626,9 @@ export default function LoginPage() {
                 </div>
                 {activeAuthMode === "register-student" ? (
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Student UID</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                      Student UID
+                    </label>
                     <input
                       type="text"
                       required
@@ -563,16 +637,22 @@ export default function LoginPage() {
                       placeholder="24-COMPD13-28"
                       className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
                     />
-                    <p className="text-[11px] text-[#434651]">UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR</p>
+                    <p className="text-[11px] text-[#434651]">
+                      UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR
+                    </p>
                   </div>
                 ) : null}
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">Password</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                    Password
+                  </label>
                   <input
                     type="password"
                     required
                     value={registerPassword}
-                    onChange={(event) => setRegisterPassword(event.target.value)}
+                    onChange={(event) =>
+                      setRegisterPassword(event.target.value)
+                    }
                     className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
                   />
                 </div>
@@ -591,13 +671,15 @@ export default function LoginPage() {
               </button>
             </form>
           )}
-
         </div>
       </section>
 
       {showFacultyWarningModal ? (
         <div className="fixed inset-0 z-[95] flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-[#120000]/70" onClick={() => setShowFacultyWarningModal(false)} />
+          <div
+            className="absolute inset-0 bg-[#120000]/70"
+            onClick={() => setShowFacultyWarningModal(false)}
+          />
           <section
             role="dialog"
             aria-modal="true"
@@ -605,20 +687,29 @@ export default function LoginPage() {
             className="relative w-full max-w-2xl overflow-hidden border border-red-300 bg-[#fff8f8] shadow-2xl"
           >
             <div className="border-b border-red-300 bg-[#7a0000] px-6 py-4 text-white">
-              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#ffd4d4]">Restricted Pathway</p>
-              <h3 className="mt-1 font-headline text-2xl leading-tight">Faculty Registration Compliance Notice</h3>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#ffd4d4]">
+                Restricted Pathway
+              </p>
+              <h3 className="mt-1 font-headline text-2xl leading-tight">
+                Faculty Registration Compliance Notice
+              </h3>
             </div>
 
             <div className="space-y-4 px-6 py-6 text-sm leading-relaxed text-[#3d0a0a]">
               <p>
-                This action initiates a monitored institutional onboarding request. Submission metadata is audit-tracked across account identity,
-                request timestamp, and system access records for compliance review.
+                This action initiates a monitored institutional onboarding
+                request. Submission metadata is audit-tracked across account
+                identity, request timestamp, and system access records for
+                compliance review.
               </p>
               <p className="font-bold text-[#8b0000]">
-                Unauthorized or misleading faculty claims are treated as policy violations and are liable for administrative escalation.
+                Unauthorized or misleading faculty claims are treated as policy
+                violations and are liable for administrative escalation.
               </p>
               <p>
-                Proceed only if you are an officially appointed faculty member and are registering with your own valid institutional credentials.
+                Proceed only if you are an officially appointed faculty member
+                and are registering with your own valid institutional
+                credentials.
               </p>
             </div>
 
@@ -644,26 +735,64 @@ export default function LoginPage() {
 
       {uidPreview ? (
         <div className="fixed inset-0 z-[98] flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-[#00122f]/60" onClick={() => setUidPreview(null)} />
+          <div
+            className="absolute inset-0 bg-[#00122f]/60"
+            onClick={() => setUidPreview(null)}
+          />
           <section
             role="dialog"
             aria-modal="true"
             aria-label="Confirm student UID"
             className="relative w-full max-w-lg border border-[#c4c6d3] bg-white p-6 md:p-7 shadow-2xl"
           >
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">Verify UID Details</p>
-            <h3 className="mt-1 font-headline text-2xl text-[#002155]">Confirm Before Sending OTP</h3>
-            <p className="mt-3 text-sm text-[#434651]">Please verify the extracted details from your UID.</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">
+              Verify UID Details
+            </p>
+            <h3 className="mt-1 font-headline text-2xl text-[#002155]">
+              Confirm Before Sending OTP
+            </h3>
+            <p className="mt-3 text-sm text-[#434651]">
+              Please verify the extracted details from your UID.
+            </p>
 
             <div className="mt-4 rounded border border-[#d9dbe5] bg-[#f8f9fc] p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#747782]">Normalized UID</p>
-              <p className="mt-1 text-sm font-bold text-[#002155]">{uidPreview.normalizedUid}</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-[#747782]">
+                Normalized UID
+              </p>
+              <p className="mt-1 text-sm font-bold text-[#002155]">
+                {uidPreview.normalizedUid}
+              </p>
               <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                <p><span className="text-[#747782]">Start Year:</span> <span className="font-bold text-[#002155]">{uidPreview.startYear}</span></p>
-                <p><span className="text-[#747782]">End Year:</span> <span className="font-bold text-[#002155]">{uidPreview.endYear}</span></p>
-                <p><span className="text-[#747782]">Branch:</span> <span className="font-bold text-[#002155]">{uidPreview.branch}</span></p>
-                <p><span className="text-[#747782]">Division:</span> <span className="font-bold text-[#002155]">{uidPreview.division}</span></p>
-                <p className="sm:col-span-2"><span className="text-[#747782]">Roll No:</span> <span className="font-bold text-[#002155]">{uidPreview.rollNo}</span></p>
+                <p>
+                  <span className="text-[#747782]">Start Year:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.startYear}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-[#747782]">End Year:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.endYear}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-[#747782]">Branch:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.branch}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-[#747782]">Division:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.division}
+                  </span>
+                </p>
+                <p className="sm:col-span-2">
+                  <span className="text-[#747782]">Roll No:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.rollNo}
+                  </span>
+                </p>
               </div>
             </div>
 
@@ -690,7 +819,10 @@ export default function LoginPage() {
 
       {needsOtp ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-[#00122f]/60" onClick={closeOtpModal} />
+          <div
+            className="absolute inset-0 bg-[#00122f]/60"
+            onClick={closeOtpModal}
+          />
           <section
             role="dialog"
             aria-modal="true"
@@ -699,8 +831,12 @@ export default function LoginPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">Action Required</p>
-                <h3 className="mt-1 font-headline text-2xl text-[#002155]">Verify Your Email</h3>
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">
+                  Action Required
+                </p>
+                <h3 className="mt-1 font-headline text-2xl text-[#002155]">
+                  Verify Your Email
+                </h3>
               </div>
               <button
                 type="button"
@@ -713,7 +849,11 @@ export default function LoginPage() {
 
             <p className="mt-3 text-sm text-[#434651]">
               Enter the 6-digit OTP sent to
-              <span className="font-bold text-[#002155]"> {verificationEmail || "your registered email"}</span>.
+              <span className="font-bold text-[#002155]">
+                {" "}
+                {verificationEmail || "your registered email"}
+              </span>
+              .
             </p>
 
             <form className="mt-5 space-y-4" onSubmit={handleVerifyOtp}>
@@ -722,7 +862,9 @@ export default function LoginPage() {
                 maxLength={6}
                 required
                 value={otp}
-                onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(event) =>
+                  setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
                 placeholder="6-digit OTP"
                 className="w-full border border-[#747782] p-3 text-center text-lg tracking-[0.35em] font-bold outline-none focus:border-[#002155]"
               />
