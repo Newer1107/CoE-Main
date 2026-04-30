@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -88,6 +89,7 @@ const formatIstDateTime = (value: string) => {
 };
 
 export default function FacultyPortalClient() {
+  const { pushToast } = useToast();
   const [activeTab, setActiveTab] = useState<"news" | "events" | "grants" | "announcements">("news");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -121,6 +123,14 @@ export default function FacultyPortalClient() {
   const [announcementLink, setAnnouncementLink] = useState("");
   const [announcementExpiresAt, setAnnouncementExpiresAt] = useState("");
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "news" | "event" | "grant";
+    id: number;
+  } | null>(null);
+
   const loadAll = async () => {
     setErrorMessage("");
     try {
@@ -147,12 +157,21 @@ export default function FacultyPortalClient() {
     setBusy(true);
     setErrorMessage("");
     setStatusMessage("");
+
     try {
       await action();
       await loadAll();
-      setStatusMessage(successMessage);
+
+      // SUCCESS TOAST
+      pushToast(successMessage, "success");
+
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Action failed.");
+      const message = err instanceof Error ? err.message : "Action failed.";
+
+      // ERROR TOAST
+      pushToast(message, "error");
+
+      setErrorMessage(message); // optional (can remove later)
     } finally {
       setBusy(false);
     }
@@ -173,6 +192,14 @@ export default function FacultyPortalClient() {
       setNewsCaption("");
       setNewsImage(null);
     }, "News post created.");
+  };
+
+  const deleteNews = async (id: number) => {
+    await runAction(async () => {
+      await fetchJson<unknown>(`/api/news/${id}`, {
+        method: "DELETE",
+      });
+    }, "News deleted successfully.");
   };
 
   const submitEvent = async (e: React.FormEvent) => {
@@ -196,6 +223,14 @@ export default function FacultyPortalClient() {
       setEventRegistrationLink("");
       setEventPoster(null);
     }, "Event created.");
+  };
+
+  const deleteEvent = async (id: number) => {
+    await runAction(async () => {
+      await fetchJson<unknown>(`/api/events/${id}`, {
+        method: "DELETE",
+      });
+    }, "Event deleted successfully.");
   };
 
   const submitGrant = async (e: React.FormEvent) => {
@@ -223,6 +258,14 @@ export default function FacultyPortalClient() {
     }, "Grant created.");
   };
 
+  const deleteGrant = async (id: number) => {
+    await runAction(async () => {
+      await fetchJson<unknown>(`/api/grants/${id}`, {
+        method: "DELETE",
+      });
+    }, "Grant deleted successfully.");
+  };
+
   const submitAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     await runAction(async () => {
@@ -246,9 +289,21 @@ export default function FacultyPortalClient() {
       return (
         <div className="space-y-3">
           {newsList.map((item) => (
-            <article key={item.id} className="border border-[#c4c6d3] bg-white p-4">
-              <p className="font-bold text-[#002155]">{item.title}</p>
-              <p className="text-sm text-[#434651] mt-1">{item.caption}</p>
+            <article key={item.id} className="border border-[#c4c6d3] bg-white p-4 flex justify-between items-start">
+              <div>
+                <p className="font-bold text-[#002155]">{item.title}</p>
+                <p className="text-sm text-[#434651] mt-1">{item.caption}</p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setDeleteTarget({ type: "news", id: item.id });
+                  setConfirmOpen(true);
+                }}
+                className="ml-4 bg-red-600 text-white px-3 py-1 text-xs font-bold uppercase hover:bg-red-700"
+              >
+                Delete
+              </button>
             </article>
           ))}
           {newsList.length === 0 ? <p className="text-sm text-[#434651]">No news posts yet.</p> : null}
@@ -260,10 +315,24 @@ export default function FacultyPortalClient() {
       return (
         <div className="space-y-3">
           {eventList.map((item) => (
-            <article key={item.id} className="border border-[#c4c6d3] bg-white p-4">
-              <p className="font-bold text-[#002155]">{item.title}</p>
-              <p className="text-xs text-[#434651] mt-1">{formatIstDateTime(item.date)} • {item.mode}</p>
-              <p className="text-sm text-[#434651] mt-2">{item.description}</p>
+            <article key={item.id} className="border border-[#c4c6d3] bg-white p-4 flex justify-between items-start">
+              <div>
+                <p className="font-bold text-[#002155]">{item.title}</p>
+                <p className="text-xs text-[#434651] mt-1">
+                  {formatIstDateTime(item.date)} • {item.mode}
+                </p>
+                <p className="text-sm text-[#434651] mt-2">{item.description}</p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setDeleteTarget({ type: "event", id: item.id });
+                  setConfirmOpen(true);
+                }}
+                className="ml-4 bg-red-600 text-white px-3 py-1 text-xs font-bold uppercase hover:bg-red-700"
+              >
+                Delete
+              </button>
             </article>
           ))}
           {eventList.length === 0 ? <p className="text-sm text-[#434651]">No events found.</p> : null}
@@ -275,10 +344,24 @@ export default function FacultyPortalClient() {
       return (
         <div className="space-y-3">
           {grantList.map((item) => (
-            <article key={item.id} className="border border-[#c4c6d3] bg-white p-4">
-              <p className="font-bold text-[#002155]">{item.title}</p>
-              <p className="text-xs text-[#434651] mt-1">{item.issuingBody} • {item.category}</p>
-              <p className="text-sm text-[#434651] mt-2">{item.description}</p>
+            <article key={item.id} className="border border-[#c4c6d3] bg-white p-4 flex justify-between items-start">
+              <div>
+                <p className="font-bold text-[#002155]">{item.title}</p>
+                <p className="text-xs text-[#434651] mt-1">
+                  {item.issuingBody} • {item.category}
+                </p>
+                <p className="text-sm text-[#434651] mt-2">{item.description}</p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setDeleteTarget({ type: "grant", id: item.id });
+                  setConfirmOpen(true);
+                }}
+                className="ml-4 bg-red-600 text-white px-3 py-1 text-xs font-bold uppercase hover:bg-red-700"
+              >
+                Delete
+              </button>
             </article>
           ))}
           {grantList.length === 0 ? <p className="text-sm text-[#434651]">No active grants found.</p> : null}
@@ -310,8 +393,6 @@ export default function FacultyPortalClient() {
         </p>
       </header>
 
-      {statusMessage ? <p className="mb-4 border border-green-300 bg-green-50 text-green-800 px-4 py-3 text-sm">{statusMessage}</p> : null}
-      {errorMessage ? <p className="mb-4 border border-red-300 bg-red-50 text-red-700 px-4 py-3 text-sm">{errorMessage}</p> : null}
 
       <section className="mb-8 flex flex-wrap gap-2">
         <button className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === "news" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"}`} onClick={() => setActiveTab("news")}>News</button>
@@ -380,6 +461,62 @@ export default function FacultyPortalClient() {
           {renderList()}
         </div>
       </section>
+      {confirmOpen && deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 w-[90%] max-w-md border border-[#c4c6d3]">
+            <h3 className="text-lg font-bold text-[#002155] mb-3">
+              Confirm Deletion
+            </h3>
+
+            <p className="text-sm text-[#434651] mb-6">
+              Are you sure you want to delete this {deleteTarget.type}? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                disabled={isDeleting}
+                onClick={() => {
+                  setConfirmOpen(false);
+                  setDeleteTarget(null);
+                }}
+                className="px-4 py-2 border border-[#c4c6d3] text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                disabled={isDeleting}
+                onClick={async () => {
+                  if (!deleteTarget) return;
+
+                  try {
+                    setIsDeleting(true);
+
+                    if (deleteTarget.type === "news") {
+                      await deleteNews(deleteTarget.id);
+                    } else if (deleteTarget.type === "event") {
+                      await deleteEvent(deleteTarget.id);
+                    } else if (deleteTarget.type === "grant") {
+                      await deleteGrant(deleteTarget.id);
+                    }
+
+                    setConfirmOpen(false);
+                    setDeleteTarget(null);
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                className={`px-4 py-2 text-sm font-bold ${isDeleting
+                  ? "bg-red-400 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700"
+                  } text-white`}
+              >
+                {isDeleting ? "DELETING..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
