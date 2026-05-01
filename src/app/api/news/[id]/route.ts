@@ -28,12 +28,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-// DELETE /api/news/[id] — admin only
+// DELETE /api/news/[id] — faculty/admin
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden. Admin only.', [], 403);
+    if (!authorize(user, 'ADMIN', 'FACULTY')) return errorRes('Forbidden', [], 403);
 
     const { id } = await params;
     const post = await prisma.newsPost.findUnique({ where: { id: parseInt(id) } });
