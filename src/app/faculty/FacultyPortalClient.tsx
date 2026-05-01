@@ -505,20 +505,17 @@ export default function FacultyPortalClient() {
                   try {
                     setIsDeleting(true);
 
-                    let deleteSucceeded = false;
-
                     if (deleteTarget.type === "news") {
-                      deleteSucceeded = (await deleteNews(deleteTarget.id)) !== false;
+                      await deleteNews(deleteTarget.id);
                     } else if (deleteTarget.type === "event") {
-                      deleteSucceeded = (await deleteEvent(deleteTarget.id)) !== false;
+                      await deleteEvent(deleteTarget.id);
                     } else if (deleteTarget.type === "grant") {
-                      deleteSucceeded = (await deleteGrant(deleteTarget.id)) !== false;
+                      await deleteGrant(deleteTarget.id);
                     }
 
-                    if (deleteSucceeded) {
-                      setConfirmOpen(false);
-                      setDeleteTarget(null);
-                    }
+                    // success = no error thrown
+                    setConfirmOpen(false);
+                    setDeleteTarget(null);
                   } finally {
                     setIsDeleting(false);
                   }
