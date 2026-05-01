@@ -462,9 +462,22 @@ export default function FacultyPortalClient() {
         </div>
       </section>
       {confirmOpen && deleteTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 w-[90%] max-w-md border border-[#c4c6d3]">
-            <h3 className="text-lg font-bold text-[#002155] mb-3">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => {
+            if (isDeleting) return;
+            setConfirmOpen(false);
+            setDeleteTarget(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirmation-title"
+            className="bg-white p-6 w-[90%] max-w-md border border-[#c4c6d3]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="delete-confirmation-title" className="text-lg font-bold text-[#002155] mb-3">
               Confirm Deletion
             </h3>
 
