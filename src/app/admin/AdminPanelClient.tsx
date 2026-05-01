@@ -3405,7 +3405,7 @@ export default function AdminPanelClient({
                 {attendedCompletedBookings.length === 0 ? (
                   <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No completed booking has been checked in yet.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
                     {attendedCompletedBookings.map((booking) => (
                       <article key={`attended-booking-${booking.id}`} className="border border-green-200 bg-green-50 p-3">
                         <p className="text-sm font-bold text-[#002155]">
@@ -3432,7 +3432,7 @@ export default function AdminPanelClient({
                 {unattendedCompletedBookings.length === 0 ? (
                   <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Everyone from completed bookings has attendance marked.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
                     {unattendedCompletedBookings.map((booking) => (
                       <article key={`absent-booking-${booking.id}`} className="border border-red-200 bg-red-50 p-3">
                         <p className="text-sm font-bold text-[#002155]">
@@ -3452,59 +3452,88 @@ export default function AdminPanelClient({
         )}
       </section>
 
-      <section className="mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-headline text-2xl text-[#002155]">Pending Bookings</h2>
-          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
-            {pendingBookings.length} requests
-          </span>
-        </div>
+<section className="mb-10">
+  {/* HEADER */}
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="font-headline text-2xl text-[#002155]">
+      Pending Bookings
+    </h2>
+    <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+      {pendingBookings.length} requests
+    </span>
+  </div>
 
-        {pendingBookings.length === 0 ? (
-          <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No pending bookings.</p>
-        ) : (
-          <div className="space-y-4">
-            {pendingBookings.map((booking) => (
-              <article key={booking.id} className="border border-[#c4c6d3] bg-white p-5">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-bold text-[#002155]">
-                      #{booking.id} • {booking.lab} • {new Date(booking.date).toLocaleDateString()} • {booking.timeSlot}
-                    </p>
-                    <p className="mt-1 text-sm text-[#434651]">{booking.purpose}</p>
-                    <p className="mt-2 text-xs text-[#434651]">
-                      Student: {booking.student.name} ({booking.student.email})
-                    </p>
-                    <p className="mt-1 text-xs text-[#434651]">UID: {booking.student.uid || "Not provided"}</p>
-                    {booking.facilities?.length ? (
-                      <p className="mt-1 text-xs text-[#434651]">
-                        Facilities: {booking.facilities.join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
+  {pendingBookings.length === 0 ? (
+    <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">
+      No pending bookings.
+    </p>
+  ) : (
+    <div className="border border-[#c4c6d3] bg-[#f8f9fc] rounded-sm">
+      
+      {/* SCROLLABLE AREA */}
+      <div className="max-h-[480px] overflow-y-auto p-3 space-y-3">
 
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleConfirmBooking(booking.id)}
-                      disabled={busyBookingId === booking.id}
-                      className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:bg-opacity-50"
-                    >
-                      {busyBookingId === booking.id ? "Working..." : "Confirm"}
-                    </button>
-                    <button
-                      onClick={() => handleRejectBooking(booking.id)}
-                      disabled={busyBookingId === booking.id}
-                      className="border border-[#ba1a1a] text-[#ba1a1a] px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+        {pendingBookings.map((booking) => (
+          <article
+            key={booking.id}
+            className="border border-[#c4c6d3] bg-white p-5 hover:bg-[#fafafa]"
+          >
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              
+              {/* LEFT CONTENT */}
+              <div>
+                <p className="text-sm font-bold text-[#002155]">
+                  #{booking.id} • {booking.lab} •{" "}
+                  {new Date(booking.date).toLocaleDateString()} •{" "}
+                  {booking.timeSlot}
+                </p>
+
+                <p className="mt-1 text-sm text-[#434651]">
+                  {booking.purpose}
+                </p>
+
+                <p className="mt-2 text-xs text-[#434651]">
+                  Student: {booking.student.name} ({booking.student.email})
+                </p>
+
+                <p className="mt-1 text-xs text-[#434651]">
+                  UID: {booking.student.uid || "Not provided"}
+                </p>
+
+                {booking.facilities?.length ? (
+                  <p className="mt-1 text-xs text-[#434651]">
+                    Facilities: {booking.facilities.join(", ")}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleConfirmBooking(booking.id)}
+                  disabled={busyBookingId === booking.id}
+                  className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:bg-opacity-50"
+                >
+                  {busyBookingId === booking.id ? "Working..." : "Confirm"}
+                </button>
+
+                <button
+                  onClick={() => handleRejectBooking(booking.id)}
+                  disabled={busyBookingId === booking.id}
+                  className="border border-[#ba1a1a] text-[#ba1a1a] px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                >
+                  Reject
+                </button>
+              </div>
+
+            </div>
+          </article>
+        ))}
+
+      </div>
+    </div>
+  )}
+</section>
 
       </>
 
@@ -3565,37 +3594,57 @@ export default function AdminPanelClient({
           <span className="text-xs uppercase tracking-widest text-[#434651] font-label">{users.length} total</span>
         </div>
 
-        <div className="overflow-x-auto border border-[#c4c6d3] bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-[#f5f4f0] text-[#434651] uppercase text-xs tracking-wider">
-              <tr>
-                <th className="text-left px-4 py-3">Name</th>
-                <th className="text-left px-4 py-3">Phone</th>
-                <th className="text-left px-4 py-3">UID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allUsers.map((user) => (
-                <tr key={user.id} className="border-t border-[#e3e2df]">
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleOpenUserDetails(user.id)}
-                      className="text-[#002155] font-semibold underline underline-offset-4"
-                    >
-                      {user.name}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">{user.phone || "Not provided"}</td>
-                  <td className="px-4 py-3">{user.uid || "Not provided"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+<div className="mt-4 overflow-x-auto">
+  <div className="max-h-[500px] overflow-y-auto">
+    <table className="w-full text-sm border border-[#c4c6d3]">
+      
+      {/* HEADER */}
+      <thead className="bg-[#f3f4f6] sticky top-0 z-10">
+        <tr className="text-left text-xs uppercase tracking-wide text-gray-600">
+          <th className="px-4 py-3">Name</th>
+          <th className="px-4 py-3">Email</th>
+          <th className="px-4 py-3">Role</th>
+          <th className="px-4 py-3">Action</th>
+        </tr>
+      </thead>
+
+      {/* BODY */}
+      <tbody>
+        {allUsers.map((user) => (
+          <tr key={user.id} className="border-t border-[#e3e2df] hover:bg-[#fafafa]">
+            
+            <td className="px-4 py-3 text-[#0b2c5f] font-medium">
+              {user.name}
+            </td>
+
+            <td className="px-4 py-3 text-gray-700">
+              {user.email}
+            </td>
+
+            <td className="px-4 py-3 text-gray-700">
+              {user.role}
+            </td>
+
+            <td className="px-4 py-3">
+              <button
+                onClick={() => handleOpenUserDetails(user.id)}
+                className="bg-[#0b2c5f] text-white px-3 py-1 text-xs hover:bg-[#091f44]"
+              >
+                View
+              </button>
+            </td>
+
+          </tr>
+        ))}
+      </tbody>
+
+    </table>
+  </div>
+</div>
       </section>
 
       {selectedUserDetailId !== null ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#00122f]/70 p-4 md:p-8 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00122f]/70 p-4 md:p-8 overflow-y-auto">
           <div className="w-full max-w-4xl border border-[#c4c6d3] bg-white">
             <div className="flex items-center justify-between border-b border-[#e3e2df] px-5 py-4">
               <div>
