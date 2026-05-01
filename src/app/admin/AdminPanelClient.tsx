@@ -3594,7 +3594,7 @@ export default function AdminPanelClient({
           <span className="text-xs uppercase tracking-widest text-[#434651] font-label">{users.length} total</span>
         </div>
 
-<div className="mt-4">
+<div className="mt-4 overflow-x-auto">
   <div className="max-h-[500px] overflow-y-auto">
     <table className="w-full text-sm border border-[#c4c6d3]">
       
