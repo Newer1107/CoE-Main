@@ -84,6 +84,30 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum InternshipApplicationStatus {
+  APPLIED
+  ACCEPTED
+  REJECTED
+}
+
+enum InternshipStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum InternshipTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  MESSAGE_POSTED
+  MEETING_SCHEDULED
+  DOCUMENT_UPLOADED
+}
+
 enum TicketType {
   FACILITY_BOOKING
   HACKATHON_SELECTION
@@ -131,6 +155,14 @@ model User {
   sessionUploadLockUpdates HackathonSessionUploadLock[] @relation("SessionUploadLockUpdater")
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
   attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
+  internshipApplications InternshipApplication[] @relation("InternshipApplicant")
+  industryInternshipApplications InternshipApplication[] @relation("InternshipIndustryPartner")
+  internships Internship[] @relation("IndustryInternships")
+  internshipParticipants InternshipParticipant[]
+  internshipTasks InternshipTask[] @relation("InternshipTaskAssignee")
+  internshipMessages InternshipMessage[] @relation("InternshipMessageSender")
+  internshipDocuments InternshipDocument[] @relation("InternshipDocumentUploader")
+  notifications Notification[]
   industryId Int?
   industry   Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
 
@@ -169,6 +201,8 @@ model Problem {
   claims      Claim[]
   supportDocumentKey String?
   applications Application[]
+  internshipApplications InternshipApplication[] @relation("InternshipApplicationProblem")
+  internships Internship[] @relation("InternshipProblem")
   questions   ProblemQuestion[]
   notificationSent Boolean @default(false)
   createdAt   DateTime        @default(now())
@@ -331,6 +365,139 @@ model ApplicationAnswer {
   @@unique([applicationId, questionId])
   @@index([applicationId])
   @@map("application_answers")
+}
+
+model InternshipApplication {
+  id                 Int                        @id @default(autoincrement())
+  studentId          Int
+  student            User                       @relation("InternshipApplicant", fields: [studentId], references: [id], onDelete: Cascade)
+  industryPartnerId  Int
+  industryPartner    User                       @relation("InternshipIndustryPartner", fields: [industryPartnerId], references: [id], onDelete: Cascade)
+  internshipTitle    String
+  problemStatementId Int?
+  problemStatement   Problem?                   @relation("InternshipApplicationProblem", fields: [problemStatementId], references: [id], onDelete: SetNull)
+  status             InternshipApplicationStatus @default(APPLIED)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@unique([studentId, internshipTitle, industryPartnerId])
+  @@index([industryPartnerId, internshipTitle])
+  @@index([internshipTitle, status])
+  @@index([problemStatementId])
+  @@index([studentId])
+  @@map("internship_applications")
+}
+
+model Internship {
+  id                 Int              @id @default(autoincrement())
+  title              String
+  industryPartnerId  Int
+  industryPartner    User             @relation("IndustryInternships", fields: [industryPartnerId], references: [id], onDelete: Cascade)
+  problemStatementId Int?
+  problemStatement   Problem?         @relation("InternshipProblem", fields: [problemStatementId], references: [id], onDelete: SetNull)
+  status             InternshipStatus @default(ACTIVE)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  participants       InternshipParticipant[]
+  tasks              InternshipTask[]
+  messages           InternshipMessage[]
+  meetings           InternshipMeeting[]
+  documents          InternshipDocument[]
+
+  @@index([title])
+  @@index([industryPartnerId, status])
+  @@index([problemStatementId])
+  @@map("internships")
+}
+
+model InternshipParticipant {
+  id           Int        @id @default(autoincrement())
+  internshipId Int
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  studentId    Int
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([internshipId, studentId])
+  @@index([internshipId])
+  @@index([studentId])
+  @@map("internship_participants")
+}
+
+model InternshipTask {
+  id           Int                 @id @default(autoincrement())
+  internshipId Int
+  internship   Internship          @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?             @db.Text
+  assignedToId Int
+  assignedTo   User                @relation("InternshipTaskAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+  deadline     DateTime?
+  status       InternshipTaskStatus @default(PENDING)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([internshipId, status])
+  @@index([assignedToId, status])
+  @@map("internship_tasks")
+}
+
+model InternshipMessage {
+  id           Int        @id @default(autoincrement())
+  internshipId Int
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  senderId     Int
+  sender       User       @relation("InternshipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content      String     @db.Text
+  createdAt    DateTime   @default(now())
+
+  @@index([internshipId, createdAt])
+  @@index([senderId])
+  @@map("internship_messages")
+}
+
+model InternshipMeeting {
+  id           Int        @id @default(autoincrement())
+  internshipId Int
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  title        String
+  datetime     DateTime
+  link         String
+  description  String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([internshipId, datetime])
+  @@map("internship_meetings")
+}
+
+model InternshipDocument {
+  id           Int        @id @default(autoincrement())
+  internshipId Int
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  fileUrl      String
+  uploadedById Int
+  uploadedBy   User       @relation("InternshipDocumentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@index([internshipId, createdAt])
+  @@index([uploadedById])
+  @@map("internship_documents")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String?          @db.Text
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("notifications")
 }
 
 model HackathonEvent {

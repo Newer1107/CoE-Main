@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
 import {
   ACCESS_TOKEN_TTL_SECONDS,

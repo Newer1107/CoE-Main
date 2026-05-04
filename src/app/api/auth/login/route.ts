@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { successRes, errorRes, useSecureCookies } from '@/lib/api-helpers';
+import { errorRes, useSecureCookies } from '@/lib/api-helpers';
 import { loginSchema } from '@/lib/validators';
 import {
   ACCESS_TOKEN_TTL_SECONDS,

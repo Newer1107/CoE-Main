@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/jwt';
-import InnovationFacultyClient from './InnovationFacultyClient';
+import DecisionEngineClient from './applications/DecisionEngineClient';
 
 export default async function InnovationFacultyPage() {
   const cookieStore = await cookies();
@@ -18,5 +18,5 @@ export default async function InnovationFacultyPage() {
 
   if (!['FACULTY', 'ADMIN', 'INDUSTRY_PARTNER'].includes(payload.role)) redirect('/facility-booking');
 
-  return <InnovationFacultyClient role={payload.role as 'FACULTY' | 'ADMIN' | 'INDUSTRY_PARTNER'} userId={payload.id} />;
+  return <DecisionEngineClient />;
 }

@@ -1,0 +1,147 @@
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/prisma';
+import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
+import {
+  requireIndustryAccess,
+  requireParticipantAccess,
+  InternshipWorkspaceError,
+} from '@/lib/internship-workspace';
+import { createNotifications } from '@/lib/notifications';
+import { getSignedUrl, uploadFile } from '@/lib/minio';
+
+const createSchema = z.object({
+  internshipId: z.number().int().positive(),
+  fileUrl: z.string().url(),
+});
+
+const querySchema = z.object({
+  internshipId: z.coerce.number().int().positive(),
+});
+
+const toResolvedDocumentUrl = async (storedValue: string) => {
+  if (/^https?:\/\//i.test(storedValue) || storedValue.startsWith('/')) {
+    return storedValue;
+  }
+  return await getSignedUrl(storedValue).catch(() => storedValue);
+};
+
+// GET /api/documents?internshipId
+export async function GET(req: NextRequest) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+
+    const parsed = querySchema.safeParse(Object.fromEntries(new URL(req.url).searchParams.entries()));
+    if (!parsed.success) {
+      return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
+    }
+
+    await requireParticipantAccess(user, parsed.data.internshipId);
+
+    const documents = await prisma.internshipDocument.findMany({
+      where: { internshipId: parsed.data.internshipId },
+      orderBy: { createdAt: 'desc' },
+      include: { uploadedBy: { select: { id: true, name: true, email: true } } },
+    });
+
+    const resolvedDocuments = await Promise.all(
+      documents.map(async (doc) => ({
+        ...doc,
+        fileUrl: await toResolvedDocumentUrl(doc.fileUrl),
+      }))
+    );
+
+    return successRes(resolvedDocuments, 'Documents retrieved successfully.');
+  } catch (err) {
+    if (err instanceof InternshipWorkspaceError) {
+      return errorRes(err.message, err.details, err.status);
+    }
+    console.error('Documents GET error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
+
+// POST /api/documents
+export async function POST(req: NextRequest) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+
+    const contentType = req.headers.get('content-type') || '';
+    let parsed: ReturnType<typeof createSchema.safeParse>;
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const internshipIdRaw = formData.get('internshipId');
+      const attachmentRaw = formData.get('file');
+
+      if (!(attachmentRaw instanceof File)) {
+        return errorRes('Validation failed', ['A file attachment is required.'], 400);
+      }
+
+      if (attachmentRaw.size === 0) {
+        return errorRes('Validation failed', ['Attachment is empty.'], 400);
+      }
+
+      if (attachmentRaw.size > 20 * 1024 * 1024) {
+        return errorRes('Validation failed', ['Attachment is too large. Maximum allowed size is 20 MB.'], 400);
+      }
+
+      const buffer = Buffer.from(await attachmentRaw.arrayBuffer());
+      const uploadedObjectKey = await uploadFile('internship-documents', {
+        buffer,
+        originalname: attachmentRaw.name,
+        mimetype: attachmentRaw.type || 'application/octet-stream',
+        size: buffer.length,
+      });
+
+      parsed = createSchema.safeParse({
+        internshipId: typeof internshipIdRaw === 'string' ? Number(internshipIdRaw) : NaN,
+        fileUrl: uploadedObjectKey,
+      });
+    } else {
+      const body = await req.json();
+      parsed = createSchema.safeParse(body);
+    }
+
+    if (!parsed.success) {
+      return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
+    }
+
+    await requireIndustryAccess(user, parsed.data.internshipId);
+
+    const document = await prisma.internshipDocument.create({
+      data: {
+        internshipId: parsed.data.internshipId,
+        fileUrl: parsed.data.fileUrl,
+        uploadedById: user.id,
+      },
+      include: { uploadedBy: { select: { id: true, name: true, email: true } } },
+    });
+
+    const resolvedFileUrl = await toResolvedDocumentUrl(document.fileUrl);
+
+    const participants = await prisma.internshipParticipant.findMany({
+      where: { internshipId: parsed.data.internshipId },
+      select: { studentId: true },
+    });
+
+    await createNotifications(
+      participants.map((row) => ({
+        userId: row.studentId,
+        type: 'DOCUMENT_UPLOADED',
+        title: 'New internship document uploaded',
+        body: resolvedFileUrl,
+      }))
+    );
+
+    return successRes({ ...document, fileUrl: resolvedFileUrl }, 'Document uploaded successfully.', 201);
+  } catch (err) {
+    if (err instanceof InternshipWorkspaceError) {
+      return errorRes(err.message, err.details, err.status);
+    }
+    console.error('Documents POST error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}

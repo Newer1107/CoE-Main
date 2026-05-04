@@ -48,6 +48,10 @@ Major capability groups:
   - Open problems: students maintain reusable profile, answer faculty questions, submit individual applications
   - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
+- Industry internships: bulk selection, auto-rejection for non-selected applicants, and internship cohort creation
+- Internship workspace: task assignments, group chat, meetings, and document sharing for selected cohorts
+- Internship workspace UX: direct file attachments in chat/messages and direct file upload in documents (no manual URL paste required)
+- Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
 
 ### 1.1 System Component Architecture
 

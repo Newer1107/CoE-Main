@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { useSecureCookies } from "@/lib/api-helpers";
 import { DEFAULT_CALLBACK_URL, isValidCallbackUrl } from "@/lib/callback-url";
 import { getSharedCookieOptions, SHARED_COOKIE_NAME } from "@/lib/shared-auth";
