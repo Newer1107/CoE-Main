@@ -3,7 +3,7 @@ export default function Footer() {
     <footer className="bg-[#f5f4f0] text-[#002155] border-t-4 border-[#002155] w-full">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12 w-full px-6 md:px-12 py-12 lg:py-16 max-w-full">
         <div>
-          <h3 className="text-base md:text-lg font-bold text-[#002155] mb-4 md:mb-6 uppercase tracking-tight">TCET Center of Excellence</h3>
+          <h3 className="text-base md:text-lg font-bold text-[#002155] mb-4 md:mb-6 uppercase tracking-tight">TCET Centre of Excellence</h3>
           <div className="font-body leading-relaxed opacity-70 text-xs md:text-sm space-y-1">
             <p>Thakur Village, Kandivali (E), Mumbai - 400101.</p>
             <p>Maharashtra, India.</p>
@@ -37,7 +37,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="bg-[#002155] text-white/70 py-4 md:py-6 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4 text-[9px] md:text-[10px] font-bold uppercase tracking-widest">
-        <span>© 2026 TCET Center of Excellence. All Rights Reserved. Designed for Academic Integrity.</span>
+        <span>© 2026 TCET Centre of Excellence. All Rights Reserved. Designed for Academic Integrity.</span>
         <div className="flex gap-4 md:gap-8">
           <a className="hover:text-white transition-colors" href="#">Accessibility</a>
           <a className="hover:text-white transition-colors" href="#">Legal Archives</a>

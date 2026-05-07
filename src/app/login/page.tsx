@@ -451,11 +451,11 @@ export default function LoginPage() {
             </p>
             <h1 className="font-headline text-4xl md:text-[44px] leading-tight">
               Login to the
-              <span className="block text-[#fd9923]">Center of Excellence</span>
+              <span className="block text-[#fd9923]">Centre of Excellence</span>
             </h1>
             <p className="text-sm text-white/80 font-body leading-relaxed">
               Established with a vision to bridge the gap between academic
-              theory and industrial application, the TCET Center of Excellence
+              theory and industrial application, the TCET Centre of Excellence
               (CoE) stands as a testament to institutional persistence.
             </p>
             <div className="border-t border-white/20 pt-6">

@@ -17,7 +17,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-lg md:text-2xl font-headline font-bold text-[#002155] mb-2">1. Information We Collect</h2>
             <p>
               We collect account details such as name, email address, UID, phone number, and role-based profile information to provide access to
-              Center of Excellence services.
+              Centre of Excellence services.
             </p>
           </section>
 

@@ -11,7 +11,7 @@ const innovationFacultyUrl = `${appBaseUrl}/innovation/faculty`;
 
 const brandHeader = `
   <div style="background:#002155;padding:16px 24px;text-align:center;">
-    <h1 style="margin:0;color:#ffffff;font-family:'Helvetica Neue',Arial,sans-serif;font-size:20px;letter-spacing:2px;">TCET CENTER OF EXCELLENCE</h1>
+    <h1 style="margin:0;color:#ffffff;font-family:'Helvetica Neue',Arial,sans-serif;font-size:20px;letter-spacing:2px;">TCET CENTRE OF EXCELLENCE</h1>
     <div style="height:4px;background:#F7941D;margin-top:8px;"></div>
   </div>
 `;
@@ -19,7 +19,7 @@ const brandHeader = `
 const brandFooter = `
   <div style="background:#f5f4f0;padding:16px 24px;text-align:center;font-size:11px;color:#747782;font-family:Arial,sans-serif;">
     <p style="margin:0;">Thakur College of Engineering &amp; Technology, Kandivali (E), Mumbai - 400101</p>
-    <p style="margin:4px 0 0;">&copy; 2026 TCET Center of Excellence. All Rights Reserved.</p>
+    <p style="margin:4px 0 0;">&copy; 2026 TCET Centre of Excellence. All Rights Reserved.</p>
   </div>
 `;
 
@@ -207,7 +207,7 @@ export const sendFacultyRejectionEmail = async (email: string, name: string) => 
   const body = `
     <h2 style="color:#002155;margin:0 0 8px;">Account Registration Rejected</h2>
     <p style="color:#434651;font-size:14px;">Dear <strong>${name}</strong>,</p>
-    <p style="color:#434651;font-size:14px;">Your faculty account registration for the TCET Center of Excellence has been rejected. Please contact the CoE office if you believe this is an error.</p>`;
+    <p style="color:#434651;font-size:14px;">Your faculty account registration for the TCET Centre of Excellence has been rejected. Please contact the CoE office if you believe this is an error.</p>`;
   await send(email, 'Faculty Account Registration Rejected — TCET CoE', body, {
     mode: 'immediate',
     category: 'FACULTY_REJECTED',

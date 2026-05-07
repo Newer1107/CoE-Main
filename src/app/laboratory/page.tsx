@@ -103,7 +103,7 @@ export default function LaboratoryPage() {
           Laboratory Infrastructure & Research Facilities
         </h2>
         <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
-          The TCET Center of Excellence houses state-of-the-art computational and
+          The TCET Centre of Excellence houses state-of-the-art computational and
           experimental environments designed for high-impact multidisciplinary
           research. Our facilities serve as the bedrock for innovation in
           Electronics, Fabrication, and Advanced Computing.

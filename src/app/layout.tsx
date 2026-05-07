@@ -10,8 +10,8 @@ import { verifyAccessToken } from "@/lib/jwt";
 import { ToastProvider } from "@/components/ToastProvider";
 
 export const metadata: Metadata = {
-  title: "TCET Center of Excellence | Official Portal",
-  description: "TCET Center of Excellence - Bridging academic theory and industrial application through rigorous research and development.",
+  title: "TCET Centre of Excellence | Official Portal",
+  description: "TCET Centre of Excellence - Bridging academic theory and industrial application through rigorous research and development.",
 };
 
 export default async function RootLayout({

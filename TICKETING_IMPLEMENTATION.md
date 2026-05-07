@@ -33,7 +33,7 @@ Each ticket has:
 
 Generated PDFs include:
 
-1. Organization branding (TCET Center of Excellence)
+1. Organization branding (TCET Centre of Excellence)
 2. Ticket title
 3. User name
 4. Booking/event subject

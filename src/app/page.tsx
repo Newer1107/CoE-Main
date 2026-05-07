@@ -116,7 +116,7 @@ export default async function HomePage() {
         {
           id: "fallback",
           image: "/vercel.svg",
-          title: "Welcome to the TCET Center of Excellence",
+          title: "Welcome to the TCET Centre of Excellence",
           description:
             "Live hero slides will appear here once admins publish them via the hero slides API.",
         },

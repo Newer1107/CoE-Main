@@ -114,7 +114,7 @@ export default function NewsCard({ item }: { item: NewsItem }) {
 
               <div className="mt-10 pt-6 border-t border-[#c4c6d3] flex justify-between items-center">
                 <span className="text-[9px] font-bold text-[#747782] uppercase">
-                  © TCET Center of Excellence
+                  © TCET Centre of Excellence
                 </span>
                 <button
                   onClick={() => setIsOpen(false)}

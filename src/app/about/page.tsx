@@ -19,7 +19,7 @@ export default function AboutPage() {
               </h1>
               <div className="space-y-6 text-lg leading-relaxed text-[#434651] font-body">
                 <p>
-                  Established with a vision to bridge the gap between academic theory and industrial application, the TCET Center of Excellence (CoE) stands as a testament to institutional persistence. Our journey began not with a grand building, but with a simple directive: to provide a sanctuary for high-level technical research within Mumbai&apos;s thriving engineering landscape.
+                  Established with a vision to bridge the gap between academic theory and industrial application, the TCET Centre of Excellence (CoE) stands as a testament to institutional persistence. Our journey began not with a grand building, but with a simple directive: to provide a sanctuary for high-level technical research within Mumbai&apos;s thriving engineering landscape.
                 </p>
                 <p>
                   For over a decade, we have meticulously curated an environment that demands rigor. Our laboratories are not merely rooms filled with equipment; they are the crucibles where the next generation of intellectual property is forged. We maintain a neutral, evidence-based approach to every grant we secure and every paper we publish.

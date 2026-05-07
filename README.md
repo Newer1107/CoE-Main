@@ -1,4 +1,4 @@
-# TCET Center of Excellence Portal
+# TCET Centre of Excellence Portal
 
 Production-oriented Next.js App Router portal for TCET CoE with:
 - role-based authentication and access control
@@ -2068,5 +2068,5 @@ timeline
 **Project Status**: ✅ Production Ready
 **Last Updated**: 2026-03-31
 **Version**: 1.0 Stable
-**Maintained by**: TCET Center of Excellence Team
+**Maintained by**: TCET Centre of Excellence Team
 **Next Review**: Upon completion of next enhancement cycle

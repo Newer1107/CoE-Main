@@ -36,7 +36,7 @@ type AttendanceMemberRow = {
   checkedInAt: string | null;
 };
 
-const platformName = 'TCET Center of Excellence';
+const platformName = 'TCET Centre of Excellence';
 
 const getTicketPrefix = (type: TicketType) => (type === 'FACILITY_BOOKING' ? 'BKG' : 'HKT');
 
