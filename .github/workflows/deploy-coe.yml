@@ -1,37 +1,37 @@
 name: Deploy COE
 
 on:
-push:
-branches:
-- main
+  push:
+    branches:
+      - main
 
 jobs:
-deploy:
-runs-on: self-hosted
+  deploy:
+    runs-on: self-hosted
 
-steps:
-  - name: Deploy COE App
-    run: |
-      set -e
+    steps:
+      - name: Deploy COE App
+        run: |
+          set -e
 
-      cd /home/tcetcercd/CoE-Main
+          cd /home/tcetcercd/CoE-Main
 
-      echo "Fetching latest code..."
-      git fetch origin
+          echo "Fetching latest code..."
+          git fetch origin
 
-      echo "Resetting local repo..."
-      git reset --hard origin/main
+          echo "Resetting local repo..."
+          git reset --hard origin/main
 
-      echo "Installing dependencies..."
-      npm install
+          echo "Installing dependencies..."
+          npm install
 
-      echo "Running Prisma migrations..."
-      npx prisma migrate deploy
+          echo "Running Prisma migrations..."
+          npx prisma migrate deploy
 
-      echo "Building app..."
-      npm run build
+          echo "Building app..."
+          npm run build
 
-      echo "Reloading PM2..."
-      pm2 reload coe
+          echo "Reloading PM2..."
+          pm2 reload coe
 
-      echo "Deployment complete!"
+          echo "Deployment complete!"
