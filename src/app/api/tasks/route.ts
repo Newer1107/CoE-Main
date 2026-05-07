@@ -15,7 +15,7 @@ const dateTimeInputSchema = z.string().trim().min(1).refine(
 );
 
 const createSchema = z.object({
-  internshipId: z.number().int().positive(),
+  problemId: z.number().int().positive(),
   title: z.string().trim().min(2),
   description: z.string().trim().optional(),
   assignedToId: z.number().int().positive(),
@@ -23,7 +23,7 @@ const createSchema = z.object({
 });
 
 const querySchema = z.object({
-  internshipId: z.coerce.number().int().positive(),
+  problemId: z.coerce.number().int().positive(),
 });
 
 const updateSchema = z.object({
@@ -35,7 +35,7 @@ const updateSchema = z.object({
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED']).optional(),
 });
 
-// GET /api/tasks?internshipId
+// GET /api/tasks?problemId
 export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
@@ -46,11 +46,11 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireParticipantAccess(user, parsed.data.internshipId);
+    await requireParticipantAccess(user, parsed.data.problemId);
 
     const tasks = await prisma.internshipTask.findMany({
       where: {
-        internshipId: parsed.data.internshipId,
+        problemId: parsed.data.problemId,
         ...(user.role === 'STUDENT' ? { assignedToId: user.id } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -81,10 +81,14 @@ export async function POST(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireIndustryAccess(user, parsed.data.internshipId);
+    await requireIndustryAccess(user, parsed.data.problemId);
 
-    const participant = await prisma.internshipParticipant.findFirst({
-      where: { internshipId: parsed.data.internshipId, studentId: parsed.data.assignedToId },
+    const participant = await prisma.application.findFirst({
+      where: {
+        problemId: parsed.data.problemId,
+        userId: parsed.data.assignedToId,
+        status: 'SELECTED',
+      },
     });
     if (!participant) {
       return errorRes('Invalid assignee', ['Assignee must be a participant in this internship.'], 400);
@@ -92,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     const task = await prisma.internshipTask.create({
       data: {
-        internshipId: parsed.data.internshipId,
+        problemId: parsed.data.problemId,
         title: parsed.data.title,
         description: parsed.data.description?.trim() || null,
         assignedToId: parsed.data.assignedToId,
@@ -134,7 +138,7 @@ export async function PATCH(req: NextRequest) {
 
     const task = await prisma.internshipTask.findUnique({
       where: { id: parsed.data.taskId },
-      include: { internship: { select: { id: true, industryPartnerId: true } } },
+      include: { problem: { select: { id: true, industryId: true, createdById: true } } },
     });
 
     if (!task) return errorRes('Task not found', [], 404);
@@ -157,13 +161,15 @@ export async function PATCH(req: NextRequest) {
       return successRes(updated, 'Task updated successfully.');
     }
 
-    if (user.role !== 'ADMIN' && task.internship.industryPartnerId !== user.id) {
-      return errorRes('Forbidden', ['Industry partner access required'], 403);
-    }
+    await requireIndustryAccess(user, task.problem.id);
 
     if (parsed.data.assignedToId) {
-      const participant = await prisma.internshipParticipant.findFirst({
-        where: { internshipId: task.internship.id, studentId: parsed.data.assignedToId },
+      const participant = await prisma.application.findFirst({
+        where: {
+          problemId: task.problem.id,
+          userId: parsed.data.assignedToId,
+          status: 'SELECTED',
+        },
       });
       if (!participant) {
         return errorRes('Invalid assignee', ['Assignee must be a participant in this internship.'], 400);

@@ -84,17 +84,6 @@ enum ApplicationStatus {
   REJECTED
 }
 
-enum InternshipApplicationStatus {
-  APPLIED
-  ACCEPTED
-  REJECTED
-}
-
-enum InternshipStatus {
-  ACTIVE
-  COMPLETED
-}
-
 enum InternshipTaskStatus {
   PENDING
   IN_PROGRESS
@@ -155,10 +144,6 @@ model User {
   sessionUploadLockUpdates HackathonSessionUploadLock[] @relation("SessionUploadLockUpdater")
   attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
   attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
-  internshipApplications InternshipApplication[] @relation("InternshipApplicant")
-  industryInternshipApplications InternshipApplication[] @relation("InternshipIndustryPartner")
-  internships Internship[] @relation("IndustryInternships")
-  internshipParticipants InternshipParticipant[]
   internshipTasks InternshipTask[] @relation("InternshipTaskAssignee")
   internshipMessages InternshipMessage[] @relation("InternshipMessageSender")
   internshipDocuments InternshipDocument[] @relation("InternshipDocumentUploader")
@@ -201,8 +186,10 @@ model Problem {
   claims      Claim[]
   supportDocumentKey String?
   applications Application[]
-  internshipApplications InternshipApplication[] @relation("InternshipApplicationProblem")
-  internships Internship[] @relation("InternshipProblem")
+  internshipTasks InternshipTask[] @relation("InternshipProblemTasks")
+  internshipMessages InternshipMessage[] @relation("InternshipProblemMessages")
+  internshipMeetings InternshipMeeting[] @relation("InternshipProblemMeetings")
+  internshipDocuments InternshipDocument[] @relation("InternshipProblemDocuments")
   questions   ProblemQuestion[]
   notificationSent Boolean @default(false)
   createdAt   DateTime        @default(now())
@@ -367,67 +354,10 @@ model ApplicationAnswer {
   @@map("application_answers")
 }
 
-model InternshipApplication {
-  id                 Int                        @id @default(autoincrement())
-  studentId          Int
-  student            User                       @relation("InternshipApplicant", fields: [studentId], references: [id], onDelete: Cascade)
-  industryPartnerId  Int
-  industryPartner    User                       @relation("InternshipIndustryPartner", fields: [industryPartnerId], references: [id], onDelete: Cascade)
-  internshipTitle    String
-  problemStatementId Int?
-  problemStatement   Problem?                   @relation("InternshipApplicationProblem", fields: [problemStatementId], references: [id], onDelete: SetNull)
-  status             InternshipApplicationStatus @default(APPLIED)
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-
-  @@unique([studentId, internshipTitle, industryPartnerId])
-  @@index([industryPartnerId, internshipTitle])
-  @@index([internshipTitle, status])
-  @@index([problemStatementId])
-  @@index([studentId])
-  @@map("internship_applications")
-}
-
-model Internship {
-  id                 Int              @id @default(autoincrement())
-  title              String
-  industryPartnerId  Int
-  industryPartner    User             @relation("IndustryInternships", fields: [industryPartnerId], references: [id], onDelete: Cascade)
-  problemStatementId Int?
-  problemStatement   Problem?         @relation("InternshipProblem", fields: [problemStatementId], references: [id], onDelete: SetNull)
-  status             InternshipStatus @default(ACTIVE)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  participants       InternshipParticipant[]
-  tasks              InternshipTask[]
-  messages           InternshipMessage[]
-  meetings           InternshipMeeting[]
-  documents          InternshipDocument[]
-
-  @@index([title])
-  @@index([industryPartnerId, status])
-  @@index([problemStatementId])
-  @@map("internships")
-}
-
-model InternshipParticipant {
-  id           Int        @id @default(autoincrement())
-  internshipId Int
-  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
-  studentId    Int
-  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
-
-  @@unique([internshipId, studentId])
-  @@index([internshipId])
-  @@index([studentId])
-  @@map("internship_participants")
-}
-
 model InternshipTask {
   id           Int                 @id @default(autoincrement())
-  internshipId Int
-  internship   Internship          @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  problemId    Int
+  problem      Problem             @relation("InternshipProblemTasks", fields: [problemId], references: [id], onDelete: Cascade)
   title        String
   description  String?             @db.Text
   assignedToId Int
@@ -437,29 +367,29 @@ model InternshipTask {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  @@index([internshipId, status])
+  @@index([problemId, status])
   @@index([assignedToId, status])
   @@map("internship_tasks")
 }
 
 model InternshipMessage {
   id           Int        @id @default(autoincrement())
-  internshipId Int
-  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  problemId    Int
+  problem      Problem    @relation("InternshipProblemMessages", fields: [problemId], references: [id], onDelete: Cascade)
   senderId     Int
   sender       User       @relation("InternshipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   content      String     @db.Text
   createdAt    DateTime   @default(now())
 
-  @@index([internshipId, createdAt])
+  @@index([problemId, createdAt])
   @@index([senderId])
   @@map("internship_messages")
 }
 
 model InternshipMeeting {
   id           Int        @id @default(autoincrement())
-  internshipId Int
-  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  problemId    Int
+  problem      Problem    @relation("InternshipProblemMeetings", fields: [problemId], references: [id], onDelete: Cascade)
   title        String
   datetime     DateTime
   link         String
@@ -467,20 +397,20 @@ model InternshipMeeting {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  @@index([internshipId, datetime])
+  @@index([problemId, datetime])
   @@map("internship_meetings")
 }
 
 model InternshipDocument {
   id           Int        @id @default(autoincrement())
-  internshipId Int
-  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  problemId    Int
+  problem      Problem    @relation("InternshipProblemDocuments", fields: [problemId], references: [id], onDelete: Cascade)
   fileUrl      String
   uploadedById Int
   uploadedBy   User       @relation("InternshipDocumentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
 
-  @@index([internshipId, createdAt])
+  @@index([problemId, createdAt])
   @@index([uploadedById])
   @@map("internship_documents")
 }

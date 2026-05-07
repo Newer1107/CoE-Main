@@ -48,7 +48,7 @@ Major capability groups:
   - Open problems: students maintain reusable profile, answer faculty questions, submit individual applications
   - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
-- Industry internships: bulk selection, auto-rejection for non-selected applicants, and internship cohort creation
+- Industry internships: bulk selection, auto-rejection for non-selected applicants, and problem-based internship workspaces
 - Internship workspace: task assignments, group chat, meetings, and document sharing for selected cohorts
 - Internship workspace UX: direct file attachments in chat/messages and direct file upload in documents (no manual URL paste required)
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
@@ -724,6 +724,7 @@ Primary entities:
 - `ProblemQuestion`
 - `Application`
 - `ApplicationAnswer`
+- `InternshipTask`, `InternshipMessage`, `InternshipMeeting`, `InternshipDocument` (problem-scoped internship workspaces)
 - `EmailJob`
 
 Key innovation enums and lifecycle:
@@ -748,6 +749,11 @@ Open-problem application fields persisted on `Application`:
 - `feedback`: faculty decision notes
 - profile linkage via `profileId`
 - custom responses via `ApplicationAnswer`
+
+Internship workspaces:
+- Internships are modeled as `Problem` rows with `problemType = INTERNSHIP`.
+- Selected participants are derived from `Application` with `status = SELECTED`.
+- Workspace collaboration data (tasks/messages/meetings/documents) references the internship `Problem` directly.
 
 ### 5.1 Principal Data Entities Flow Diagram
 

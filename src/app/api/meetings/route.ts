@@ -15,7 +15,7 @@ const dateTimeInputSchema = z.string().trim().min(1).refine(
 );
 
 const createSchema = z.object({
-  internshipId: z.number().int().positive(),
+  problemId: z.number().int().positive(),
   title: z.string().trim().min(2),
   datetime: dateTimeInputSchema,
   link: z.string().url(),
@@ -23,10 +23,10 @@ const createSchema = z.object({
 });
 
 const querySchema = z.object({
-  internshipId: z.coerce.number().int().positive(),
+  problemId: z.coerce.number().int().positive(),
 });
 
-// GET /api/meetings?internshipId
+// GET /api/meetings?problemId
 export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireParticipantAccess(user, parsed.data.internshipId);
+    await requireParticipantAccess(user, parsed.data.problemId);
 
     const meetings = await prisma.internshipMeeting.findMany({
-      where: { internshipId: parsed.data.internshipId },
+      where: { problemId: parsed.data.problemId },
       orderBy: { datetime: 'asc' },
     });
 
@@ -66,11 +66,11 @@ export async function POST(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireIndustryAccess(user, parsed.data.internshipId);
+    await requireIndustryAccess(user, parsed.data.problemId);
 
     const meeting = await prisma.internshipMeeting.create({
       data: {
-        internshipId: parsed.data.internshipId,
+        problemId: parsed.data.problemId,
         title: parsed.data.title,
         datetime: new Date(parsed.data.datetime),
         link: parsed.data.link,
@@ -78,14 +78,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const participants = await prisma.internshipParticipant.findMany({
-      where: { internshipId: parsed.data.internshipId },
-      select: { studentId: true },
+    const participants = await prisma.application.findMany({
+      where: { problemId: parsed.data.problemId, status: 'SELECTED' },
+      select: { userId: true },
     });
 
     await createNotifications(
       participants.map((row) => ({
-        userId: row.studentId,
+        userId: row.userId,
         type: 'MEETING_SCHEDULED',
         title: 'New internship meeting scheduled',
         body: meeting.title,

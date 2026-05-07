@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-type InternshipApplicationStatus = 'APPLIED' | 'ACCEPTED' | 'REJECTED';
+type InternshipApplicationStatus = 'SUBMITTED' | 'SELECTED' | 'REJECTED';
 
 interface InternshipApplicationRow {
   id: number;
-  internshipTitle: string;
-  problemStatementId: number | null;
+  problemTitle: string;
+  problemId: number;
   status: InternshipApplicationStatus;
   createdAt: string;
   student: {
@@ -31,10 +31,10 @@ interface ApplicationsResponse {
 
 const statusBadge = (status: InternshipApplicationStatus) => {
   switch (status) {
-    case 'APPLIED':
-      return { label: 'Applied', color: 'bg-yellow-100 text-yellow-800' };
-    case 'ACCEPTED':
-      return { label: 'Accepted', color: 'bg-green-100 text-green-800' };
+    case 'SUBMITTED':
+      return { label: 'Submitted', color: 'bg-yellow-100 text-yellow-800' };
+    case 'SELECTED':
+      return { label: 'Selected', color: 'bg-green-100 text-green-800' };
     case 'REJECTED':
       return { label: 'Rejected', color: 'bg-red-100 text-red-800' };
     default:
@@ -47,7 +47,7 @@ export default function DecisionEngineClient() {
   const [titles, setTitles] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [internshipTitle, setInternshipTitle] = useState('');
+  const [problemTitle, setProblemTitle] = useState('');
   const [status, setStatus] = useState<'ALL' | InternshipApplicationStatus>('ALL');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -59,13 +59,16 @@ export default function DecisionEngineClient() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectAllFiltered, setSelectAllFiltered] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
 
   const selectedCount = selectedIds.size;
   const selectedIdsArray = useMemo(() => Array.from(selectedIds), [selectedIds]);
 
   const fetchApplications = useCallback(async (includeIds = false) => {
     const params = new URLSearchParams();
-    if (internshipTitle) params.set('internshipTitle', internshipTitle);
+    if (problemTitle) params.set('problemTitle', problemTitle);
     if (status !== 'ALL') params.set('status', status);
     if (search.trim().length > 0) params.set('search', search.trim());
     params.set('page', String(page));
@@ -80,7 +83,7 @@ export default function DecisionEngineClient() {
 
     const json = await res.json();
     return (json.data || {}) as ApplicationsResponse;
-  }, [internshipTitle, status, search, page, pageSize]);
+  }, [problemTitle, status, search, page, pageSize]);
 
   useEffect(() => {
     let active = true;
@@ -112,7 +115,7 @@ export default function DecisionEngineClient() {
     setSelectedIds(new Set());
     setConfirmOpen(false);
     setSelectAllFiltered(false);
-  }, [internshipTitle, status, search]);
+  }, [problemTitle, status, search]);
 
   const toggleSelection = (id: number) => {
     setSelectedIds((prev) => {
@@ -127,13 +130,13 @@ export default function DecisionEngineClient() {
   };
 
   const handleSelectAll = async () => {
-    if (!internshipTitle) {
+    if (!problemTitle) {
       setError('Select a specific internship title before selecting all applications.');
       return;
     }
 
-    if (status !== 'ALL' && status !== 'APPLIED') {
-      setError('Bulk acceptance is only available for APPLIED applications.');
+    if (status !== 'ALL' && status !== 'SUBMITTED') {
+      setError('Bulk acceptance is only available for SUBMITTED applications.');
       return;
     }
 
@@ -142,7 +145,7 @@ export default function DecisionEngineClient() {
   };
 
   const handleBulkAccept = async () => {
-    if (!internshipTitle) {
+    if (!problemTitle) {
       setError('Select an internship title before accepting applications.');
       return;
     }
@@ -152,8 +155,8 @@ export default function DecisionEngineClient() {
       return;
     }
 
-    if (status !== 'ALL' && status !== 'APPLIED') {
-      setError('Bulk acceptance is only available for APPLIED applications.');
+    if (status !== 'ALL' && status !== 'SUBMITTED') {
+      setError('Bulk acceptance is only available for SUBMITTED applications.');
       return;
     }
 
@@ -170,12 +173,12 @@ export default function DecisionEngineClient() {
           applicationIds: selectAllFiltered ? undefined : selectedIdsArray,
           filters: selectAllFiltered
             ? {
-                internshipTitle,
+                problemTitle,
                 search: search.trim() || undefined,
-                status: 'APPLIED',
+                status: 'SUBMITTED',
               }
             : undefined,
-          internshipTitle,
+          problemTitle,
         }),
       });
 
@@ -194,15 +197,15 @@ export default function DecisionEngineClient() {
         setTotalPages(data.pagination?.totalPages || 1);
       });
 
-      const internshipId = payload?.data?.internshipId as number | undefined;
+      const problemId = payload?.data?.problemId as number | undefined;
       const acceptedCount = payload?.data?.acceptedCount ?? 0;
       const rejectedCount = payload?.data?.rejectedCount ?? 0;
 
       setSuccessMessage(`${acceptedCount} accepted • ${rejectedCount} rejected`);
 
-      if (internshipId) {
+      if (problemId) {
         window.setTimeout(() => {
-          window.location.href = `/industry-internship/${internshipId}`;
+          window.location.href = `/industry-internship/${problemId}`;
         }, 800);
       }
     } catch (err) {
@@ -249,10 +252,10 @@ export default function DecisionEngineClient() {
             Internship Title
           </label>
           <select
-            value={internshipTitle}
+            value={problemTitle}
             onChange={(event) => {
               setPage(1);
-              setInternshipTitle(event.target.value);
+              setProblemTitle(event.target.value);
             }}
             className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923]"
           >
@@ -277,8 +280,8 @@ export default function DecisionEngineClient() {
             className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm focus:outline-none focus:border-[#fd9923]"
           >
             <option value="ALL">All Statuses</option>
-            <option value="APPLIED">Applied</option>
-            <option value="ACCEPTED">Accepted</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="SELECTED">Selected</option>
             <option value="REJECTED">Rejected</option>
           </select>
         </div>
@@ -319,6 +322,12 @@ export default function DecisionEngineClient() {
                 Select All (Filtered)
               </button>
               <button
+                onClick={() => setAddOpen(true)}
+                className="px-3 py-2 text-xs font-semibold border border-[#002155] text-[#002155] rounded hover:bg-[#002155] hover:text-white transition"
+              >
+                Add Person
+              </button>
+              <button
                 onClick={() => {
                   setSelectedIds(new Set());
                   setSelectAllFiltered(false);
@@ -338,7 +347,7 @@ export default function DecisionEngineClient() {
                 <th className="px-4 py-3">Student</th>
                 <th className="px-4 py-3">Internship</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Applied</th>
+                <th className="px-4 py-3">Submitted</th>
               </tr>
             </thead>
             <tbody>
@@ -358,7 +367,7 @@ export default function DecisionEngineClient() {
                       <p className="font-medium text-[#002155]">{app.student.name}</p>
                       <p className="text-xs text-[#747782]">{app.student.email}</p>
                     </td>
-                    <td className="px-4 py-3 text-[#434651]">{app.internshipTitle}</td>
+                    <td className="px-4 py-3 text-[#434651]">{app.problemTitle}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${badge.color}`}>
                         {badge.label}
@@ -436,6 +445,79 @@ export default function DecisionEngineClient() {
                 className="px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
               >
                 {actionLoading ? 'Processing...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded shadow-lg max-w-lg w-full p-6">
+            <h2 className="text-lg font-bold text-[#002155] mb-3">Add Participant</h2>
+                <p className="text-sm text-[#434651]">Add a student to the selected internship cohort by email.</p>
+            <div className="mt-4 space-y-3">
+              <input
+                    value={problemTitle}
+                    onChange={(e) => setProblemTitle(e.target.value)}
+                    placeholder="Internship title"
+                className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+              />
+              <input
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+                placeholder="Student email"
+                className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+              />
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setAddOpen(false)}
+                className="px-4 py-2 text-sm font-semibold border border-[#c4c6d3] rounded text-[#434651]"
+                disabled={addLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!problemTitle && addEmail.trim() === '') {
+                    setError('Internship title and student email are required.');
+                    return;
+                  }
+                  setAddLoading(true);
+                  setError(null);
+                  try {
+                    const res = await fetch('/api/internships/add-participant', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ problemTitle: problemTitle || undefined, studentEmail: addEmail.trim() }),
+                    });
+                    const payload = await res.json();
+                    if (!res.ok) throw new Error(payload?.message || 'Failed to add participant');
+                    setAddOpen(false);
+                    setAddEmail('');
+                    await fetchApplications(false).then((data) => {
+                      setApplications(data.items || []);
+                      setTitles(data.titles || []);
+                      setTotalCount(data.pagination?.total || 0);
+                      setTotalPages(data.pagination?.totalPages || 1);
+                    });
+                    setSuccessMessage('Participant added');
+                    // optionally navigate to internship workspace if created
+                    const problemId = payload?.data?.problemId as number | undefined;
+                    if (problemId) {
+                      window.setTimeout(() => { window.location.href = `/industry-internship/${problemId}`; }, 700);
+                    }
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to add participant');
+                  } finally {
+                    setAddLoading(false);
+                  }
+                }}
+                disabled={addLoading}
+                className="px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
+              >
+                {addLoading ? 'Adding...' : 'Add'}
               </button>
             </div>
           </div>

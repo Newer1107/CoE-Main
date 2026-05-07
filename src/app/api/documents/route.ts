@@ -11,12 +11,12 @@ import { createNotifications } from '@/lib/notifications';
 import { getSignedUrl, uploadFile } from '@/lib/minio';
 
 const createSchema = z.object({
-  internshipId: z.number().int().positive(),
+  problemId: z.number().int().positive(),
   fileUrl: z.string().url(),
 });
 
 const querySchema = z.object({
-  internshipId: z.coerce.number().int().positive(),
+  problemId: z.coerce.number().int().positive(),
 });
 
 const toResolvedDocumentUrl = async (storedValue: string) => {
@@ -26,7 +26,7 @@ const toResolvedDocumentUrl = async (storedValue: string) => {
   return await getSignedUrl(storedValue).catch(() => storedValue);
 };
 
-// GET /api/documents?internshipId
+// GET /api/documents?problemId
 export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireParticipantAccess(user, parsed.data.internshipId);
+    await requireParticipantAccess(user, parsed.data.problemId);
 
     const documents = await prisma.internshipDocument.findMany({
-      where: { internshipId: parsed.data.internshipId },
+      where: { problemId: parsed.data.problemId },
       orderBy: { createdAt: 'desc' },
       include: { uploadedBy: { select: { id: true, name: true, email: true } } },
     });
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      const internshipIdRaw = formData.get('internshipId');
+      const problemIdRaw = formData.get('problemId');
       const attachmentRaw = formData.get('file');
 
       if (!(attachmentRaw instanceof File)) {
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       });
 
       parsed = createSchema.safeParse({
-        internshipId: typeof internshipIdRaw === 'string' ? Number(internshipIdRaw) : NaN,
+        problemId: typeof problemIdRaw === 'string' ? Number(problemIdRaw) : NaN,
         fileUrl: uploadedObjectKey,
       });
     } else {
@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireIndustryAccess(user, parsed.data.internshipId);
+    await requireIndustryAccess(user, parsed.data.problemId);
 
     const document = await prisma.internshipDocument.create({
       data: {
-        internshipId: parsed.data.internshipId,
+        problemId: parsed.data.problemId,
         fileUrl: parsed.data.fileUrl,
         uploadedById: user.id,
       },
@@ -122,14 +122,14 @@ export async function POST(req: NextRequest) {
 
     const resolvedFileUrl = await toResolvedDocumentUrl(document.fileUrl);
 
-    const participants = await prisma.internshipParticipant.findMany({
-      where: { internshipId: parsed.data.internshipId },
-      select: { studentId: true },
+    const participants = await prisma.application.findMany({
+      where: { problemId: parsed.data.problemId, status: 'SELECTED' },
+      select: { userId: true },
     });
 
     await createNotifications(
       participants.map((row) => ({
-        userId: row.studentId,
+        userId: row.userId,
         type: 'DOCUMENT_UPLOADED',
         title: 'New internship document uploaded',
         body: resolvedFileUrl,

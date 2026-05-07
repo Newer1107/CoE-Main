@@ -21,10 +21,10 @@ export default async function StudentInternshipPage({ params }: { params: Promis
   }
 
   const { id } = await params;
-  const internshipId = Number(id);
-  if (!Number.isInteger(internshipId) || internshipId <= 0) {
+  const problemId = Number(id);
+  if (!Number.isInteger(problemId) || problemId <= 0) {
     redirect('/industry-internship');
   }
 
-  return <StudentInternshipClient internshipId={internshipId} />;
+  return <StudentInternshipClient problemId={problemId} />;
 }

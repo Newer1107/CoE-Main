@@ -15,9 +15,9 @@ interface ParticipantRow {
 interface InternshipDetail {
   id: number;
   title: string;
-  status: 'ACTIVE' | 'COMPLETED';
+  status: string;
   createdAt: string;
-  industryPartner: UserSummary;
+  industry?: { id: number; name: string } | null;
   participants: ParticipantRow[];
 }
 
@@ -73,7 +73,7 @@ const renderMessageContent = (content: string) => {
   });
 };
 
-export default function StudentInternshipClient({ internshipId }: { internshipId: number }) {
+export default function StudentInternshipClient({ problemId }: { problemId: number }) {
   const [internship, setInternship] = useState<InternshipDetail | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -92,11 +92,11 @@ export default function StudentInternshipClient({ internshipId }: { internshipId
 
     try {
       const [internshipRes, tasksRes, messagesRes, meetingsRes, documentsRes] = await Promise.all([
-        fetch(`/api/internships?id=${internshipId}`),
-        fetch(`/api/tasks?internshipId=${internshipId}`),
-        fetch(`/api/messages?internshipId=${internshipId}`),
-        fetch(`/api/meetings?internshipId=${internshipId}`),
-        fetch(`/api/documents?internshipId=${internshipId}`),
+        fetch(`/api/internships?id=${problemId}`),
+        fetch(`/api/tasks?problemId=${problemId}`),
+        fetch(`/api/messages?problemId=${problemId}`),
+        fetch(`/api/meetings?problemId=${problemId}`),
+        fetch(`/api/documents?problemId=${problemId}`),
       ]);
 
       if (!internshipRes.ok) throw new Error('Failed to load internship');
@@ -121,7 +121,7 @@ export default function StudentInternshipClient({ internshipId }: { internshipId
     } finally {
       setLoading(false);
     }
-  }, [internshipId]);
+  }, [problemId]);
 
   useEffect(() => {
     void loadWorkspace();
@@ -160,7 +160,7 @@ export default function StudentInternshipClient({ internshipId }: { internshipId
 
     try {
       const formData = new FormData();
-      formData.set('internshipId', String(internshipId));
+      formData.set('problemId', String(problemId));
       if (messageContent.trim()) {
         formData.set('content', messageContent.trim());
       }

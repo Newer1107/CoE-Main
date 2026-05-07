@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/lib/jwt';
+import { redirect } from 'next/navigation';
 import InnovationProblemsClient from '@/app/innovation/problems/InnovationProblemsClient';
 
 export default async function IndustryInternshipPage() {
@@ -22,6 +23,11 @@ export default async function IndustryInternshipPage() {
     } catch {
       role = null;
     }
+  }
+
+  // Admins and industry partners should land on the internship dashboard (workspace view)
+  if (role === 'ADMIN' || role === 'INDUSTRY_PARTNER') {
+    return redirect('/industry-internship/dashboard');
   }
 
   return <InnovationProblemsClient role={role} listingType="internship" />;

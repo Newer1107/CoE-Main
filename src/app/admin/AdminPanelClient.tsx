@@ -860,6 +860,8 @@ export default function AdminPanelClient({
   );
         const [industryDirectory, setIndustryDirectory] = useState<IndustryDirectoryRow[]>([]);
         const [loadingIndustryDirectory, setLoadingIndustryDirectory] = useState(false);
+        const [internshipsList, setInternshipsList] = useState<any[]>([]);
+        const [loadingInternshipsList, setLoadingInternshipsList] = useState(false);
         const [selectedIndustryOption, setSelectedIndustryOption] = useState<string>("NEW");
         const [industryNameInput, setIndustryNameInput] = useState("");
   const [industryPartnerName, setIndustryPartnerName] = useState("");
@@ -2432,8 +2434,22 @@ export default function AdminPanelClient({
   useEffect(() => {
     if (operationsTab !== "industry") return;
     void loadIndustryDirectory();
+    void loadAllInternships();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [operationsTab]);
+
+  const loadAllInternships = async () => {
+    try {
+      setLoadingInternshipsList(true);
+      const payload = await apiCall('/api/internships');
+      const items = (payload?.data || []) as any[];
+      setInternshipsList(items);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not load internships.');
+    } finally {
+      setLoadingInternshipsList(false);
+    }
+  };
 
   const stageDecision = (claimId: number, status: StagedHackathonDecision) => {
     setStagedDecisions((prev) => {
@@ -2867,6 +2883,48 @@ export default function AdminPanelClient({
                   </p>
                 </div>
               ))}
+            </div>
+          )}
+        </article>
+
+        <article className="border border-[#c4c6d3] bg-white p-5">
+          <h2 className="font-headline text-2xl text-[#002155]">All Internship Projects</h2>
+          <p className="mt-2 text-sm text-[#434651]">Platform-wide internship projects. Click to open a workspace and monitor participants.</p>
+
+          {loadingInternshipsList ? (
+            <p className="mt-4 text-sm text-[#747782]">Loading internships...</p>
+          ) : internshipsList.length === 0 ? (
+            <p className="mt-4 border border-dashed border-[#c4c6d3] p-4 text-sm text-[#434651]">No internships found.</p>
+          ) : (
+            <div className="mt-4 overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#f5f4f0] text-left text-xs uppercase tracking-widest text-[#434651]">
+                    <th className="px-3 py-2">Title</th>
+                    <th className="px-3 py-2">Industry</th>
+                    <th className="px-3 py-2">Participants</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Created</th>
+                    <th className="px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {internshipsList.map((it) => (
+                    <tr key={it.id} className="border-t border-[#ecebe7]">
+                      <td className="px-3 py-2 text-[#002155] font-medium">{it.title}</td>
+                      <td className="px-3 py-2 text-[#434651]">{it.industry?.name || '—'}</td>
+                      <td className="px-3 py-2 text-[#434651]">{it.participantsCount ?? 0}</td>
+                      <td className="px-3 py-2 text-[#434651]">{it.status}</td>
+                      <td className="px-3 py-2 text-[#434651]">{formatIstDateTime(it.createdAt)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-2">
+                          <Link href={`/industry-internship/${it.id}`} className="px-2 py-1 text-xs border border-[#002155] text-[#002155] rounded">Open Workspace</Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </article>

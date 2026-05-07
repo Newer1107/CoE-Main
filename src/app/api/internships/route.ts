@@ -21,50 +21,137 @@ export async function GET(req: NextRequest) {
 
     if (parsed.data.id) {
       const access = await resolveInternshipAccess(user, parsed.data.id);
-      const internship = await prisma.internship.findUnique({
-        where: { id: access.internship.id },
+      const problem = await prisma.problem.findUnique({
+        where: { id: access.problem.id },
         include: {
-          industryPartner: { select: { id: true, name: true, email: true } },
-          participants: { include: { student: { select: { id: true, name: true, email: true } } } },
+          industry: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
         },
       });
 
-      if (!internship) return errorRes('Internship not found', [], 404);
+      if (!problem) return errorRes('Internship not found', [], 404);
 
-      return successRes(internship, 'Internship retrieved successfully.');
+      const participants = await prisma.application.findMany({
+        where: {
+          problemId: problem.id,
+          status: 'SELECTED',
+        },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      return successRes(
+        {
+          id: problem.id,
+          title: problem.title,
+          status: problem.status,
+          createdAt: problem.createdAt,
+          industry: problem.industry,
+          createdBy: problem.createdBy,
+          participants: participants.map((row) => ({ student: row.user })),
+        },
+        'Internship retrieved successfully.'
+      );
     }
 
     if (user.role === 'ADMIN') {
-      const internships = await prisma.internship.findMany({
+      const problems = await prisma.problem.findMany({
+        where: { problemType: 'INTERNSHIP' },
         orderBy: { createdAt: 'desc' },
         include: {
-          industryPartner: { select: { id: true, name: true, email: true } },
-          participants: { include: { student: { select: { id: true, name: true, email: true } } } },
+          industry: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
         },
       });
-      return successRes(internships, 'Internships retrieved successfully.');
+
+      const counts = await prisma.application.groupBy({
+        by: ['problemId'],
+        where: { status: 'SELECTED', problemId: { in: problems.map((row) => row.id) } },
+        _count: { _all: true },
+      });
+      const countMap = new Map(counts.map((row) => [row.problemId, row._count._all]));
+
+      return successRes(
+        problems.map((problem) => ({
+          id: problem.id,
+          title: problem.title,
+          status: problem.status,
+          createdAt: problem.createdAt,
+          industry: problem.industry,
+          createdBy: problem.createdBy,
+          participantsCount: countMap.get(problem.id) ?? 0,
+        })),
+        'Internships retrieved successfully.'
+      );
     }
 
     if (user.role === 'INDUSTRY_PARTNER') {
-      const internships = await prisma.internship.findMany({
-        where: { industryPartnerId: user.id },
+      const industryId = typeof user.industryId === 'number' ? user.industryId : null;
+      const problems = await prisma.problem.findMany({
+        where: {
+          problemType: 'INTERNSHIP',
+          OR: [
+            ...(industryId ? [{ industryId }] : []),
+            { createdById: user.id },
+          ],
+        },
         orderBy: { createdAt: 'desc' },
         include: {
-          participants: { include: { student: { select: { id: true, name: true, email: true } } } },
+          industry: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
         },
       });
-      return successRes(internships, 'Internships retrieved successfully.');
+
+      const counts = await prisma.application.groupBy({
+        by: ['problemId'],
+        where: { status: 'SELECTED', problemId: { in: problems.map((row) => row.id) } },
+        _count: { _all: true },
+      });
+      const countMap = new Map(counts.map((row) => [row.problemId, row._count._all]));
+
+      return successRes(
+        problems.map((problem) => ({
+          id: problem.id,
+          title: problem.title,
+          status: problem.status,
+          createdAt: problem.createdAt,
+          industry: problem.industry,
+          createdBy: problem.createdBy,
+          participantsCount: countMap.get(problem.id) ?? 0,
+        })),
+        'Internships retrieved successfully.'
+      );
     }
 
-    const internships = await prisma.internship.findMany({
-      where: { participants: { some: { studentId: user.id } } },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        industryPartner: { select: { id: true, name: true, email: true } },
-        participants: { include: { student: { select: { id: true, name: true, email: true } } } },
+    const applications = await prisma.application.findMany({
+      where: {
+        userId: user.id,
+        status: 'SELECTED',
+        problem: { problemType: 'INTERNSHIP' },
       },
+      include: {
+        problem: {
+          include: {
+            industry: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
-    return successRes(internships, 'Internships retrieved successfully.');
+
+    return successRes(
+      applications.map((app) => ({
+        id: app.problem.id,
+        title: app.problem.title,
+        status: app.problem.status,
+        createdAt: app.problem.createdAt,
+        industry: app.problem.industry,
+        createdBy: app.problem.createdBy,
+        participantsCount: 0,
+      })),
+      'Internships retrieved successfully.'
+    );
   } catch (err) {
     if (err instanceof InternshipWorkspaceError) {
       return errorRes(err.message, err.details, err.status);

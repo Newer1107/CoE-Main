@@ -7,15 +7,15 @@ import { createNotifications } from '@/lib/notifications';
 import { uploadFile } from '@/lib/minio';
 
 const createSchema = z.object({
-  internshipId: z.number().int().positive(),
+  problemId: z.number().int().positive(),
   content: z.string().trim().optional(),
 });
 
 const querySchema = z.object({
-  internshipId: z.coerce.number().int().positive(),
+  problemId: z.coerce.number().int().positive(),
 });
 
-// GET /api/messages?internshipId
+// GET /api/messages?problemId
 export async function GET(req: NextRequest) {
   try {
     const user = authenticate(req);
@@ -26,10 +26,10 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
-    await requireParticipantAccess(user, parsed.data.internshipId);
+    await requireParticipantAccess(user, parsed.data.problemId);
 
     const messages = await prisma.internshipMessage.findMany({
-      where: { internshipId: parsed.data.internshipId },
+      where: { problemId: parsed.data.problemId },
       orderBy: { createdAt: 'asc' },
       include: { sender: { select: { id: true, name: true, email: true, role: true } } },
     });
@@ -56,12 +56,12 @@ export async function POST(req: NextRequest) {
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      const internshipIdRaw = formData.get('internshipId');
+      const problemIdRaw = formData.get('problemId');
       const contentRaw = formData.get('content');
       const attachmentRaw = formData.get('attachment');
 
       parsed = createSchema.safeParse({
-        internshipId: typeof internshipIdRaw === 'string' ? Number(internshipIdRaw) : NaN,
+        problemId: typeof problemIdRaw === 'string' ? Number(problemIdRaw) : NaN,
         content: typeof contentRaw === 'string' ? contentRaw : undefined,
       });
 
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       return errorRes('Validation failed', ['Attachment is too large. Maximum allowed size is 20 MB.'], 400);
     }
 
-    const internship = await requireParticipantAccess(user, parsed.data.internshipId);
+    const problem = await requireParticipantAccess(user, parsed.data.problemId);
 
     let attachmentUrl: string | null = null;
 
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 
       await prisma.internshipDocument.create({
         data: {
-          internshipId: parsed.data.internshipId,
+          problemId: parsed.data.problemId,
           fileUrl: objectKey,
           uploadedById: user.id,
         },
@@ -122,20 +122,28 @@ export async function POST(req: NextRequest) {
 
     const message = await prisma.internshipMessage.create({
       data: {
-        internshipId: parsed.data.internshipId,
+        problemId: parsed.data.problemId,
         senderId: user.id,
         content: finalContent,
       },
       include: { sender: { select: { id: true, name: true, email: true, role: true } } },
     });
 
-    const participants = await prisma.internshipParticipant.findMany({
-      where: { internshipId: parsed.data.internshipId },
-      select: { studentId: true },
+    const participants = await prisma.application.findMany({
+      where: { problemId: parsed.data.problemId, status: 'SELECTED' },
+      select: { userId: true },
     });
 
-    const recipients = new Set<number>(participants.map((row) => row.studentId));
-    recipients.add(internship.industryPartnerId);
+    const recipients = new Set<number>(participants.map((row) => row.userId));
+    recipients.add(problem.createdById);
+
+    if (problem.industryId) {
+      const industryPartners = await prisma.user.findMany({
+        where: { industryId: problem.industryId, role: 'INDUSTRY_PARTNER' },
+        select: { id: true },
+      });
+      industryPartners.forEach((partner) => recipients.add(partner.id));
+    }
     recipients.delete(user.id);
 
     await createNotifications(

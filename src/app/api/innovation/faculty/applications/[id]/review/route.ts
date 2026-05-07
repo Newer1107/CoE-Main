@@ -11,68 +11,6 @@ const reviewSchema = z.object({
   feedback: z.string().trim().optional(),
 });
 
-const ensureInternshipWorkspaceForSelection = async (
-  application: { userId: number; problemId: number; problem: { id: number; title: string; createdById: number; industryId: number | null } },
-  reviewer: { id: number; role: string }
-) => {
-  let industryPartnerOwnerId = application.problem.createdById;
-
-  const problemOwner = await prisma.user.findUnique({
-    where: { id: application.problem.createdById },
-    select: { id: true, role: true },
-  });
-
-  if (problemOwner?.role !== 'INDUSTRY_PARTNER' && application.problem.industryId) {
-    const partnerFromIndustry = await prisma.user.findFirst({
-      where: { industryId: application.problem.industryId, role: 'INDUSTRY_PARTNER' },
-      select: { id: true },
-      orderBy: { id: 'asc' },
-    });
-    if (partnerFromIndustry) {
-      industryPartnerOwnerId = partnerFromIndustry.id;
-    }
-  }
-
-  if (reviewer.role === 'INDUSTRY_PARTNER') {
-    industryPartnerOwnerId = reviewer.id;
-  }
-
-  let internship = await prisma.internship.findFirst({
-    where: {
-      problemStatementId: application.problem.id,
-      industryPartnerId: industryPartnerOwnerId,
-      status: 'ACTIVE',
-    },
-    select: { id: true },
-  });
-
-  if (!internship) {
-    internship = await prisma.internship.create({
-      data: {
-        title: application.problem.title,
-        industryPartnerId: industryPartnerOwnerId,
-        problemStatementId: application.problem.id,
-        status: 'ACTIVE',
-      },
-      select: { id: true },
-    });
-  }
-
-  await prisma.internshipParticipant.upsert({
-    where: {
-      internshipId_studentId: {
-        internshipId: internship.id,
-        studentId: application.userId,
-      },
-    },
-    create: {
-      internshipId: internship.id,
-      studentId: application.userId,
-    },
-    update: {},
-  });
-};
-
 // PATCH /api/innovation/faculty/applications/[id]/review
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -144,22 +82,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         },
       },
     });
-
-    if (parsed.data.status === 'SELECTED') {
-      await ensureInternshipWorkspaceForSelection(
-        {
-          userId: application.userId,
-          problemId: application.problemId,
-          problem: {
-            id: application.problemId,
-            title: updated.problem.title,
-            createdById: application.problem.createdById,
-            industryId: application.problem.industryId,
-          },
-        },
-        { id: user.id, role: user.role }
-      );
-    }
 
     // Send notification email based on status
     try {

@@ -15,9 +15,9 @@ interface ParticipantRow {
 interface InternshipDetail {
   id: number;
   title: string;
-  status: 'ACTIVE' | 'COMPLETED';
+  status: string;
   createdAt: string;
-  industryPartner: UserSummary;
+  industry?: { id: number; name: string } | null;
   participants: ParticipantRow[];
 }
 
@@ -74,7 +74,7 @@ const renderMessageContent = (content: string) => {
   });
 };
 
-export default function IndustryInternshipClient({ internshipId }: { internshipId: number }) {
+export default function IndustryInternshipClient({ problemId }: { problemId: number }) {
   const [internship, setInternship] = useState<InternshipDetail | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -82,6 +82,9 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [addStudentEmail, setAddStudentEmail] = useState('');
+  const [addStudentLoading, setAddStudentLoading] = useState(false);
 
   const [taskForm, setTaskForm] = useState({
     title: '',
@@ -104,17 +107,46 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
 
   const participants = useMemo(() => internship?.participants ?? [], [internship]);
 
+  const handleAddStudent = async () => {
+    if (!addStudentEmail.trim()) {
+      setError('Student email is required.');
+      return;
+    }
+
+    setAddStudentLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/internships/add-participant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problemId, studentEmail: addStudentEmail.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to add participant');
+
+      setAddStudentEmail('');
+      setAddStudentOpen(false);
+      await loadWorkspace();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add participant');
+    } finally {
+      setAddStudentLoading(false);
+    }
+  };
+
   const loadWorkspace = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
       const [internshipRes, tasksRes, messagesRes, meetingsRes, documentsRes] = await Promise.all([
-        fetch(`/api/internships?id=${internshipId}`),
-        fetch(`/api/tasks?internshipId=${internshipId}`),
-        fetch(`/api/messages?internshipId=${internshipId}`),
-        fetch(`/api/meetings?internshipId=${internshipId}`),
-        fetch(`/api/documents?internshipId=${internshipId}`),
+        fetch(`/api/internships?id=${problemId}`),
+        fetch(`/api/tasks?problemId=${problemId}`),
+        fetch(`/api/messages?problemId=${problemId}`),
+        fetch(`/api/meetings?problemId=${problemId}`),
+        fetch(`/api/documents?problemId=${problemId}`),
       ]);
 
       if (!internshipRes.ok) throw new Error('Failed to load internship');
@@ -139,7 +171,7 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
     } finally {
       setLoading(false);
     }
-  }, [internshipId]);
+  }, [problemId]);
 
   useEffect(() => {
     void loadWorkspace();
@@ -159,7 +191,7 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          internshipId,
+          problemId,
           title: taskForm.title.trim(),
           description: taskForm.description.trim() || undefined,
           assignedToId: Number(taskForm.assignedToId),
@@ -212,7 +244,7 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
 
     try {
       const formData = new FormData();
-      formData.set('internshipId', String(internshipId));
+      formData.set('problemId', String(problemId));
       if (messageContent.trim()) {
         formData.set('content', messageContent.trim());
       }
@@ -253,7 +285,7 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          internshipId,
+          problemId,
           title: meetingForm.title.trim(),
           datetime: meetingForm.datetime,
           link: meetingForm.link.trim(),
@@ -284,7 +316,7 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
 
     try {
       const formData = new FormData();
-      formData.set('internshipId', String(internshipId));
+      formData.set('problemId', String(problemId));
       formData.set('file', documentFile);
 
       const res = await fetch('/api/documents', {
@@ -333,7 +365,15 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-1 space-y-6">
           <div className="border border-[#c4c6d3] rounded p-5 bg-white">
-            <h2 className="text-lg font-bold text-[#002155] mb-3">Participants</h2>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <h2 className="text-lg font-bold text-[#002155]">Participants</h2>
+              <button
+                onClick={() => setAddStudentOpen(true)}
+                className="px-3 py-2 text-xs font-semibold bg-[#002155] text-white rounded"
+              >
+                Add Student
+              </button>
+            </div>
             <ul className="space-y-2">
               {participants.length === 0 && (
                 <li className="text-sm text-[#747782]">No participants yet.</li>
@@ -346,6 +386,51 @@ export default function IndustryInternshipClient({ internshipId }: { internshipI
               ))}
             </ul>
           </div>
+
+          {addStudentOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-md rounded bg-white p-5 shadow-xl border border-[#c4c6d3]">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-[#002155]">Add Student</h3>
+                    <p className="text-xs text-[#747782] mt-1">Add a student directly to this workspace by email.</p>
+                  </div>
+                  <button
+                    onClick={() => setAddStudentOpen(false)}
+                    className="text-sm text-[#434651]"
+                    aria-label="Close add student dialog"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <input
+                    type="email"
+                    value={addStudentEmail}
+                    onChange={(event) => setAddStudentEmail(event.target.value)}
+                    placeholder="student@example.com"
+                    className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleAddStudent}
+                      disabled={addStudentLoading}
+                      className="flex-1 px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
+                    >
+                      {addStudentLoading ? 'Adding...' : 'Add Student'}
+                    </button>
+                    <button
+                      onClick={() => setAddStudentOpen(false)}
+                      className="px-4 py-2 text-sm font-semibold border border-[#c4c6d3] text-[#434651] rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="border border-[#c4c6d3] rounded p-5 bg-white">
             <h2 className="text-lg font-bold text-[#002155] mb-3">Create Task</h2>

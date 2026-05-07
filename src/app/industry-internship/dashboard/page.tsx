@@ -4,61 +4,6 @@ import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/jwt';
 import prisma from '@/lib/prisma';
 
-async function backfillIndustryInternshipsForUser(user: { id: number; role: string; industryId?: number | null }) {
-  if (user.role !== 'INDUSTRY_PARTNER' || !user.industryId) return;
-
-  const selectedApps = await prisma.application.findMany({
-    where: {
-      status: 'SELECTED',
-      problem: {
-        problemType: 'INTERNSHIP',
-        industryId: user.industryId,
-      },
-    },
-    select: {
-      userId: true,
-      problem: { select: { id: true, title: true } },
-    },
-  });
-
-  for (const app of selectedApps) {
-    let internship = await prisma.internship.findFirst({
-      where: {
-        problemStatementId: app.problem.id,
-        industryPartnerId: user.id,
-        status: 'ACTIVE',
-      },
-      select: { id: true },
-    });
-
-    if (!internship) {
-      internship = await prisma.internship.create({
-        data: {
-          title: app.problem.title,
-          industryPartnerId: user.id,
-          problemStatementId: app.problem.id,
-          status: 'ACTIVE',
-        },
-        select: { id: true },
-      });
-    }
-
-    await prisma.internshipParticipant.upsert({
-      where: {
-        internshipId_studentId: {
-          internshipId: internship.id,
-          studentId: app.userId,
-        },
-      },
-      update: {},
-      create: {
-        internshipId: internship.id,
-        studentId: app.userId,
-      },
-    });
-  }
-}
-
 export default async function IndustryInternshipDashboardPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value;
@@ -78,18 +23,35 @@ export default async function IndustryInternshipDashboardPage() {
     redirect('/industry-internship');
   }
 
-  await backfillIndustryInternshipsForUser({ id: payload.id, role: payload.role, industryId: payload.industryId });
-
-  const where = payload.role === 'ADMIN' ? {} : { industryPartnerId: payload.id };
-
-  const internships = await prisma.internship.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      participants: { select: { id: true } },
-      industryPartner: { select: { id: true, name: true, email: true } },
-    },
+  const currentUser = await prisma.user.findUnique({
+    where: { id: payload.id },
+    select: { id: true, role: true, industryId: true },
   });
+
+  const industryId = currentUser?.industryId ?? payload.industryId;
+  const problemWhere: Record<string, unknown> = {
+    problemType: 'INTERNSHIP',
+  };
+
+  if (payload.role === 'INDUSTRY_PARTNER') {
+    problemWhere.OR = [
+      ...(industryId ? [{ industryId }] : []),
+      { createdById: payload.id },
+    ];
+  }
+
+  const problems = await prisma.problem.findMany({
+    where: problemWhere,
+    orderBy: { createdAt: 'desc' },
+    include: { industry: { select: { id: true, name: true } } },
+  });
+
+  const counts = await prisma.application.groupBy({
+    by: ['problemId'],
+    where: { status: 'SELECTED', problemId: { in: problems.map((row) => row.id) } },
+    _count: { _all: true },
+  });
+  const countMap = new Map(counts.map((row) => [row.problemId, row._count._all]));
 
   return (
     <main className="max-w-6xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
@@ -102,7 +64,7 @@ export default async function IndustryInternshipDashboardPage() {
         </p>
       </header>
 
-      {internships.length === 0 ? (
+      {problems.length === 0 ? (
         <section className="border border-dashed border-[#c4c6d3] bg-white p-8 rounded text-center">
           <p className="text-[#434651] font-medium mb-3">No internship projects found yet.</p>
           <Link
@@ -114,26 +76,26 @@ export default async function IndustryInternshipDashboardPage() {
         </section>
       ) : (
         <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {internships.map((internship) => (
-            <article key={internship.id} className="border border-[#c4c6d3] bg-white rounded p-5">
+          {problems.map((problem) => (
+            <article key={problem.id} className="border border-[#c4c6d3] bg-white rounded p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-[#002155]">{internship.title}</h2>
+                  <h2 className="text-lg font-bold text-[#002155]">{problem.title}</h2>
                   <p className="text-xs text-[#747782] mt-1">
-                    Created {new Date(internship.createdAt).toLocaleDateString()}
+                    Created {new Date(problem.createdAt).toLocaleDateString()}
                   </p>
                   <p className="text-xs text-[#434651] mt-1">
-                    Status: {internship.status} • Participants: {internship.participants.length}
+                    Status: {problem.status} • Participants: {countMap.get(problem.id) ?? 0}
                   </p>
                   <p className="text-xs text-[#434651] mt-1">
-                    Industry: {internship.industryPartner.name}
+                    Industry: {problem.industry?.name ?? 'Unassigned'}
                   </p>
                 </div>
               </div>
 
               <div className="mt-4">
                 <Link
-                  href={`/industry-internship/${internship.id}`}
+                  href={`/industry-internship/${problem.id}`}
                   className="inline-block px-4 py-2 text-xs font-semibold border border-[#002155] text-[#002155] rounded hover:bg-[#002155] hover:text-white transition"
                 >
                   Open Workspace

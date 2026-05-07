@@ -15,9 +15,9 @@ interface ParticipantRow {
 interface InternshipDetail {
   id: number;
   title: string;
-  status: 'ACTIVE' | 'COMPLETED';
+  status: string;
   createdAt: string;
-  industryPartner: UserSummary;
+  industry?: { id: number; name: string } | null;
   participants: ParticipantRow[];
 }
 
@@ -74,7 +74,7 @@ const renderMessageContent = (content: string) => {
   });
 };
 
-export default function FacultyInternshipClient({ internshipId }: { internshipId: number }) {
+export default function FacultyInternshipClient({ problemId }: { problemId: number }) {
   const [internship, setInternship] = useState<InternshipDetail | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -110,11 +110,11 @@ export default function FacultyInternshipClient({ internshipId }: { internshipId
 
     try {
       const [internshipRes, tasksRes, messagesRes, meetingsRes, documentsRes] = await Promise.all([
-        fetch(`/api/internships?id=${internshipId}`),
-        fetch(`/api/tasks?internshipId=${internshipId}`),
-        fetch(`/api/messages?internshipId=${internshipId}`),
-        fetch(`/api/meetings?internshipId=${internshipId}`),
-        fetch(`/api/documents?internshipId=${internshipId}`),
+        fetch(`/api/internships?id=${problemId}`),
+        fetch(`/api/tasks?problemId=${problemId}`),
+        fetch(`/api/messages?problemId=${problemId}`),
+        fetch(`/api/meetings?problemId=${problemId}`),
+        fetch(`/api/documents?problemId=${problemId}`),
       ]);
 
       if (!internshipRes.ok) throw new Error('Failed to load internship');
@@ -139,7 +139,7 @@ export default function FacultyInternshipClient({ internshipId }: { internshipId
     } finally {
       setLoading(false);
     }
-  }, [internshipId]);
+  }, [problemId]);
 
   useEffect(() => {
     void loadWorkspace();
@@ -159,7 +159,7 @@ export default function FacultyInternshipClient({ internshipId }: { internshipId
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          internshipId,
+          problemId,
           title: taskForm.title.trim(),
           description: taskForm.description.trim() || undefined,
           assignedToId: Number(taskForm.assignedToId),
@@ -212,7 +212,7 @@ export default function FacultyInternshipClient({ internshipId }: { internshipId
 
     try {
       const formData = new FormData();
-      formData.set('internshipId', String(internshipId));
+      formData.set('problemId', String(problemId));
       if (messageContent.trim()) {
         formData.set('content', messageContent.trim());
       }
@@ -253,7 +253,7 @@ export default function FacultyInternshipClient({ internshipId }: { internshipId
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          internshipId,
+          problemId,
           title: meetingForm.title.trim(),
           datetime: meetingForm.datetime,
           link: meetingForm.link.trim(),
@@ -284,7 +284,7 @@ export default function FacultyInternshipClient({ internshipId }: { internshipId
 
     try {
       const formData = new FormData();
-      formData.set('internshipId', String(internshipId));
+      formData.set('problemId', String(problemId));
       formData.set('file', documentFile);
 
       const res = await fetch('/api/documents', {
