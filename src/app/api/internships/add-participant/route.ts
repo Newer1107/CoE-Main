@@ -76,6 +76,13 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // ensure a StudentProfile exists for the student (Application.profileId is required)
+      const studentProfile = await tx.studentProfile.upsert({
+        where: { userId: student.id },
+        update: {},
+        create: { userId: student.id },
+      });
+
       await tx.application.upsert({
         where: {
           userId_problemId: {
@@ -86,6 +93,7 @@ export async function POST(req: NextRequest) {
         update: { status: 'SELECTED' },
         create: {
           userId: student.id,
+          profileId: studentProfile.id,
           problemId: problem.id,
           status: 'SELECTED',
         },
