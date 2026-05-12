@@ -48,7 +48,10 @@ interface MeetingRow {
 
 interface DocumentRow {
   id: number;
-  fileUrl: string;
+  documentType: 'FILE' | 'LINK';
+  title: string | null;
+  fileUrl: string | null;
+  linkUrl: string | null;
   createdAt: string;
   uploadedBy: UserSummary;
 }
@@ -103,6 +106,9 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
   });
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentInputKey, setDocumentInputKey] = useState(0);
+  const [documentMode, setDocumentMode] = useState<'FILE' | 'LINK'>('FILE');
+  const [documentLinkTitle, setDocumentLinkTitle] = useState('');
+  const [documentLinkUrl, setDocumentLinkUrl] = useState('');
   const [messageContent, setMessageContent] = useState('');
   const [messageAttachment, setMessageAttachment] = useState<File | null>(null);
   const [messageAttachmentKey, setMessageAttachmentKey] = useState(0);
@@ -322,29 +328,53 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
   };
 
   const handleUploadDocument = async () => {
-    if (!documentFile) {
-      setError('Please select a file to upload.');
-      return;
-    }
-
     setActionLoading(true);
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.set('problemId', String(problemId));
-      formData.set('file', documentFile);
+      let res: Response;
+      if (documentMode === 'FILE') {
+        if (!documentFile) {
+          setError('Please select a file to upload.');
+          setActionLoading(false);
+          return;
+        }
 
-      const res = await fetch('/api/documents', {
-        method: 'POST',
-        body: formData,
-      });
+        const formData = new FormData();
+        formData.set('problemId', String(problemId));
+        formData.set('file', documentFile);
+
+        res = await fetch('/api/documents', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        if (!documentLinkTitle.trim() || !documentLinkUrl.trim()) {
+          setError('Document title and link are required.');
+          setActionLoading(false);
+          return;
+        }
+
+        res = await fetch('/api/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            problemId,
+            documentType: 'LINK',
+            title: documentLinkTitle.trim(),
+            linkUrl: documentLinkUrl.trim(),
+          }),
+        });
+      }
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || 'Failed to upload document');
 
       setDocumentFile(null);
       setDocumentInputKey((value) => value + 1);
+      setDocumentLinkTitle('');
+      setDocumentLinkUrl('');
+      setDocumentMode('FILE');
       await loadWorkspace();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload document');
@@ -596,12 +626,50 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
           <div className="border border-[#c4c6d3] rounded p-5 bg-white">
             <h2 className="text-lg font-bold text-[#002155] mb-3">Upload Document</h2>
             <div className="space-y-3">
-              <input
-                key={documentInputKey}
-                type="file"
-                onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
-                className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
-              />
+              <div className="flex items-center gap-4 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="documentMode"
+                    checked={documentMode === 'FILE'}
+                    onChange={() => setDocumentMode('FILE')}
+                  />
+                  Upload File
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="documentMode"
+                    checked={documentMode === 'LINK'}
+                    onChange={() => setDocumentMode('LINK')}
+                  />
+                  Add Document Link
+                </label>
+              </div>
+
+              {documentMode === 'FILE' ? (
+                <input
+                  key={documentInputKey}
+                  type="file"
+                  onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
+                  className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                />
+              ) : (
+                <div className="space-y-3">
+                  <input
+                    value={documentLinkTitle}
+                    onChange={(event) => setDocumentLinkTitle(event.target.value)}
+                    placeholder="Document title"
+                    className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                  />
+                  <input
+                    value={documentLinkUrl}
+                    onChange={(event) => setDocumentLinkUrl(event.target.value)}
+                    placeholder="https://docs.google.com/..."
+                    className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                  />
+                </div>
+              )}
               <button
                 onClick={handleUploadDocument}
                 disabled={actionLoading}
@@ -725,14 +793,19 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
               <div className="space-y-2">
                 {documents.map((document) => (
                   <div key={document.id} className="flex items-center justify-between">
-                    <a
-                      href={document.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-[#002155] underline"
-                    >
-                      {document.fileUrl}
-                    </a>
+                    <div className="flex flex-col">
+                      <a
+                        href={document.documentType === 'LINK' ? document.linkUrl ?? '#' : document.fileUrl ?? '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-[#002155] underline"
+                      >
+                        {document.title || document.linkUrl || document.fileUrl}
+                      </a>
+                      <span className="text-[11px] uppercase tracking-wide text-[#747782]">
+                        {document.documentType === 'LINK' ? 'Link' : 'File'}
+                      </span>
+                    </div>
                     <span className="text-xs text-[#747782]">{formatDate(document.createdAt)}</span>
                   </div>
                 ))}

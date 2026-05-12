@@ -50,7 +50,7 @@ Major capability groups:
   - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
 - Industry internships: bulk selection, auto-rejection for non-selected applicants, and problem-based internship workspaces
 - Internship workspace: task assignments, group chat, meetings, and document sharing for selected cohorts
-- Internship workspace UX: direct file attachments in chat/messages and direct file upload in documents (no manual URL paste required)
+- Internship workspace UX: direct file attachments in chat/messages plus document uploads or shareable links in the documents panel
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
 
 ### 1.1 System Component Architecture

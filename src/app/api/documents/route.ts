@@ -10,10 +10,31 @@ import {
 import { createNotifications } from '@/lib/notifications';
 import { getSignedUrl, uploadFile } from '@/lib/minio';
 
-const createSchema = z.object({
-  problemId: z.number().int().positive(),
-  fileUrl: z.string().url(),
-});
+const documentTypeSchema = z.enum(['FILE', 'LINK']);
+
+const createSchema = z
+  .object({
+    problemId: z.number().int().positive(),
+    documentType: documentTypeSchema.optional(),
+    title: z.string().trim().min(1).optional(),
+    fileUrl: z.string().url().optional(),
+    linkUrl: z.string().url().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.documentType === 'LINK') {
+      if (!data.linkUrl) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'linkUrl is required for link documents.' });
+      }
+      if (!data.title) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'title is required for link documents.' });
+      }
+      return;
+    }
+
+    if (!data.fileUrl) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'fileUrl is required for file uploads.' });
+    }
+  });
 
 const querySchema = z.object({
   problemId: z.coerce.number().int().positive(),
@@ -24,6 +45,23 @@ const toResolvedDocumentUrl = async (storedValue: string) => {
     return storedValue;
   }
   return await getSignedUrl(storedValue).catch(() => storedValue);
+};
+
+const toDocumentResponse = async (doc: {
+  id: number;
+  documentType: 'FILE' | 'LINK';
+  title: string | null;
+  fileUrl: string | null;
+  linkUrl: string | null;
+  createdAt: Date;
+  uploadedBy: { id: number; name: string; email: string };
+}) => {
+  const resolvedFileUrl = doc.fileUrl ? await toResolvedDocumentUrl(doc.fileUrl) : null;
+  return {
+    ...doc,
+    fileUrl: resolvedFileUrl,
+    linkUrl: doc.linkUrl,
+  };
 };
 
 // GET /api/documents?problemId
@@ -45,12 +83,7 @@ export async function GET(req: NextRequest) {
       include: { uploadedBy: { select: { id: true, name: true, email: true } } },
     });
 
-    const resolvedDocuments = await Promise.all(
-      documents.map(async (doc) => ({
-        ...doc,
-        fileUrl: await toResolvedDocumentUrl(doc.fileUrl),
-      }))
-    );
+    const resolvedDocuments = await Promise.all(documents.map((doc) => toDocumentResponse(doc)));
 
     return successRes(resolvedDocuments, 'Documents retrieved successfully.');
   } catch (err) {
@@ -98,6 +131,8 @@ export async function POST(req: NextRequest) {
 
       parsed = createSchema.safeParse({
         problemId: typeof problemIdRaw === 'string' ? Number(problemIdRaw) : NaN,
+        documentType: 'FILE',
+        title: attachmentRaw.name,
         fileUrl: uploadedObjectKey,
       });
     } else {
@@ -111,16 +146,20 @@ export async function POST(req: NextRequest) {
 
     await requireIndustryAccess(user, parsed.data.problemId);
 
+    const documentType = parsed.data.documentType ?? 'FILE';
     const document = await prisma.internshipDocument.create({
       data: {
         problemId: parsed.data.problemId,
-        fileUrl: parsed.data.fileUrl,
+        documentType,
+        title: parsed.data.title ?? null,
+        fileUrl: parsed.data.fileUrl ?? null,
+        linkUrl: parsed.data.linkUrl ?? null,
         uploadedById: user.id,
       },
       include: { uploadedBy: { select: { id: true, name: true, email: true } } },
     });
 
-    const resolvedFileUrl = await toResolvedDocumentUrl(document.fileUrl);
+    const resolvedDocument = await toDocumentResponse(document);
 
     const participants = await prisma.application.findMany({
       where: { problemId: parsed.data.problemId, status: 'SELECTED' },
@@ -132,11 +171,11 @@ export async function POST(req: NextRequest) {
         userId: row.userId,
         type: 'DOCUMENT_UPLOADED',
         title: 'New internship document uploaded',
-        body: resolvedFileUrl,
+        body: resolvedDocument.linkUrl || resolvedDocument.fileUrl || '',
       }))
     );
 
-    return successRes({ ...document, fileUrl: resolvedFileUrl }, 'Document uploaded successfully.', 201);
+    return successRes(resolvedDocument, 'Document uploaded successfully.', 201);
   } catch (err) {
     if (err instanceof InternshipWorkspaceError) {
       return errorRes(err.message, err.details, err.status);

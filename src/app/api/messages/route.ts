@@ -110,7 +110,10 @@ export async function POST(req: NextRequest) {
       await prisma.internshipDocument.create({
         data: {
           problemId: parsed.data.problemId,
+          documentType: 'FILE',
+          title: attachment.name,
           fileUrl: objectKey,
+          linkUrl: null,
           uploadedById: user.id,
         },
       });

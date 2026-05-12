@@ -47,7 +47,10 @@ interface MeetingRow {
 
 interface DocumentRow {
   id: number;
-  fileUrl: string;
+  documentType: 'FILE' | 'LINK';
+  title: string | null;
+  fileUrl: string | null;
+  linkUrl: string | null;
   createdAt: string;
   uploadedBy: UserSummary;
 }
@@ -324,14 +327,19 @@ export default function StudentInternshipClient({ problemId }: { problemId: numb
             <div className="space-y-2">
               {documents.map((document) => (
                 <div key={document.id} className="flex items-center justify-between">
-                  <a
-                    href={document.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-[#002155] underline"
-                  >
-                    {document.fileUrl}
-                  </a>
+                  <div className="flex flex-col">
+                    <a
+                      href={document.documentType === 'LINK' ? document.linkUrl ?? '#' : document.fileUrl ?? '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-[#002155] underline"
+                    >
+                      {document.title || document.linkUrl || document.fileUrl}
+                    </a>
+                    <span className="text-[11px] uppercase tracking-wide text-[#747782]">
+                      {document.documentType === 'LINK' ? 'Link' : 'File'}
+                    </span>
+                  </div>
                   <span className="text-xs text-[#747782]">{formatDate(document.createdAt)}</span>
                 </div>
               ))}
