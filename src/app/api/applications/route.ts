@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import prisma from '@/lib/prisma';
+import { getStoredFileDisplayName } from '@/lib/innovation';
+import { getSignedUrl } from '@/lib/minio';
 
 type ApplicationStatus = 'SUBMITTED' | 'SELECTED' | 'REJECTED';
 
@@ -89,8 +91,9 @@ export async function GET(req: NextRequest) {
       prisma.application.findMany({
         where,
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, uid: true } },
           problem: { select: { id: true, title: true } },
+          profile: { select: { skills: true, experience: true, interests: true, resumeUrl: true } },
           answers: {
             include: {
               question: { select: { questionText: true } },
@@ -103,8 +106,21 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    const resolvedItems = await Promise.all(
+      items.map(async (app) => ({
+        ...app,
+        profile: {
+          ...app.profile,
+          resumeFileName: getStoredFileDisplayName(app.profile?.resumeUrl ?? null),
+          resumeUrl: app.profile?.resumeUrl
+            ? await getSignedUrl(app.profile.resumeUrl).catch(() => null)
+            : null,
+        },
+      }))
+    );
+
     const response: Record<string, unknown> = {
-      items: items.map((app) => ({
+      items: resolvedItems.map((app) => ({
         id: app.id,
         problemTitle: app.problem.title,
         problemId: app.problemId,
@@ -114,6 +130,14 @@ export async function GET(req: NextRequest) {
           id: app.user.id,
           name: app.user.name,
           email: app.user.email,
+          uid: app.user.uid ?? null,
+        },
+        profile: {
+          skills: app.profile?.skills ?? null,
+          experience: app.profile?.experience ?? null,
+          interests: app.profile?.interests ?? null,
+          resumeUrl: app.profile?.resumeUrl ?? null,
+          resumeFileName: app.profile?.resumeFileName ?? null,
         },
         answers: app.answers.map((ans) => ({
           id: ans.id,

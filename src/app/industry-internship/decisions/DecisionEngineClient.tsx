@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 type InternshipApplicationStatus = 'SUBMITTED' | 'SELECTED' | 'REJECTED';
 
@@ -14,6 +14,14 @@ interface InternshipApplicationRow {
     id: number;
     name: string;
     email: string;
+    uid: string | null;
+  };
+  profile: {
+    skills: string | null;
+    experience: string | null;
+    interests: string | null;
+    resumeUrl: string | null;
+    resumeFileName: string | null;
   };
 }
 
@@ -59,12 +67,21 @@ export default function DecisionEngineClient() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectAllFiltered, setSelectAllFiltered] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
   const selectedCount = selectedIds.size;
   const selectedIdsArray = useMemo(() => Array.from(selectedIds), [selectedIds]);
+
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    if (problemTitle) params.set('problemTitle', problemTitle);
+    if (status !== 'ALL') params.set('status', status);
+    if (search.trim().length > 0) params.set('search', search.trim());
+    window.location.href = `/api/applications/export?${params.toString()}`;
+  };
 
   const fetchApplications = useCallback(async (includeIds = false) => {
     const params = new URLSearchParams();
@@ -115,6 +132,7 @@ export default function DecisionEngineClient() {
     setSelectedIds(new Set());
     setConfirmOpen(false);
     setSelectAllFiltered(false);
+    setExpandedId(null);
   }, [problemTitle, status, search]);
 
   const toggleSelection = (id: number) => {
@@ -315,6 +333,12 @@ export default function DecisionEngineClient() {
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={handleExport}
+                className="px-3 py-2 text-xs font-semibold border border-[#fd9923] text-[#fd9923] rounded hover:bg-[#fd9923] hover:text-white transition"
+              >
+                Export CSV
+              </button>
+              <button
                 onClick={handleSelectAll}
                 disabled={actionLoading}
                 className="px-3 py-2 text-xs font-semibold border border-[#002155] text-[#002155] rounded hover:bg-[#002155] hover:text-white transition"
@@ -348,35 +372,90 @@ export default function DecisionEngineClient() {
                 <th className="px-4 py-3">Internship</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Submitted</th>
+                <th className="px-4 py-3">Profile</th>
               </tr>
             </thead>
             <tbody>
               {applications.map((app) => {
                 const badge = statusBadge(app.status);
                 return (
-                  <tr key={app.id} className="border-b border-[#f0f0f4] hover:bg-[#faf8f2]">
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(app.id)}
-                        onChange={() => toggleSelection(app.id)}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-[#002155]">{app.student.name}</p>
-                      <p className="text-xs text-[#747782]">{app.student.email}</p>
-                    </td>
-                    <td className="px-4 py-3 text-[#434651]">{app.problemTitle}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${badge.color}`}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[#747782]">
-                      {new Date(app.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
+                  <Fragment key={app.id}>
+                    <tr className="border-b border-[#f0f0f4] hover:bg-[#faf8f2]">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(app.id)}
+                          onChange={() => toggleSelection(app.id)}
+                          className="h-4 w-4"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-[#002155]">{app.student.name}</p>
+                        <p className="text-xs text-[#747782]">{app.student.email}</p>
+                        {app.student.uid && (
+                          <p className="text-xs text-[#747782]">UID: {app.student.uid}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[#434651]">{app.problemTitle}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${badge.color}`}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#747782]">
+                        {new Date(app.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => setExpandedId((prev) => (prev === app.id ? null : app.id))}
+                          className="text-xs font-semibold text-[#002155] underline"
+                        >
+                          {expandedId === app.id ? 'Hide' : 'View'}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedId === app.id && (
+                      <tr className="border-b border-[#f0f0f4] bg-[#fcfbf7]">
+                        <td colSpan={6} className="px-4 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Skills</p>
+                              <p className="text-[#434651] whitespace-pre-wrap">
+                                {app.profile.skills || 'Not specified'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Interests</p>
+                              <p className="text-[#434651] whitespace-pre-wrap">
+                                {app.profile.interests || 'Not specified'}
+                              </p>
+                            </div>
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Experience</p>
+                              <p className="text-[#434651] whitespace-pre-wrap">
+                                {app.profile.experience || 'Not specified'}
+                              </p>
+                            </div>
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Resume</p>
+                              {app.profile.resumeUrl ? (
+                                <a
+                                  href={app.profile.resumeUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[#002155] underline"
+                                >
+                                  {app.profile.resumeFileName || 'Download resume'}
+                                </a>
+                              ) : (
+                                <p className="text-[#434651]">Not uploaded</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

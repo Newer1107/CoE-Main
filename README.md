@@ -49,6 +49,8 @@ Major capability groups:
   - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
 - Industry internships: bulk selection, auto-rejection for non-selected applicants, and problem-based internship workspaces
+- Industry internship decisions: review student profiles and resumes alongside applications
+- Industry internship decisions: export applications (profile, answers, UID) as CSV for Excel
 - Internship workspace: task assignments, group chat, meetings, and document sharing for selected cohorts
 - Internship workspace UX: direct file attachments in chat/messages plus document uploads or shareable links in the documents panel
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
