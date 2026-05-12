@@ -20,6 +20,14 @@ interface ApplicationRow {
     id: number;
     name: string;
     email: string;
+    uid: string | null;
+  };
+  profile: {
+    skills: string | null;
+    experience: string | null;
+    interests: string | null;
+    resumeUrl: string | null;
+    resumeFileName: string | null;
   };
   answers: ApplicationAnswer[];
 }
@@ -73,6 +81,14 @@ export default function DecisionEngineClient() {
   const lastFetchIdRef = useRef(0);
 
   const selectedCount = selectedIds.size;
+
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    if (problemTitle) params.set('problemTitle', problemTitle);
+    if (status !== 'ALL') params.set('status', status);
+    if (debouncedSearch.trim().length > 0) params.set('search', debouncedSearch.trim());
+    window.location.href = `/api/applications/export?${params.toString()}`;
+  };
 
   const fetchApplications = useCallback(async (includeIds = false) => {
     const params = new URLSearchParams();
@@ -370,6 +386,12 @@ export default function DecisionEngineClient() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
+                onClick={handleExport}
+                className="px-3 py-2 text-xs font-semibold border border-[#fd9923] text-[#fd9923] rounded hover:bg-[#fd9923] hover:text-white transition"
+              >
+                Export CSV
+              </button>
+              <button
                 onClick={() => runBulkReview('SELECTED')}
                 disabled={actionLoading || selectedCount === 0}
                 className="px-3 py-2 text-xs font-semibold border border-green-700 text-green-700 rounded hover:bg-green-700 hover:text-white transition disabled:opacity-50"
@@ -418,6 +440,9 @@ export default function DecisionEngineClient() {
                       <div>
                         <p className="font-medium text-[#002155]">{app.student.name}</p>
                         <p className="text-xs text-[#747782]">{app.student.email}</p>
+                        {app.student.uid && (
+                          <p className="text-xs text-[#747782]">UID: {app.student.uid}</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-[#434651]">{app.problemTitle}</p>
@@ -435,6 +460,42 @@ export default function DecisionEngineClient() {
                       </p>
 
                       <div className="mt-3 space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Skills</p>
+                            <p className="text-sm text-[#434651] whitespace-pre-wrap">
+                              {app.profile.skills || 'Not specified'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Interests</p>
+                            <p className="text-sm text-[#434651] whitespace-pre-wrap">
+                              {app.profile.interests || 'Not specified'}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Experience</p>
+                            <p className="text-sm text-[#434651] whitespace-pre-wrap">
+                              {app.profile.experience || 'Not specified'}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#747782] mb-1">Resume</p>
+                            {app.profile.resumeUrl ? (
+                              <a
+                                href={app.profile.resumeUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-[#002155] underline"
+                              >
+                                {app.profile.resumeFileName || 'Download resume'}
+                              </a>
+                            ) : (
+                              <p className="text-sm text-[#434651]">Not uploaded</p>
+                            )}
+                          </div>
+                        </div>
+
                         {app.answers.length === 0 && (
                           <p className="text-sm text-[#747782]">No answers found for this application.</p>
                         )}
