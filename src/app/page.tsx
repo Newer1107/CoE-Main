@@ -77,6 +77,7 @@ export default async function HomePage() {
           status: "OPENED",
           mode: "OPEN",
           eventId: null,
+          approvalStatus: "APPROVED",
         },
         orderBy: { createdAt: "desc" },
         take: 5,
