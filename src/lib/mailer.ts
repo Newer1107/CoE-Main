@@ -508,17 +508,11 @@ export const sendApplicationRejectionEmail = async (
   const body = `
     <h2 style="color:#002155;margin:0 0 8px;">Application Status Update</h2>
     <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
-    <p style="color:#434651;font-size:14px;">After reviewing your application for <strong>${details.problemTitle}</strong>, we regret to inform you that it was not selected at this time.</p>
-    ${details.feedback ? `
-    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:12px 16px;margin:16px 0;">
-      <p style="margin:0;color:#434651;font-weight:bold;">Feedback from Faculty:</p>
-      <p style="margin:4px 0 0;color:#002155;">${details.feedback}</p>
-    </div>
-    ` : ''}
+    <p style="color:#434651;font-size:14px;">We appreciate your application for <strong>${details.problemTitle}</strong>. The industry partner has reviewed your application and, unfortunately, it was not selected this time.</p>
     <div style="text-align:center;margin:20px 0;">
       <a href="${innovationProblemsUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Explore Open Problems</a>
     </div>
-    <p style="color:#747782;font-size:12px;">You can apply again anytime from the open problems page.</p>`;
+    <p style="color:#747782;font-size:12px;">You can apply again anytime from other internships in our platform.</p>`;
 
   await send(studentEmail, 'Application Status — TCET CoE Innovation', body, {
     mode: 'immediate',
