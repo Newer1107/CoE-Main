@@ -51,7 +51,6 @@ export async function GET(req: NextRequest) {
     const tasks = await prisma.internshipTask.findMany({
       where: {
         problemId: parsed.data.problemId,
-        ...(user.role === 'STUDENT' ? { assignedToId: user.id } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -59,7 +58,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return successRes(tasks, 'Tasks retrieved successfully.');
+    const enrichedTasks = tasks.map((task) => ({
+      ...task,
+      canUpdate: user.role !== 'STUDENT' || task.assignedToId === user.id,
+    }));
+
+    return successRes(enrichedTasks, 'Tasks retrieved successfully.');
   } catch (err) {
     if (err instanceof InternshipWorkspaceError) {
       return errorRes(err.message, err.details, err.status);

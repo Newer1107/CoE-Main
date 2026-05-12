@@ -28,6 +28,7 @@ interface TaskRow {
   assignedTo: UserSummary;
   deadline: string | null;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  canUpdate?: boolean;
 }
 
 interface MessageRow {
@@ -175,6 +176,12 @@ export default function StudentInternshipClient({ problemId }: { problemId: numb
   }, [loadWorkspace]);
 
   const handleTaskStatus = async (taskId: number, status: TaskRow['status']) => {
+    const task = tasks.find((row) => row.id === taskId);
+    if (task && task.canUpdate === false) {
+      setError('You can only update your own tasks.');
+      return;
+    }
+
     setActionLoading(true);
     setError(null);
 
@@ -275,13 +282,14 @@ export default function StudentInternshipClient({ problemId }: { problemId: numb
                         <p className="text-sm text-[#434651] mt-1">{task.description}</p>
                       )}
                       <p className="text-xs text-[#747782] mt-1">
-                        Deadline {task.deadline ? formatDate(task.deadline) : 'None'}
+                        Assigned to {task.assignedTo.name} • Deadline {task.deadline ? formatDate(task.deadline) : 'None'}
                       </p>
                     </div>
                     <select
                       value={task.status}
                       onChange={(event) => handleTaskStatus(task.id, event.target.value as TaskRow['status'])}
                       className="px-2 py-1 border border-[#c4c6d3] rounded text-xs"
+                      disabled={task.canUpdate === false}
                     >
                       <option value="PENDING">Pending</option>
                       <option value="IN_PROGRESS">In progress</option>

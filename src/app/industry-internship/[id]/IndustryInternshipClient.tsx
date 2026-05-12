@@ -29,6 +29,7 @@ interface TaskRow {
   deadline: string | null;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   createdAt: string;
+  canUpdate?: boolean;
 }
 
 interface MessageRow {
