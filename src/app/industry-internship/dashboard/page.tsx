@@ -40,7 +40,6 @@ export default async function IndustryInternshipDashboardPage() {
       ...(industryId ? [{ industryId }] : []),
       { createdById: payload.id },
     ];
-    problemWhere.approvalStatus = 'APPROVED';
   }
 
   const problems = await prisma.problem.findMany({
@@ -77,8 +76,8 @@ export default async function IndustryInternshipDashboardPage() {
 
       {problems.length === 0 ? (
         <section className="border border-dashed border-[#c4c6d3] bg-white p-8 rounded text-center">
-          <p className="text-[#434651] font-medium mb-2">No approved internship projects found yet.</p>
-          <p className="text-xs text-[#747782] mb-3">New submissions appear after admin approval.</p>
+          <p className="text-[#434651] font-medium mb-2">No internship projects found yet.</p>
+          <p className="text-xs text-[#747782] mb-3">New submissions show as pending until admin approval.</p>
           <Link
             href="/innovation/faculty/applications"
             className="inline-block px-4 py-2 text-xs font-semibold bg-[#002155] text-white rounded"
@@ -97,7 +96,8 @@ export default async function IndustryInternshipDashboardPage() {
                     Created {new Date(problem.createdAt).toLocaleDateString()}
                   </p>
                   <p className="text-xs text-[#434651] mt-1">
-                    Status: {problem.status} • Participants: {countMap.get(problem.id) ?? 0}
+                    Status: {problem.status} • Approval: {problem.approvalStatus.replaceAll('_', ' ')} • Participants:{' '}
+                    {countMap.get(problem.id) ?? 0}
                   </p>
                   <p className="text-xs text-[#434651] mt-1">
                     Industry: {problem.industry?.name ?? 'Unassigned'}

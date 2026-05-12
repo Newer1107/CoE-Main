@@ -2451,6 +2451,23 @@ export default function AdminPanelClient({
     }
   };
 
+  const updateInternshipApproval = async (id: number, approvalStatus: 'APPROVED' | 'REJECTED') => {
+    try {
+      setStatusMessage('');
+      setErrorMessage('');
+
+      await apiCall(`/api/innovation/problems/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ approvalStatus }),
+      });
+
+      setStatusMessage(`Internship #${id} ${approvalStatus === 'APPROVED' ? 'approved' : 'rejected'}.`);
+      await loadAllInternships();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not update internship approval.');
+    }
+  };
+
   const stageDecision = (claimId: number, status: StagedHackathonDecision) => {
     setStagedDecisions((prev) => {
       if (prev[claimId] === status) {
@@ -2904,6 +2921,7 @@ export default function AdminPanelClient({
                     <th className="px-3 py-2">Industry</th>
                     <th className="px-3 py-2">Participants</th>
                     <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Approval</th>
                     <th className="px-3 py-2">Created</th>
                     <th className="px-3 py-2">Actions</th>
                   </tr>
@@ -2915,10 +2933,29 @@ export default function AdminPanelClient({
                       <td className="px-3 py-2 text-[#434651]">{it.industry?.name || '—'}</td>
                       <td className="px-3 py-2 text-[#434651]">{it.participantsCount ?? 0}</td>
                       <td className="px-3 py-2 text-[#434651]">{it.status}</td>
+                      <td className="px-3 py-2 text-[#434651]">{it.approvalStatus?.replaceAll('_', ' ') ?? '—'}</td>
                       <td className="px-3 py-2 text-[#434651]">{formatIstDateTime(it.createdAt)}</td>
                       <td className="px-3 py-2">
                         <div className="flex gap-2">
                           <Link href={`/industry-internship/${it.id}`} className="px-2 py-1 text-xs border border-[#002155] text-[#002155] rounded">Open Workspace</Link>
+                          {it.approvalStatus === 'PENDING_APPROVAL' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void updateInternshipApproval(it.id, 'APPROVED')}
+                                className="px-2 py-1 text-xs border border-[#0b6b2e] text-[#0b6b2e] rounded"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void updateInternshipApproval(it.id, 'REJECTED')}
+                                className="px-2 py-1 text-xs border border-[#ba1a1a] text-[#ba1a1a] rounded"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

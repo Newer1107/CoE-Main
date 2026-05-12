@@ -51,7 +51,7 @@ Major capability groups:
 - Industry internships: bulk selection, auto-rejection for non-selected applicants, and problem-based internship workspaces
 - Industry internship decisions: review student profiles and resumes alongside applications
 - Industry internship decisions: export applications (profile, answers, UID) as CSV for Excel
-- Internship project dashboard: create internship problem statements with a required support PDF, visible after admin approval
+- Internship project dashboard: create internship problem statements with a required support PDF; pending items are visible to admin/industry dashboards until approved and only approved items show publicly
 - Internship workspace: task assignments, group chat, meetings, and document sharing for selected cohorts
 - Internship workspace UX: direct file attachments in chat/messages plus document uploads or shareable links in the documents panel
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs

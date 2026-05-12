@@ -84,7 +84,6 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
 
       resetForm();
       setSuccess('Submitted for admin approval. It will appear after approval.');
-      window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create problem statement');
     } finally {
