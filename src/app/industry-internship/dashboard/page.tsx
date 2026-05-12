@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/jwt';
 import prisma from '@/lib/prisma';
+import CreateProblemModal from './CreateProblemModal';
 
 export default async function IndustryInternshipDashboardPage() {
   const cookieStore = await cookies();
@@ -25,10 +26,11 @@ export default async function IndustryInternshipDashboardPage() {
 
   const currentUser = await prisma.user.findUnique({
     where: { id: payload.id },
-    select: { id: true, role: true, industryId: true },
+    select: { id: true, role: true, industryId: true, industry: { select: { name: true } } },
   });
 
   const industryId = currentUser?.industryId ?? payload.industryId;
+  const industryName = currentUser?.industry?.name ?? null;
   const problemWhere: Record<string, unknown> = {
     problemType: 'INTERNSHIP',
   };
@@ -56,12 +58,20 @@ export default async function IndustryInternshipDashboardPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
-        <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
-          Internship Project Dashboard
-        </h1>
-        <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
-          Open a project workspace to manage participants, tasks, messages, meetings, and documents.
-        </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
+              Internship Project Dashboard
+            </h1>
+            <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
+              Open a project workspace to manage participants, tasks, messages, meetings, and documents.
+            </p>
+          </div>
+          <CreateProblemModal
+            canCreate={payload.role === 'INDUSTRY_PARTNER'}
+            industryName={industryName}
+          />
+        </div>
       </header>
 
       {problems.length === 0 ? (
