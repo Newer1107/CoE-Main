@@ -40,6 +40,7 @@ export default async function IndustryInternshipDashboardPage() {
       ...(industryId ? [{ industryId }] : []),
       { createdById: payload.id },
     ];
+    problemWhere.approvalStatus = 'APPROVED';
   }
 
   const problems = await prisma.problem.findMany({
@@ -76,7 +77,8 @@ export default async function IndustryInternshipDashboardPage() {
 
       {problems.length === 0 ? (
         <section className="border border-dashed border-[#c4c6d3] bg-white p-8 rounded text-center">
-          <p className="text-[#434651] font-medium mb-3">No internship projects found yet.</p>
+          <p className="text-[#434651] font-medium mb-2">No approved internship projects found yet.</p>
+          <p className="text-xs text-[#747782] mb-3">New submissions appear after admin approval.</p>
           <Link
             href="/innovation/faculty/applications"
             className="inline-block px-4 py-2 text-xs font-semibold bg-[#002155] text-white rounded"

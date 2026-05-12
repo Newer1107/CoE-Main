@@ -19,7 +19,9 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
+  const [supportDocument, setSupportDocument] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!canCreate) return null;
@@ -28,7 +30,9 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
     setTitle('');
     setDescription('');
     setTags('');
+    setSupportDocument(null);
     setError(null);
+    setSuccess(null);
   };
 
   const handleCreate = async () => {
@@ -44,20 +48,33 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
       return;
     }
 
+    if (!supportDocument) {
+      setError('Support document (PDF) is required.');
+      return;
+    }
+
+    if (supportDocument.type !== 'application/pdf') {
+      setError('Support document must be a PDF file.');
+      return;
+    }
+
     setLoading(true);
     try {
+      const formData = new FormData();
+      formData.set('title', title.trim());
+      formData.set('description', description.trim());
+      if (tags.trim()) {
+        formData.set('tags', tags.trim());
+      }
+      formData.set('mode', 'OPEN');
+      formData.set('problemType', 'INTERNSHIP');
+      formData.set('isIndustryProblem', 'true');
+      formData.set('industryName', industryName);
+      formData.set('supportDocument', supportDocument);
+
       const res = await fetch('/api/innovation/problems', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          tags: tags.trim() || undefined,
-          mode: 'OPEN',
-          problemType: 'INTERNSHIP',
-          isIndustryProblem: true,
-          industryName,
-        }),
+        body: formData,
       });
 
       const payload = (await res.json()) as CreateProblemResponse;
@@ -66,12 +83,8 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
       }
 
       resetForm();
-      setOpen(false);
-      if (payload?.data?.id) {
-        window.location.href = `/industry-internship/${payload.data.id}`;
-      } else {
-        window.location.reload();
-      }
+      setSuccess('Submitted for admin approval. It will appear after approval.');
+      window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create problem statement');
     } finally {
@@ -115,6 +128,11 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
                 {error}
               </div>
             )}
+            {success && (
+              <div className="mb-3 p-3 border border-green-200 bg-green-50 text-green-700 text-xs rounded">
+                {success}
+              </div>
+            )}
 
             <div className="space-y-3">
               <input
@@ -135,6 +153,17 @@ export default function CreateProblemModal({ canCreate, industryName }: CreatePr
                 placeholder="Tags (comma-separated)"
                 className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
               />
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[#747782] mb-2">
+                  Support Document (PDF)
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(event) => setSupportDocument(event.target.files?.[0] ?? null)}
+                  className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                />
+              </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleCreate}
