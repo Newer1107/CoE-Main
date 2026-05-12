@@ -40,6 +40,14 @@ const querySchema = z.object({
   problemId: z.coerce.number().int().positive(),
 });
 
+const isPdfOrImage = (file: File) => {
+  const filename = file.name.toLowerCase();
+  const mime = (file.type || '').toLowerCase();
+  const isPdf = mime === 'application/pdf' || filename.endsWith('.pdf');
+  const isImage = mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(filename);
+  return isPdf || isImage;
+};
+
 const toResolvedDocumentUrl = async (storedValue: string) => {
   if (/^https?:\/\//i.test(storedValue) || storedValue.startsWith('/')) {
     return storedValue;
@@ -119,6 +127,10 @@ export async function POST(req: NextRequest) {
 
       if (attachmentRaw.size > 20 * 1024 * 1024) {
         return errorRes('Validation failed', ['Attachment is too large. Maximum allowed size is 20 MB.'], 400);
+      }
+
+      if (!isPdfOrImage(attachmentRaw)) {
+        return errorRes('Validation failed', ['Only PDF or image files are allowed.'], 400);
       }
 
       const buffer = Buffer.from(await attachmentRaw.arrayBuffer());

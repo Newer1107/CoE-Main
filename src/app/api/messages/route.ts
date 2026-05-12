@@ -15,6 +15,14 @@ const querySchema = z.object({
   problemId: z.coerce.number().int().positive(),
 });
 
+const isPdfOrImage = (file: File) => {
+  const filename = file.name.toLowerCase();
+  const mime = (file.type || '').toLowerCase();
+  const isPdf = mime === 'application/pdf' || filename.endsWith('.pdf');
+  const isImage = mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(filename);
+  return isPdf || isImage;
+};
+
 // GET /api/messages?problemId
 export async function GET(req: NextRequest) {
   try {
@@ -86,6 +94,10 @@ export async function POST(req: NextRequest) {
 
     if (attachment && attachment.size > 20 * 1024 * 1024) {
       return errorRes('Validation failed', ['Attachment is too large. Maximum allowed size is 20 MB.'], 400);
+    }
+
+    if (attachment && !isPdfOrImage(attachment)) {
+      return errorRes('Validation failed', ['Only PDF or image attachments are allowed.'], 400);
     }
 
     const problem = await requireParticipantAccess(user, parsed.data.problemId);

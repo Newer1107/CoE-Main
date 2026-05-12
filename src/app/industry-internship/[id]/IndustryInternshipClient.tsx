@@ -62,19 +62,63 @@ interface ApiResponse<T> {
 
 const formatDate = (value: string) => new Date(value).toLocaleString();
 
+const getFileKind = (value: string) => {
+  const normalized = value.split('?')[0].toLowerCase();
+  if (normalized.endsWith('.pdf')) return 'pdf';
+  if (/(\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)$/.test(normalized)) return 'image';
+  return 'other';
+};
+
+const renderInlineFile = (url: string) => {
+  const kind = getFileKind(url);
+  if (kind === 'image') {
+    return <img src={url} alt="Attachment" className="mt-2 max-h-64 rounded border border-[#e0e2ea]" />;
+  }
+  if (kind === 'pdf') {
+    return (
+      <iframe
+        src={url}
+        title="PDF preview"
+        className="mt-2 h-64 w-full rounded border border-[#e0e2ea]"
+      />
+    );
+  }
+  return null;
+};
+
 const renderMessageContent = (content: string) => {
-  const parts = content.split(/(https?:\/\/\S+|\/api\/storage\/\S+)/g);
-  return parts.map((part, index) => {
-    const isLink = /^(https?:\/\/\S+|\/api\/storage\/\S+)$/.test(part);
-    if (isLink) {
-      return (
-        <a key={`${part}-${index}`} href={part} target="_blank" rel="noreferrer" className="text-[#002155] underline break-all">
-          {part}
-        </a>
-      );
-    }
-    return <span key={`${part}-${index}`}>{part}</span>;
-  });
+  const attachmentMatch = content.match(/\/api\/storage\/\S+/);
+  const attachmentUrl = attachmentMatch ? attachmentMatch[0] : null;
+  const textContent = attachmentUrl ? content.replace(attachmentUrl, '').trim() : content;
+
+  const parts = textContent.split(/(https?:\/\/\S+)/g);
+  return (
+    <>
+      {parts.map((part, index) => {
+        const isLink = /^(https?:\/\/\S+)$/.test(part);
+        if (isLink) {
+          return (
+            <a key={`${part}-${index}`} href={part} target="_blank" rel="noreferrer" className="text-[#002155] underline break-all">
+              {part}
+            </a>
+          );
+        }
+        return <span key={`${part}-${index}`}>{part}</span>;
+      })}
+      {attachmentUrl ? (
+        <div className="mt-2">
+          {renderInlineFile(attachmentUrl)}
+          <a
+            href={attachmentUrl}
+            className="mt-2 inline-flex text-xs font-semibold text-[#002155] underline"
+            download
+          >
+            Download attachment
+          </a>
+        </div>
+      ) : null}
+    </>
+  );
 };
 
 export default function IndustryInternshipClient({ problemId }: { problemId: number }) {
@@ -651,6 +695,7 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                 <input
                   key={documentInputKey}
                   type="file"
+                  accept="application/pdf,image/*"
                   onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
                   className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
                 />
@@ -728,7 +773,7 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                       <p className="text-sm text-[#002155] font-semibold">
                         {message.sender.name} <span className="text-xs text-[#747782]">({message.sender.role})</span>
                       </p>
-                      <p className="text-sm text-[#434651] whitespace-pre-wrap break-words">{renderMessageContent(message.content)}</p>
+                      <div className="text-sm text-[#434651] whitespace-pre-wrap break-words">{renderMessageContent(message.content)}</div>
                       <p className="text-xs text-[#747782]">{formatDate(message.createdAt)}</p>
                     </div>
                   ))
@@ -744,6 +789,7 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                 <input
                   key={messageAttachmentKey}
                   type="file"
+                  accept="application/pdf,image/*"
                   onChange={(event) => setMessageAttachment(event.target.files?.[0] ?? null)}
                   className="w-[200px] px-2 py-2 border border-[#c4c6d3] rounded text-xs"
                 />
@@ -794,14 +840,30 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                 {documents.map((document) => (
                   <div key={document.id} className="flex items-center justify-between">
                     <div className="flex flex-col">
-                      <a
-                        href={document.documentType === 'LINK' ? document.linkUrl ?? '#' : document.fileUrl ?? '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-[#002155] underline"
-                      >
-                        {document.title || document.linkUrl || document.fileUrl}
-                      </a>
+                      {document.documentType === 'LINK' ? (
+                        <a
+                          href={document.linkUrl ?? '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-[#002155] underline"
+                        >
+                          {document.title || document.linkUrl}
+                        </a>
+                      ) : (
+                        <>
+                          <p className="text-sm text-[#002155] font-semibold">{document.title || 'Document'}</p>
+                          {document.fileUrl ? renderInlineFile(document.fileUrl) : null}
+                          {document.fileUrl ? (
+                            <a
+                              href={document.fileUrl}
+                              className="mt-2 inline-flex text-xs font-semibold text-[#002155] underline"
+                              download
+                            >
+                              Download file
+                            </a>
+                          ) : null}
+                        </>
+                      )}
                       <span className="text-[11px] uppercase tracking-wide text-[#747782]">
                         {document.documentType === 'LINK' ? 'Link' : 'File'}
                       </span>

@@ -54,6 +54,7 @@ Major capability groups:
 - Internship project dashboard: create internship problem statements with a required support PDF; pending items are visible to admin/industry dashboards until approved and only approved items show publicly
 - Internship workspace: task assignments, group chat, meetings, and document sharing for selected cohorts
 - Internship workspace UX: direct file attachments in chat/messages plus document uploads or shareable links in the documents panel
+- Internship workspace documents: PDF/image uploads render inline with in-portal previews; other legacy files remain downloadable
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
 
 ### 1.1 System Component Architecture
