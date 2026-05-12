@@ -39,7 +39,7 @@ interface MessageRow {
 }
 
 interface MeetingRow {
-  id: number;
+  id: number | string;
   title: string;
   datetime: string;
   link: string;
@@ -97,6 +97,9 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
     datetime: '',
     link: '',
     description: '',
+    repeat: false,
+    recurrenceInterval: 1,
+    recurrenceDay: new Date().getDay(),
   });
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentInputKey, setDocumentInputKey] = useState(0);
@@ -104,6 +107,8 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
   const [messageAttachment, setMessageAttachment] = useState<File | null>(null);
   const [messageAttachmentKey, setMessageAttachmentKey] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const weekdayOptions = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const participants = useMemo(() => internship?.participants ?? [], [internship]);
 
@@ -290,13 +295,24 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
           datetime: meetingForm.datetime,
           link: meetingForm.link.trim(),
           description: meetingForm.description.trim() || undefined,
+            recurrenceType: meetingForm.repeat ? 'WEEKLY' : 'NONE',
+            recurrenceInterval: meetingForm.repeat ? meetingForm.recurrenceInterval : undefined,
+            recurrenceDay: meetingForm.repeat ? meetingForm.recurrenceDay : undefined,
         }),
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || 'Failed to create meeting');
 
-      setMeetingForm({ title: '', datetime: '', link: '', description: '' });
+      setMeetingForm({
+        title: '',
+        datetime: '',
+        link: '',
+        description: '',
+        repeat: false,
+        recurrenceInterval: 1,
+        recurrenceDay: new Date().getDay(),
+      });
       await loadWorkspace();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create meeting');
@@ -487,7 +503,14 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
               <input
                 type="datetime-local"
                 value={meetingForm.datetime}
-                onChange={(event) => setMeetingForm((prev) => ({ ...prev, datetime: event.target.value }))}
+                onChange={(event) =>
+                  setMeetingForm((prev) => {
+                    const nextDatetime = event.target.value;
+                    if (!prev.repeat) return { ...prev, datetime: nextDatetime };
+                    const nextDay = nextDatetime ? new Date(nextDatetime).getDay() : prev.recurrenceDay;
+                    return { ...prev, datetime: nextDatetime, recurrenceDay: nextDay };
+                  })
+                }
                 className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
               />
               <input
@@ -502,6 +525,64 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                 placeholder="Agenda"
                 className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm min-h-[80px]"
               />
+              <label className="flex items-center gap-2 text-sm text-[#434651]">
+                <input
+                  type="checkbox"
+                  checked={meetingForm.repeat}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => {
+                      const repeat = event.target.checked;
+                      const recurrenceDay = prev.datetime
+                        ? new Date(prev.datetime).getDay()
+                        : prev.recurrenceDay;
+                      return { ...prev, repeat, recurrenceDay };
+                    })
+                  }
+                />
+                Repeat meeting weekly
+              </label>
+              {meetingForm.repeat && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-[#747782] mb-2">
+                      Every (weeks)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={meetingForm.recurrenceInterval}
+                      onChange={(event) =>
+                        setMeetingForm((prev) => ({
+                          ...prev,
+                          recurrenceInterval: Math.max(1, Number(event.target.value || 1)),
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-[#747782] mb-2">
+                      Day
+                    </label>
+                    <select
+                      value={meetingForm.recurrenceDay}
+                      onChange={(event) =>
+                        setMeetingForm((prev) => ({
+                          ...prev,
+                          recurrenceDay: Number(event.target.value),
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
+                    >
+                      {weekdayOptions.map((label, index) => (
+                        <option key={label} value={index}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={handleCreateMeeting}
                 disabled={actionLoading}

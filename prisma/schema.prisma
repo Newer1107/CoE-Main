@@ -90,6 +90,11 @@ enum InternshipTaskStatus {
   COMPLETED
 }
 
+enum MeetingRecurrenceType {
+  NONE
+  WEEKLY
+}
+
 enum NotificationType {
   TASK_ASSIGNED
   MESSAGE_POSTED
@@ -394,6 +399,10 @@ model InternshipMeeting {
   datetime     DateTime
   link         String
   description  String?    @db.Text
+  recurrenceType MeetingRecurrenceType @default(NONE)
+  recurrenceInterval Int     @default(1)
+  recurrenceDay Int?
+  isActive     Boolean   @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

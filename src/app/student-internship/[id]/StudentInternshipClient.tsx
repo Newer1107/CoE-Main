@@ -38,7 +38,7 @@ interface MessageRow {
 }
 
 interface MeetingRow {
-  id: number;
+  id: number | string;
   title: string;
   datetime: string;
   link: string;
