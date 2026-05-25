@@ -769,6 +769,18 @@ const toDateTimeLocalValue = (value: string | null | undefined) => {
   return local.toISOString().slice(0, 16);
 };
 
+const parseEmailListFromInput = (raw: string) => {
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(/[,;\n\s]+/)
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0)
+    )
+  );
+};
+
 export default function AdminPanelClient({
   stats,
   pendingBookings,
@@ -832,6 +844,13 @@ export default function AdminPanelClient({
   const [emailPage, setEmailPage] = useState(1);
   const [emailPageSize, setEmailPageSize] = useState(25);
   const [emailFailedBadgeCount, setEmailFailedBadgeCount] = useState<number | null>(null);
+  const [customEmailScope, setCustomEmailScope] = useState<"CUSTOM" | "STUDENTS" | "FACULTY" | "ALL_USERS">("CUSTOM");
+  const [customEmailRecipients, setCustomEmailRecipients] = useState("");
+  const [customEmailSubject, setCustomEmailSubject] = useState("");
+  const [customEmailMessage, setCustomEmailMessage] = useState("");
+  const [customEmailMode, setCustomEmailMode] = useState<"IMMEDIATE" | "BULK">("IMMEDIATE");
+  const [sendingCustomEmail, setSendingCustomEmail] = useState(false);
+  const [customEmailAttachments, setCustomEmailAttachments] = useState<File[]>([]);
 
   const [ticketIdInput, setTicketIdInput] = useState("");
   const [ticketVerifying, setTicketVerifying] = useState(false);
@@ -922,6 +941,10 @@ export default function AdminPanelClient({
   const allUsers = useMemo(
     () => [...users].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [users]
+  );
+  const customEmailRecipientList = useMemo(
+    () => parseEmailListFromInput(customEmailRecipients),
+    [customEmailRecipients]
   );
   const filteredUsers = useMemo(() => {
     const normalizedSearch = debouncedUserSearch.trim().toLowerCase();
@@ -1216,6 +1239,83 @@ export default function AdminPanelClient({
       setErrorMessage(err instanceof Error ? err.message : "Could not refresh email monitor.");
     } finally {
       setLoadingEmailSnapshot(false);
+    }
+  };
+
+  const handleSendCustomEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const subject = customEmailSubject.trim();
+    const message = customEmailMessage.trim();
+
+    if (subject.length < 3) {
+      setErrorMessage("Subject must be at least 3 characters.");
+      return;
+    }
+
+    if (message.length < 3) {
+      setErrorMessage("Message must be at least 3 characters.");
+      return;
+    }
+
+    if (customEmailScope === "CUSTOM" && customEmailRecipientList.length === 0) {
+      setErrorMessage("Please enter at least one recipient email.");
+      return;
+    }
+
+    if (customEmailAttachments.length > 0 && customEmailMode === "BULK") {
+      setErrorMessage("Attachments are only supported with immediate delivery.");
+      return;
+    }
+
+    if (customEmailAttachments.length > 0 && customEmailScope !== "CUSTOM") {
+      setErrorMessage("Attachments are only supported for specific email recipients.");
+      return;
+    }
+
+    try {
+      setErrorMessage("");
+      setStatusMessage("");
+      setSendingCustomEmail(true);
+
+      const formData = new FormData();
+      formData.set("scope", customEmailScope);
+      formData.set("subject", subject);
+      formData.set("message", message);
+      formData.set("mode", customEmailMode);
+      if (customEmailScope === "CUSTOM") {
+        formData.set("emails", customEmailRecipients);
+      }
+      customEmailAttachments.forEach((file) => {
+        formData.append("attachments", file, file.name);
+      });
+
+      const response = await apiCall("/api/admin/emails/send", {
+        method: "POST",
+        body: formData,
+      });
+
+      const summary = response?.data as { recipients?: number; queued?: number; sent?: number; duplicates?: number } | null;
+      const recipients = summary?.recipients ?? 0;
+      const queued = summary?.queued ?? 0;
+      const sent = summary?.sent ?? 0;
+      const duplicates = summary?.duplicates ?? 0;
+
+      setStatusMessage(`Email queued for ${recipients} recipient(s). Sent: ${sent}, queued: ${queued}, duplicates: ${duplicates}.`);
+      setCustomEmailMessage("");
+      setCustomEmailSubject("");
+      setCustomEmailRecipients("");
+      setCustomEmailScope("CUSTOM");
+      setCustomEmailMode("IMMEDIATE");
+      setCustomEmailAttachments([]);
+
+      if (activeView === "operations" && operationsTab === "emails") {
+        void handleRefreshEmailSnapshot();
+      }
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to send the email.");
+    } finally {
+      setSendingCustomEmail(false);
     }
   };
 
@@ -3064,6 +3164,113 @@ export default function AdminPanelClient({
       ) : null}
 
       {operationsTab === "emails" ? (
+      <>
+      <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-headline text-2xl text-[#002155]">Send Custom Email</h2>
+            <p className="text-sm text-[#434651]">Compose a custom message using the CoE email template.</p>
+          </div>
+          <span className="text-[11px] uppercase tracking-widest text-[#8c4f00] font-label">
+            {customEmailScope === "CUSTOM"
+              ? `${customEmailRecipientList.length} recipient(s)`
+              : "Recipient list resolved on send"}
+          </span>
+        </div>
+
+        <form className="space-y-3" onSubmit={handleSendCustomEmail}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={customEmailScope}
+              onChange={(e) => setCustomEmailScope(e.target.value as "CUSTOM" | "STUDENTS" | "FACULTY" | "ALL_USERS")}
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            >
+              <option value="CUSTOM">Specific emails</option>
+              <option value="STUDENTS">All students</option>
+              <option value="FACULTY">All teachers</option>
+              <option value="ALL_USERS">All users</option>
+            </select>
+            <select
+              value={customEmailMode}
+              onChange={(e) => setCustomEmailMode(e.target.value as "IMMEDIATE" | "BULK")}
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            >
+              <option value="IMMEDIATE">Immediate send</option>
+              <option value="BULK">Bulk queue</option>
+            </select>
+            <input
+              value={customEmailSubject}
+              onChange={(e) => setCustomEmailSubject(e.target.value)}
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              placeholder="Email subject"
+              required
+            />
+          </div>
+
+          {customEmailScope === "CUSTOM" ? (
+            <textarea
+              value={customEmailRecipients}
+              onChange={(e) => setCustomEmailRecipients(e.target.value)}
+              className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[80px]"
+              placeholder="Enter email addresses separated by commas or new lines"
+            />
+          ) : null}
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#434651] mb-2">
+              Attachments (optional)
+            </label>
+            <input
+              type="file"
+              multiple
+              onChange={(e) => setCustomEmailAttachments(Array.from(e.target.files ?? []))}
+              className="w-full text-sm"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp"
+            />
+            {customEmailAttachments.length > 0 ? (
+              <p className="mt-1 text-xs text-[#747782]">
+                {customEmailAttachments.length} file(s) selected
+              </p>
+            ) : null}
+          </div>
+
+          <textarea
+            value={customEmailMessage}
+            onChange={(e) => setCustomEmailMessage(e.target.value)}
+            className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[140px]"
+            placeholder="Write the message body"
+            required
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={sendingCustomEmail}
+              className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+            >
+              {sendingCustomEmail ? "Sending..." : "Send Email"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCustomEmailScope("CUSTOM");
+                setCustomEmailRecipients("");
+                setCustomEmailSubject("");
+                setCustomEmailMessage("");
+                setCustomEmailMode("IMMEDIATE");
+                setCustomEmailAttachments([]);
+              }}
+              className="border border-[#c4c6d3] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#434651]"
+            >
+              Reset
+            </button>
+            <p className="text-xs text-[#747782]">
+              Tip: bulk mode queues messages without blocking the UI. Attachments are supported only for immediate sends to specific emails.
+            </p>
+          </div>
+        </form>
+      </section>
+
       <section className="mb-10 border border-[#c4c6d3] bg-white p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div>
@@ -3219,6 +3426,7 @@ export default function AdminPanelClient({
           </>
         )}
       </section>
+      </>
       ) : null}
 
       {operationsTab === "tickets" ? (

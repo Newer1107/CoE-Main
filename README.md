@@ -49,6 +49,7 @@ Major capability groups:
   - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
 - Admin ops: user directory search by name/email/UID with role filtering (faculty/student)
+- Admin ops: custom email broadcasts to specific users, students, faculty, or all users with immediate/bulk delivery and optional attachments
 - Industry internships: bulk selection, auto-rejection for non-selected applicants, and problem-based internship workspaces
 - Industry internship decisions: review student profiles and resumes alongside applications
 - Industry internship decisions: export applications (profile, answers, UID) as CSV for Excel
