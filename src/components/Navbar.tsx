@@ -166,7 +166,7 @@ export default function Navbar({ user }: NavbarProps) {
             className="shrink-0 flex items-center justify-center group"
           >
             <Image
-              src="/coe-logo.jpeg"
+              src="/CoE Logo-v2.jpeg"
               alt="CoE Logo"
               width={80}
               height={80}
