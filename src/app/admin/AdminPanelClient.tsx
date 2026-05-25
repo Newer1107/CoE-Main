@@ -874,6 +874,9 @@ export default function AdminPanelClient({
   const [selectedUserDetailId, setSelectedUserDetailId] = useState<number | null>(null);
   const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
   const [loadingUserDetail, setLoadingUserDetail] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "FACULTY" | "STUDENT">("ALL");
+  const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
 
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState<number | "ALL">("ALL");
   const [analyticsProblemFilter, setAnalyticsProblemFilter] = useState<number | "ALL">("ALL");
@@ -920,6 +923,23 @@ export default function AdminPanelClient({
     () => [...users].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [users]
   );
+  const filteredUsers = useMemo(() => {
+    const normalizedSearch = debouncedUserSearch.trim().toLowerCase();
+    let list = allUsers;
+
+    if (userRoleFilter !== "ALL") {
+      list = list.filter((user) => user.role === userRoleFilter);
+    }
+
+    if (!normalizedSearch) return list;
+
+    return list.filter((user) => {
+      const nameMatch = user.name?.toLowerCase().includes(normalizedSearch);
+      const emailMatch = user.email?.toLowerCase().includes(normalizedSearch);
+      const uidMatch = user.uid?.toLowerCase().includes(normalizedSearch);
+      return Boolean(nameMatch || emailMatch || uidMatch);
+    });
+  }, [allUsers, debouncedUserSearch, userRoleFilter]);
   const prepBookings = useMemo(() => {
     const now = new Date();
 
@@ -1230,6 +1250,14 @@ export default function AdminPanelClient({
 
     return () => clearTimeout(timer);
   }, [attendanceSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUserSearch(userSearch.trim());
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [userSearch]);
 
   useEffect(() => {
     setAnalyticsProblemFilter("ALL");
@@ -3686,56 +3714,81 @@ export default function AdminPanelClient({
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-headline text-2xl text-[#002155]">All Users Directory</h2>
-          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">{users.length} total</span>
+          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+            {filteredUsers.length} shown · {users.length} total
+          </span>
         </div>
 
-<div className="mt-4 overflow-x-auto">
-  <div className="max-h-[500px] overflow-y-auto">
-    <table className="w-full text-sm border border-[#c4c6d3]">
-      
-      {/* HEADER */}
-      <thead className="bg-[#f3f4f6] sticky top-0 z-10">
-        <tr className="text-left text-xs uppercase tracking-wide text-gray-600">
-          <th className="px-4 py-3">Name</th>
-          <th className="px-4 py-3">Email</th>
-          <th className="px-4 py-3">Role</th>
-          <th className="px-4 py-3">Action</th>
-        </tr>
-      </thead>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px_auto] gap-3">
+          <input
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            placeholder="Search by name, email, or UID"
+          />
+          <select
+            value={userRoleFilter}
+            onChange={(e) => setUserRoleFilter(e.target.value as "ALL" | "FACULTY" | "STUDENT")}
+            className="border border-[#c4c6d3] px-3 py-2 text-sm"
+          >
+            <option value="ALL">All roles</option>
+            <option value="FACULTY">Faculty</option>
+            <option value="STUDENT">Student</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setUserSearch("");
+              setUserRoleFilter("ALL");
+            }}
+            className="border border-[#c4c6d3] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#434651]"
+          >
+            Clear
+          </button>
+        </div>
 
-      {/* BODY */}
-      <tbody>
-        {allUsers.map((user) => (
-          <tr key={user.id} className="border-t border-[#e3e2df] hover:bg-[#fafafa]">
-            
-            <td className="px-4 py-3 text-[#0b2c5f] font-medium">
-              {user.name}
-            </td>
+        <div className="mt-4 overflow-x-auto">
+          <div className="max-h-[500px] overflow-y-auto">
+            {filteredUsers.length === 0 ? (
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">
+                No users match the current filters.
+              </p>
+            ) : (
+              <table className="w-full text-sm border border-[#c4c6d3]">
+                {/* HEADER */}
+                <thead className="bg-[#f3f4f6] sticky top-0 z-10">
+                  <tr className="text-left text-xs uppercase tracking-wide text-gray-600">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">UID</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Action</th>
+                  </tr>
+                </thead>
 
-            <td className="px-4 py-3 text-gray-700">
-              {user.email}
-            </td>
-
-            <td className="px-4 py-3 text-gray-700">
-              {user.role}
-            </td>
-
-            <td className="px-4 py-3">
-              <button
-                onClick={() => handleOpenUserDetails(user.id)}
-                className="bg-[#0b2c5f] text-white px-3 py-1 text-xs hover:bg-[#091f44]"
-              >
-                View
-              </button>
-            </td>
-
-          </tr>
-        ))}
-      </tbody>
-
-    </table>
-  </div>
-</div>
+                {/* BODY */}
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="border-t border-[#e3e2df] hover:bg-[#fafafa]">
+                      <td className="px-4 py-3 text-[#0b2c5f] font-medium">{user.name}</td>
+                      <td className="px-4 py-3 text-gray-700">{user.email}</td>
+                      <td className="px-4 py-3 text-gray-700">{user.uid || "-"}</td>
+                      <td className="px-4 py-3 text-gray-700">{user.role}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleOpenUserDetails(user.id)}
+                          className="bg-[#0b2c5f] text-white px-3 py-1 text-xs hover:bg-[#091f44]"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </section>
 
       {selectedUserDetailId !== null ? (

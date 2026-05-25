@@ -48,6 +48,7 @@ Major capability groups:
   - Open problems: students maintain reusable profile, answer faculty questions, submit individual applications
   - Faculty application review: select/reject + feedback + notification emails
   - Hackathon track: event registration, staged screening/judging sync, shortlisting tickets, leaderboard
+- Admin ops: user directory search by name/email/UID with role filtering (faculty/student)
 - Industry internships: bulk selection, auto-rejection for non-selected applicants, and problem-based internship workspaces
 - Industry internship decisions: review student profiles and resumes alongside applications
 - Industry internship decisions: export applications (profile, answers, UID) as CSV for Excel
