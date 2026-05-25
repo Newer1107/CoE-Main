@@ -198,7 +198,7 @@ export default async function HomePage() {
               {
                 title: "Coding Platform",
                 subtitle: "Practice & compete",
-                href: "#",
+                href: "https://code.tcetcercd.in",
                 image: "/Coding Platform.png",
               },
               {
