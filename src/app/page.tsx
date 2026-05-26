@@ -123,11 +123,16 @@ export default async function HomePage() {
         },
       ];
 
+  const modalProblems = openProblems.filter(
+    (p): p is typeof p & { problemType: "OPEN" | "INTERNSHIP" } =>
+      p.problemType !== "FACULTY_INTERNSHIP"
+  );
+
   return (
     <main className="max-w-[1560px] mx-auto grid grid-cols-12 gap-0 min-h-screen pt-[100px] sm:pt-[108px] md:pt-[120px]">
       <NewOpportunitiesModal
         hackathons={openHackathons}
-        problems={openProblems}
+        problems={modalProblems}
       />
       <div className="hidden lg:block col-span-1 border-r border-[#c4c6d3] bg-[#f5f4f0]">
         <div className="sticky top-12 flex justify-center pt-24">
