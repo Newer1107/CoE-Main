@@ -44,6 +44,21 @@ export default function FacultyProfileClient() {
     links: [""],
   });
 
+  const departmentOptions = [
+    "B.E. Computer Engineering",
+    "B.E. Information Technology",
+    "B.E. Electronics & Tele-Communication",
+    "B.E. Electronics and Computer Science",
+    "B.E. Mechanical Engineering",
+    "B.E. Civil Engineering",
+    "B.E. Computer Science and Engineering (Cyber Security)",
+    "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)",
+    "B.Tech - Artificial Intelligence & Machine Learning",
+    "B.Tech - Artificial Intelligence & Data Science",
+    "B.Tech - Internet of Things (IoT)",
+    "B.Tech - Computer Science & Engineering (CSE-IOT)",
+  ];
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -193,13 +208,21 @@ export default function FacultyProfileClient() {
             <label className="block text-sm font-medium text-[#002155] mb-2">
               Department <span className="text-red-500">*</span>
             </label>
-            <input
+            <select
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              placeholder="e.g., Computer Engineering"
-              className="w-full p-3 border border-[#c4c6d3] rounded text-[#434651] placeholder-[#747782] focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50 text-sm"
+              className="w-full p-3 border border-[#c4c6d3] rounded text-[#434651] focus:outline-none focus:border-[#fd9923] focus:ring-1 focus:ring-[#fd9923]/50 text-sm"
               required
-            />
+            >
+              <option value="" disabled>
+                Select department
+              </option>
+              {departmentOptions.map((department) => (
+                <option key={department} value={department}>
+                  {department}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
