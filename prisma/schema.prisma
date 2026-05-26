@@ -146,6 +146,7 @@ model User {
   hackathonsCreated HackathonEvent[] @relation("HackathonCreator")
   problemsAuthored  Problem[]        @relation("ProblemAuthor")
   studentProfile    StudentProfile?
+  facultyProfile    FacultyProfile?
   applications      Application[]
   tickets           Ticket[]
   hackathonInterests HackathonInterest[]
@@ -315,6 +316,21 @@ model StudentProfile {
   applications Application[]
 
   @@map("student_profiles")
+}
+
+model FacultyProfile {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   String?
+  designation  String?
+  expertise    String?  @db.Text
+  resumeUrl    String?
+  profileLinks Json?
+  isComplete   Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  @@map("faculty_profiles")
 }
 
 model ProblemQuestion {

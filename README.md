@@ -59,6 +59,7 @@ Major capability groups:
 - Internship workspace documents: PDF/image uploads render inline with in-portal previews; other legacy files remain downloadable
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
 - Faculty internships: admin-created faculty opportunities, decisions workflow, and shared faculty internship workspaces
+- Faculty profiles: department/designation, expertise, resume, and professional links
 
 ### 1.1 System Component Architecture
 
@@ -198,6 +199,7 @@ graph LR
 |---|---:|---:|---:|---:|
 | View homepage feeds | Yes | Yes | Yes | Yes |
 | Register account | No | Yes | Yes | No |
+| Maintain profile | No | Yes | Yes | No |
 | Verify OTP / reset password via OTP | No | Yes | Yes | Yes |
 | Login / logout / refresh session | No | Yes | Yes | Yes |
 | Create facility booking | No | Yes | No | No |

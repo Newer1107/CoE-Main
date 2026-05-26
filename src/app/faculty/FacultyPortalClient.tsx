@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
 
 type ApiEnvelope<T> = {
@@ -391,6 +392,14 @@ export default function FacultyPortalClient() {
         <p className="mt-2 text-[#434651] max-w-3xl font-body">
           Publish and review News, Events, Grants, and Announcements from a single dashboard.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/faculty/profile"
+            className="px-4 py-2 text-xs font-bold uppercase tracking-wider border border-[#002155] text-[#002155]"
+          >
+            Manage Profile
+          </Link>
+        </div>
       </header>
 
 
