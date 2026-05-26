@@ -12,7 +12,7 @@ type Hackathon = {
 type Problem = {
     id: number;
     title: string;
-    problemType: 'OPEN' | 'INTERNSHIP' | 'FACULTY_INTERNSHIP';
+    problemType: 'OPEN' | 'INTERNSHIP';
 };
 
 export default function NewOpportunitiesModal({
@@ -124,9 +124,7 @@ export default function NewOpportunitiesModal({
                                         href={
                                             p.problemType === 'INTERNSHIP'
                                                 ? '/industry-internship'
-                                                : p.problemType === 'FACULTY_INTERNSHIP'
-                                                  ? '/faculty-internship'
-                                                  : '/innovation/problems'
+                                                : '/innovation/problems'
                                         }
                                     >
                                         <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition">
@@ -145,10 +143,6 @@ export default function NewOpportunitiesModal({
                                                 {p.problemType === 'INTERNSHIP' ? (
                                                     <span className="text-[10px] bg-[#8c4f00] text-white px-2 py-0.5 font-bold uppercase">
                                                         Internship
-                                                    </span>
-                                                ) : p.problemType === 'FACULTY_INTERNSHIP' ? (
-                                                    <span className="text-[10px] bg-[#002155] text-white px-2 py-0.5 font-bold uppercase">
-                                                        Faculty Internship
                                                     </span>
                                                 ) : null}
                                                 <span className="text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">
