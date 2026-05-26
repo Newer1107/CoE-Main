@@ -37,12 +37,18 @@ export async function GET(req: NextRequest) {
     const problemTitle = searchParams.get('problemTitle')?.trim() || undefined;
     const search = searchParams.get('search')?.trim() || undefined;
     const status = parseStatus(searchParams.get('status'));
+    const problemTypeRaw = searchParams.get('problemType')?.trim().toUpperCase();
+    const problemType = problemTypeRaw === 'FACULTY_INTERNSHIP' ? 'FACULTY_INTERNSHIP' : 'INTERNSHIP';
 
     const problemWhere: Record<string, unknown> = {
-      problemType: 'INTERNSHIP',
+      problemType,
     };
 
-    if (!authorize(user, 'ADMIN')) {
+    if (problemType === 'FACULTY_INTERNSHIP' && !authorize(user, 'ADMIN')) {
+      return errorRes('Forbidden', ['Admin access required for faculty internship exports'], 403);
+    }
+
+    if (!authorize(user, 'ADMIN') && problemType === 'INTERNSHIP') {
       const industryId = typeof user.industryId === 'number' ? user.industryId : null;
       if (!industryId) {
         return errorRes('Forbidden', ['Industry context missing for this account'], 403);

@@ -6,6 +6,7 @@ import { resolveInternshipAccess, InternshipWorkspaceError } from '@/lib/interns
 
 const querySchema = z.object({
   id: z.coerce.number().int().positive().optional(),
+  problemType: z.enum(['INTERNSHIP', 'FACULTY_INTERNSHIP']).optional(),
 });
 
 // GET /api/internships
@@ -19,7 +20,16 @@ export async function GET(req: NextRequest) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
     }
 
+    const problemType = parsed.data.problemType ?? 'INTERNSHIP';
+
     if (parsed.data.id) {
+      if (problemType === 'FACULTY_INTERNSHIP' && !['FACULTY', 'ADMIN'].includes(user.role)) {
+        return errorRes('Forbidden', ['Faculty internship access required'], 403);
+      }
+      if (problemType === 'INTERNSHIP' && user.role === 'FACULTY') {
+        return errorRes('Forbidden', ['Industry internship access required'], 403);
+      }
+
       const access = await resolveInternshipAccess(user, parsed.data.id);
       const problem = await prisma.problem.findUnique({
         where: { id: access.problem.id },
@@ -57,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     if (user.role === 'ADMIN') {
       const problems = await prisma.problem.findMany({
-        where: { problemType: 'INTERNSHIP' },
+        where: { problemType },
         orderBy: { createdAt: 'desc' },
         include: {
           industry: { select: { id: true, name: true } },
@@ -88,6 +98,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (user.role === 'INDUSTRY_PARTNER') {
+      if (problemType !== 'INTERNSHIP') {
+        return errorRes('Forbidden', ['Industry internship access required'], 403);
+      }
       const industryId = typeof user.industryId === 'number' ? user.industryId : null;
       const problems = await prisma.problem.findMany({
         where: {
@@ -121,6 +134,43 @@ export async function GET(req: NextRequest) {
           industry: problem.industry,
           createdBy: problem.createdBy,
           participantsCount: countMap.get(problem.id) ?? 0,
+        })),
+        'Internships retrieved successfully.'
+      );
+    }
+
+    if (user.role === 'FACULTY') {
+      if (problemType !== 'FACULTY_INTERNSHIP') {
+        return errorRes('Forbidden', ['Faculty internship access required'], 403);
+      }
+
+      const applications = await prisma.application.findMany({
+        where: {
+          userId: user.id,
+          status: 'SELECTED',
+          problem: { problemType: 'FACULTY_INTERNSHIP' },
+        },
+        include: {
+          problem: {
+            include: {
+              industry: { select: { id: true, name: true } },
+              createdBy: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return successRes(
+        applications.map((app) => ({
+          id: app.problem.id,
+          title: app.problem.title,
+          status: app.problem.status,
+          approvalStatus: app.problem.approvalStatus,
+          createdAt: app.problem.createdAt,
+          industry: app.problem.industry,
+          createdBy: app.problem.createdBy,
+          participantsCount: 0,
         })),
         'Internships retrieved successfully.'
       );

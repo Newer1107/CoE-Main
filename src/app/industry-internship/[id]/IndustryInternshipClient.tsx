@@ -122,7 +122,21 @@ const renderMessageContent = (content: string) => {
   );
 };
 
-export default function IndustryInternshipClient({ problemId }: { problemId: number }) {
+type InternshipClientProps = {
+  problemId: number;
+  participantLabel?: string;
+  allowManualAdd?: boolean;
+  workspaceLabel?: string;
+  workspaceDescription?: string;
+};
+
+export default function IndustryInternshipClient({
+  problemId,
+  participantLabel = 'Student',
+  allowManualAdd = true,
+  workspaceLabel = 'Internship Workspace',
+  workspaceDescription = 'Manage tasks, conversations, meetings, and shared documents for this internship cohort.',
+}: InternshipClientProps) {
   const [internship, setInternship] = useState<InternshipDetail | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -440,10 +454,10 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
     <main className="max-w-6xl mx-auto px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
-          {internship?.title || 'Internship Workspace'}
+          {internship?.title || workspaceLabel}
         </h1>
         <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
-          Manage tasks, conversations, meetings, and shared documents for this internship cohort.
+          {workspaceDescription}
         </p>
       </header>
 
@@ -458,12 +472,14 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
           <div className="border border-[#c4c6d3] rounded p-5 bg-white">
             <div className="flex items-start justify-between gap-3 mb-3">
               <h2 className="text-lg font-bold text-[#002155]">Participants</h2>
-              <button
-                onClick={() => setAddStudentOpen(true)}
-                className="px-3 py-2 text-xs font-semibold bg-[#002155] text-white rounded"
-              >
-                Add Student
-              </button>
+              {allowManualAdd ? (
+                <button
+                  onClick={() => setAddStudentOpen(true)}
+                  className="px-3 py-2 text-xs font-semibold bg-[#002155] text-white rounded"
+                >
+                  Add {participantLabel}
+                </button>
+              ) : null}
             </div>
             <ul className="space-y-2">
               {participants.length === 0 && (
@@ -478,18 +494,20 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
             </ul>
           </div>
 
-          {addStudentOpen && (
+          {allowManualAdd && addStudentOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
               <div className="w-full max-w-md rounded bg-white p-5 shadow-xl border border-[#c4c6d3]">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-[#002155]">Add Student</h3>
-                    <p className="text-xs text-[#747782] mt-1">Add a student directly to this workspace by email.</p>
+                    <h3 className="text-lg font-bold text-[#002155]">Add {participantLabel}</h3>
+                    <p className="text-xs text-[#747782] mt-1">
+                      Add a {participantLabel.toLowerCase()} directly to this workspace by email.
+                    </p>
                   </div>
                   <button
                     onClick={() => setAddStudentOpen(false)}
                     className="text-sm text-[#434651]"
-                    aria-label="Close add student dialog"
+                    aria-label="Close add participant dialog"
                   >
                     Close
                   </button>
@@ -500,7 +518,7 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                     type="email"
                     value={addStudentEmail}
                     onChange={(event) => setAddStudentEmail(event.target.value)}
-                    placeholder="student@example.com"
+                    placeholder="name@example.com"
                     className="w-full px-3 py-2 border border-[#c4c6d3] rounded text-sm"
                   />
                   <div className="flex gap-3">
@@ -509,7 +527,7 @@ export default function IndustryInternshipClient({ problemId }: { problemId: num
                       disabled={addStudentLoading}
                       className="flex-1 px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
                     >
-                      {addStudentLoading ? 'Adding...' : 'Add Student'}
+                      {addStudentLoading ? 'Adding...' : `Add ${participantLabel}`}
                     </button>
                     <button
                       onClick={() => setAddStudentOpen(false)}

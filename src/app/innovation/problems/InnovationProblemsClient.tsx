@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import ApplyModal from '@/components/ApplyModal';
+import FacultyApplyModal from '@/components/FacultyApplyModal';
 import { useToast } from "@/components/ToastProvider";
 import Link from 'next/link';
 
@@ -18,7 +19,7 @@ type ProblemRow = {
   title: string;
   description: string;
   tags: string | null;
-  problemType: 'OPEN' | 'INTERNSHIP';
+  problemType: 'OPEN' | 'INTERNSHIP' | 'FACULTY_INTERNSHIP';
   approvalStatus: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
   isIndustryProblem: boolean;
   industryName: string | null;
@@ -32,7 +33,7 @@ type ProblemRow = {
 
 type InnovationProblemsClientProps = {
   role: 'STUDENT' | 'FACULTY' | 'ADMIN' | 'INDUSTRY_PARTNER' | null;
-  listingType?: 'open' | 'internship';
+  listingType?: 'open' | 'internship' | 'faculty-internship';
 };
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -64,6 +65,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
   // Apply modal state
   const [applyingProblem, setApplyingProblem] = useState<ProblemRow | null>(null);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [isFacultyApplyModalOpen, setIsFacultyApplyModalOpen] = useState(false);
   const [userApplications, setUserApplications] = useState<Set<number>>(new Set());
   const [profile, setProfile] = useState<{ isComplete: boolean } | null>(null);
 
@@ -102,9 +104,16 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
       if (tagFilter.trim()) params.set('tag', tagFilter.trim());
       if (statusFilter.trim()) params.set('status', statusFilter.trim());
       params.set('track', 'open');
-      params.set('visibility', 'public');
-      params.set('problemType', listingType === 'internship' ? 'INTERNSHIP' : 'OPEN');
-      if (listingType === 'internship') params.set('includeAllStatuses', 'true');
+      params.set('visibility', listingType === 'faculty-internship' ? 'internal' : 'public');
+      if (listingType === 'internship') {
+        params.set('problemType', 'INTERNSHIP');
+        params.set('includeAllStatuses', 'true');
+      } else if (listingType === 'faculty-internship') {
+        params.set('problemType', 'FACULTY_INTERNSHIP');
+        params.set('approvalStatus', 'APPROVED');
+      } else {
+        params.set('problemType', 'OPEN');
+      }
 
       const query = params.toString();
       const data = await fetchJson<ProblemRow[]>(`/api/innovation/problems${query ? `?${query}` : ''}`);
@@ -147,6 +156,15 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
       return;
     }
 
+    if (listingType === 'faculty-internship') {
+      if (role !== 'FACULTY') {
+        return;
+      }
+      setApplyingProblem(problem);
+      setIsFacultyApplyModalOpen(true);
+      return;
+    }
+
     if (role !== 'STUDENT') {
       return; // Only students can apply
     }
@@ -164,6 +182,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
 
   const handleApplySuccess = () => {
     setIsApplyModalOpen(false);
+    setIsFacultyApplyModalOpen(false);
     setApplyingProblem(null);
     // Update user applications set
     if (applyingProblem) {
@@ -186,7 +205,11 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
         <div className="flex items-start justify-between gap-4 mb-2">
           <div>
             <p className="text-xs uppercase tracking-widest text-[#8c4f00] font-bold">
-              {problem.problemType === 'INTERNSHIP' ? 'Internship Opportunity' : problem.mode}
+              {problem.problemType === 'INTERNSHIP'
+                ? 'Internship Opportunity'
+                : problem.problemType === 'FACULTY_INTERNSHIP'
+                  ? 'Faculty Internship'
+                  : problem.mode}
             </p>
             {problem.status === 'CLOSED' && (
               <p className="text-xs uppercase tracking-widest text-red-600 font-bold">Closed</p>
@@ -232,7 +255,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           ) : null}
         </div>
 
-        {(problem.supportDocumentUrl || problem.problemType === 'INTERNSHIP') && (
+        {(problem.supportDocumentUrl || problem.problemType === 'INTERNSHIP' || problem.problemType === 'FACULTY_INTERNSHIP') && (
           <div className="mt-2 flex items-center justify-between gap-3">
             {problem.supportDocumentUrl ? (
               <a
@@ -250,6 +273,10 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
             {problem.problemType === 'INTERNSHIP' ? (
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#002155] text-right">
                 {(problem.industryName?.trim() || 'Industry')} X TCET
+              </p>
+            ) : problem.problemType === 'FACULTY_INTERNSHIP' ? (
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#002155] text-right">
+                Faculty Internship
               </p>
             ) : null}
           </div>
@@ -291,12 +318,18 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
       {/* Header */}
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
         <h1 className="font-headline text-3xl md:text-[40px] font-bold tracking-tight text-[#002155] leading-none">
-          {listingType === 'internship' ? 'Industry Internship Opportunities' : 'Open Problems'}
+          {listingType === 'internship'
+            ? 'Industry Internship Opportunities'
+            : listingType === 'faculty-internship'
+              ? 'Faculty Internship Opportunities'
+              : 'Open Problems'}
         </h1>
         <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
           {listingType === 'internship'
             ? 'Explore approved internship opportunities posted by industry partners.'
-            : 'Apply for real-world industry problems and showcase your skills'}
+            : listingType === 'faculty-internship'
+              ? 'Explore approved faculty internship opportunities curated by the CoE team.'
+              : 'Apply for real-world industry problems and showcase your skills'}
         </p>
       </header>
 
@@ -330,6 +363,18 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
         >
           Industry Internship
         </Link>
+
+        {(role === 'FACULTY' || role === 'ADMIN') && (
+          <Link
+            href="/faculty-internship"
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${pathname === "/faculty-internship"
+                ? "bg-[#6b1b1b] text-white"
+                : "border border-[#6b1b1b] text-[#6b1b1b]"
+              }`}
+          >
+            Faculty Internship
+          </Link>
+        )}
 
         {role === "STUDENT" && (
           <Link
@@ -403,7 +448,11 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-headline text-2xl text-[#002155]">
-            {listingType === 'internship' ? 'Internship Board' : 'Problem Board'}
+            {listingType === 'internship'
+              ? 'Internship Board'
+              : listingType === 'faculty-internship'
+                ? 'Faculty Internship Board'
+                : 'Problem Board'}
           </h2>
           {loading && <span className="text-xs text-[#747782]">Loading...</span>}
         </div>
@@ -415,6 +464,8 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
                 ? 'No problems found for current filters.'
                 : listingType === 'internship'
                   ? 'No internship opportunities available at the moment.'
+                  : listingType === 'faculty-internship'
+                    ? 'No faculty internship opportunities available at the moment.'
                   : 'No open problems available at the moment.'}
             </p>
           </div>
@@ -456,7 +507,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
       </section>
 
       {/* Apply Modal */}
-      {applyingProblem && (
+      {applyingProblem && isApplyModalOpen ? (
         <ApplyModal
           problemId={applyingProblem.id}
           problemTitle={applyingProblem.title}
@@ -467,7 +518,20 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
           }}
           onSuccess={handleApplySuccess}
         />
-      )}
+      ) : null}
+
+      {applyingProblem && isFacultyApplyModalOpen ? (
+        <FacultyApplyModal
+          problemId={applyingProblem.id}
+          problemTitle={applyingProblem.title}
+          isOpen={isFacultyApplyModalOpen}
+          onClose={() => {
+            setIsFacultyApplyModalOpen(false);
+            setApplyingProblem(null);
+          }}
+          onSuccess={handleApplySuccess}
+        />
+      ) : null}
 
       {showInternshipIntroModal && listingType === 'internship' ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#001a42]/70 px-4 py-8">

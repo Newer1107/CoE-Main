@@ -108,11 +108,15 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
     const payload = {
       ...updated,
-      profile: {
-        ...updated.profile,
-        resumeFileName: getStoredFileDisplayName(updated.profile.resumeUrl),
-        resumeUrl: updated.profile.resumeUrl ? await getSignedUrl(updated.profile.resumeUrl).catch(() => null) : null,
-      },
+      profile: updated.profile
+        ? {
+            ...updated.profile,
+            resumeFileName: getStoredFileDisplayName(updated.profile.resumeUrl),
+            resumeUrl: updated.profile.resumeUrl
+              ? await getSignedUrl(updated.profile.resumeUrl).catch(() => null)
+              : null,
+          }
+        : null,
     };
 
     return successRes(payload, 'Application review submitted successfully.');

@@ -87,11 +87,13 @@ export async function GET(req: NextRequest) {
     const payload = await Promise.all(
       applications.map(async (app) => ({
         ...app,
-        profile: {
-          ...app.profile,
-          resumeFileName: getStoredFileDisplayName(app.profile.resumeUrl),
-          resumeUrl: app.profile.resumeUrl ? await getSignedUrl(app.profile.resumeUrl).catch(() => null) : null,
-        },
+        profile: app.profile
+          ? {
+              ...app.profile,
+              resumeFileName: getStoredFileDisplayName(app.profile.resumeUrl),
+              resumeUrl: app.profile.resumeUrl ? await getSignedUrl(app.profile.resumeUrl).catch(() => null) : null,
+            }
+          : null,
       }))
     );
 
@@ -101,4 +103,3 @@ export async function GET(req: NextRequest) {
     return errorRes('Internal server error', [], 500);
   }
 }
-

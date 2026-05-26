@@ -49,6 +49,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         if (!requesterIndustryId || !existing.industryId || requesterIndustryId !== existing.industryId) {
           return errorRes('Forbidden', ['You can only modify internship problems owned by your industry'], 403);
         }
+      } else if (existing.problemType === 'FACULTY_INTERNSHIP') {
+        return errorRes('Forbidden', ['Only admin can modify faculty internship problems'], 403);
       } else if (existing.createdById !== user.id) {
         return errorRes('Forbidden', ['You can only modify your own problems'], 403);
       }
@@ -107,6 +109,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return errorRes('Invalid mode update', ['Internship opportunities must remain OPEN mode'], 400);
     }
 
+    if (existing.problemType === 'FACULTY_INTERNSHIP' && typeof parsed.data.mode !== 'undefined' && parsed.data.mode !== 'OPEN') {
+      return errorRes('Invalid mode update', ['Faculty internships must remain OPEN mode'], 400);
+    }
+
     if (existing.eventId && typeof parsed.data.status !== 'undefined' && parsed.data.status === 'OPENED') {
       return errorRes('Invalid status update', ['Hackathon problem statements cannot be marked OPENED'], 400);
     }
@@ -126,6 +132,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       typeof parsed.data.industryName === 'string' ? parsed.data.industryName.trim() : undefined;
 
     let normalizedIndustryName: string | null | undefined;
+    if (existing.problemType === 'FACULTY_INTERNSHIP') {
+      if (requestedIndustryName && requestedIndustryName.length > 0) {
+        return errorRes('Validation failed', ['Industry name is not allowed for faculty internships'], 400);
+      }
+      normalizedIndustryName = null;
+    } else
     if (targetIsIndustryProblem) {
       if (hasIndustryNameInPayload) {
         if (!requestedIndustryName || requestedIndustryName.length < 2) {
@@ -151,7 +163,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof parsed.data.description !== 'undefined') updateData.description = parsed.data.description;
     if (typeof parsed.data.mode !== 'undefined') updateData.mode = parsed.data.mode;
     if (typeof parsed.data.status !== 'undefined') updateData.status = parsed.data.status;
-    if (typeof parsed.data.isIndustryProblem !== 'undefined') updateData.isIndustryProblem = parsed.data.isIndustryProblem;
+    if (existing.problemType === 'FACULTY_INTERNSHIP') {
+      updateData.isIndustryProblem = false;
+    } else if (typeof parsed.data.isIndustryProblem !== 'undefined') {
+      updateData.isIndustryProblem = parsed.data.isIndustryProblem;
+    }
     if (typeof parsed.data.approvalStatus !== 'undefined') updateData.approvalStatus = parsed.data.approvalStatus;
 
     if (supportDocumentFile) {

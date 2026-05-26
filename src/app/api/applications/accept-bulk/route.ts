@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import type { ProblemType } from '@prisma/client';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import prisma from '@/lib/prisma';
 
@@ -9,12 +10,14 @@ const bodySchema = z
     applicationIds: z.array(z.union([z.string().trim().min(1), z.number().int().positive()])).optional(),
     problemTitle: z.string().trim().min(1).optional(),
     problemId: z.coerce.number().int().positive().optional(),
+    problemType: z.enum(['INTERNSHIP', 'FACULTY_INTERNSHIP']).optional(),
     filters: z
       .object({
         problemTitle: z.string().trim().min(1).optional(),
         problemId: z.coerce.number().int().positive().optional(),
         search: z.string().trim().min(1).optional(),
         status: z.enum(['SUBMITTED', 'SELECTED', 'REJECTED']).optional(),
+        problemType: z.enum(['INTERNSHIP', 'FACULTY_INTERNSHIP']).optional(),
       })
       .optional(),
   })
@@ -48,6 +51,12 @@ export async function POST(req: NextRequest) {
       return errorRes('Forbidden', ['Faculty, industry partner, or admin access required'], 403);
     }
 
+    const problemType: ProblemType =
+      parsed.data.problemType ?? parsed.data.filters?.problemType ?? 'INTERNSHIP';
+    if (problemType === 'FACULTY_INTERNSHIP' && !authorize(user, 'ADMIN')) {
+      return errorRes('Forbidden', ['Admin access required for faculty internship decisions'], 403);
+    }
+
     if (
       parsed.data.selectionMode === 'IDS' &&
       typeof parsed.data.problemId !== 'number' &&
@@ -60,13 +69,14 @@ export async function POST(req: NextRequest) {
       if (typeof explicitId === 'number') return [explicitId];
       if (!title) return [];
       const problems = await prisma.problem.findMany({
-        where: { title, problemType: 'INTERNSHIP' },
+        where: { title, problemType },
         select: { id: true },
       });
       return problems.map((row) => row.id);
     };
 
     const resolveIndustryFilter = async () => {
+      if (problemType === 'FACULTY_INTERNSHIP') return null;
       if (authorize(user, 'ADMIN')) return null;
       if (user.role === 'INDUSTRY_PARTNER') {
         const industryId = typeof user.industryId === 'number' ? user.industryId : null;
@@ -107,11 +117,11 @@ export async function POST(req: NextRequest) {
         const where: Record<string, unknown> = {
           problemId: { in: problemIds },
           status: 'SUBMITTED',
-          problem: { problemType: 'INTERNSHIP' },
+          problem: { problemType },
         };
 
         if (industryId) {
-          where.problem = { problemType: 'INTERNSHIP', industryId };
+          where.problem = { problemType, industryId };
         }
 
         if (parsed.data.filters.search) {

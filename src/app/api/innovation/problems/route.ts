@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
       return errorRes('Invalid track filter', ['track must be one of: open, hackathon, all'], 400);
     }
 
-    if (problemTypeRaw && !['OPEN', 'INTERNSHIP'].includes(problemTypeRaw)) {
-      return errorRes('Invalid problemType filter', ['problemType must be one of: OPEN, INTERNSHIP'], 400);
+    if (problemTypeRaw && !['OPEN', 'INTERNSHIP', 'FACULTY_INTERNSHIP'].includes(problemTypeRaw)) {
+      return errorRes('Invalid problemType filter', ['problemType must be one of: OPEN, INTERNSHIP, FACULTY_INTERNSHIP'], 400);
     }
 
     if (approvalStatusRaw && !['PENDING_APPROVAL', 'APPROVED', 'REJECTED'].includes(approvalStatusRaw)) {
@@ -186,6 +186,10 @@ export async function POST(req: NextRequest) {
       return errorRes('Forbidden', ['Internship problems can only be created by industry partners'], 403);
     }
 
+    if (requestedProblemType === 'FACULTY_INTERNSHIP' && !authorize(user, 'ADMIN')) {
+      return errorRes('Forbidden', ['Faculty internships can only be created by admins'], 403);
+    }
+
     if (isPrimaryIndustryPartner && parsed.data.eventId) {
       return errorRes('Validation failed', ['Industry partners cannot attach problems to hackathon events'], 400);
     }
@@ -219,13 +223,17 @@ export async function POST(req: NextRequest) {
       return errorRes('Validation failed', ['Industry name is required for internship opportunities'], 400);
     }
 
+    if (finalProblemType === 'FACULTY_INTERNSHIP' && normalizedIndustryName) {
+      return errorRes('Validation failed', ['Industry name is not allowed for faculty internships'], 400);
+    }
+
     const problem = await prisma.problem.create({
       data: {
         title: parsed.data.title,
         description: parsed.data.description,
         tags: parsed.data.tags || null,
-        isIndustryProblem: finalProblemType === 'INTERNSHIP' ? true : parsed.data.isIndustryProblem,
-        industryName: normalizedIndustryName,
+        isIndustryProblem: finalProblemType === 'INTERNSHIP' ? true : finalProblemType === 'FACULTY_INTERNSHIP' ? false : parsed.data.isIndustryProblem,
+        industryName: finalProblemType === 'FACULTY_INTERNSHIP' ? null : normalizedIndustryName,
         problemType: finalProblemType,
         approvalStatus: finalApprovalStatus,
         mode: parsed.data.eventId ? 'CLOSED' : parsed.data.mode,

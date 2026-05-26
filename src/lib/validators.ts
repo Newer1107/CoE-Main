@@ -164,7 +164,7 @@ export const innovationProblemCreateSchema = z.object({
   description: z.string().min(5),
   tags: z.string().optional().or(z.literal('')),
   mode: z.enum(['OPEN', 'CLOSED']),
-  problemType: z.enum(['OPEN', 'INTERNSHIP']).optional().default('OPEN'),
+  problemType: z.enum(['OPEN', 'INTERNSHIP', 'FACULTY_INTERNSHIP']).optional().default('OPEN'),
   approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
   eventId: z.coerce.number().int().positive().optional(),
   isIndustryProblem: booleanLikeSchema.optional().default(false),
@@ -202,6 +202,30 @@ export const innovationProblemCreateSchema = z.object({
       message: 'Internship problems must be marked as industry problems.',
     });
   }
+
+  if (value.problemType === 'FACULTY_INTERNSHIP' && value.mode !== 'OPEN') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['mode'],
+      message: 'Faculty internships must use OPEN mode.',
+    });
+  }
+
+  if (value.problemType === 'FACULTY_INTERNSHIP' && value.isIndustryProblem) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['isIndustryProblem'],
+      message: 'Faculty internships cannot be marked as industry problems.',
+    });
+  }
+
+  if (value.problemType === 'FACULTY_INTERNSHIP' && normalizedIndustryName.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['industryName'],
+      message: 'Industry name is not allowed for faculty internships.',
+    });
+  }
 });
 
 export const innovationProblemUpdateSchema = z.object({
@@ -210,7 +234,7 @@ export const innovationProblemUpdateSchema = z.object({
   tags: z.string().optional().or(z.literal('')),
   mode: z.enum(['OPEN', 'CLOSED']).optional(),
   status: z.enum(['OPENED', 'CLOSED', 'ARCHIVED']).optional(),
-  problemType: z.enum(['OPEN', 'INTERNSHIP']).optional(),
+  problemType: z.enum(['OPEN', 'INTERNSHIP', 'FACULTY_INTERNSHIP']).optional(),
   approvalStatus: z.enum(['PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
   isIndustryProblem: booleanLikeSchema.optional(),
   industryName: industryNameSchema.optional().or(z.literal('')),
@@ -221,6 +245,14 @@ export const innovationProblemUpdateSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['industryName'],
       message: 'Industry name is only allowed when the problem type is industry',
+    });
+  }
+
+  if (value.problemType === 'FACULTY_INTERNSHIP' && value.isIndustryProblem) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['isIndustryProblem'],
+      message: 'Faculty internships cannot be marked as industry problems.',
     });
   }
 

@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma';
 import type { TokenPayload } from '@/lib/jwt';
 
-export type InternshipAccessRole = 'ADMIN' | 'INDUSTRY' | 'STUDENT';
+export type InternshipAccessRole = 'ADMIN' | 'INDUSTRY' | 'STUDENT' | 'FACULTY';
 
 export class InternshipWorkspaceError extends Error {
   status: number;
@@ -18,7 +18,7 @@ export class InternshipWorkspaceError extends Error {
 export const resolveInternshipAccess = async (user: TokenPayload, problemId: number) => {
   if (user.role === 'ADMIN') {
     const problem = await prisma.problem.findFirst({
-      where: { id: problemId, problemType: 'INTERNSHIP' },
+      where: { id: problemId, problemType: { in: ['INTERNSHIP', 'FACULTY_INTERNSHIP'] } },
     });
     if (!problem) {
       throw new InternshipWorkspaceError('Internship not found', 404, ['Internship problem does not exist']);
@@ -56,7 +56,28 @@ export const resolveInternshipAccess = async (user: TokenPayload, problemId: num
     if (!application) {
       throw new InternshipWorkspaceError('Forbidden', 403, ['Access to this internship is restricted']);
     }
+    if (application.problem.problemType !== 'INTERNSHIP') {
+      throw new InternshipWorkspaceError('Forbidden', 403, ['Access to this internship is restricted']);
+    }
     return { problem: application.problem, role: 'STUDENT' as InternshipAccessRole };
+  }
+
+  if (user.role === 'FACULTY') {
+    const application = await prisma.application.findFirst({
+      where: {
+        problemId,
+        userId: user.id,
+        status: 'SELECTED',
+      },
+      include: { problem: true },
+    });
+    if (!application) {
+      throw new InternshipWorkspaceError('Forbidden', 403, ['Access to this internship is restricted']);
+    }
+    if (application.problem.problemType !== 'FACULTY_INTERNSHIP') {
+      throw new InternshipWorkspaceError('Forbidden', 403, ['Access to this internship is restricted']);
+    }
+    return { problem: application.problem, role: 'FACULTY' as InternshipAccessRole };
   }
 
   throw new InternshipWorkspaceError('Forbidden', 403, ['Access to this internship is restricted']);
@@ -64,8 +85,11 @@ export const resolveInternshipAccess = async (user: TokenPayload, problemId: num
 
 export const requireIndustryAccess = async (user: TokenPayload, problemId: number) => {
   const { problem, role } = await resolveInternshipAccess(user, problemId);
-  if (role !== 'INDUSTRY' && role !== 'ADMIN') {
+  if (problem.problemType === 'INTERNSHIP' && role !== 'INDUSTRY' && role !== 'ADMIN') {
     throw new InternshipWorkspaceError('Forbidden', 403, ['Industry partner access required']);
+  }
+  if (problem.problemType === 'FACULTY_INTERNSHIP' && role !== 'FACULTY' && role !== 'ADMIN') {
+    throw new InternshipWorkspaceError('Forbidden', 403, ['Faculty access required']);
   }
   return problem;
 };

@@ -12,7 +12,7 @@ type Hackathon = {
 type Problem = {
     id: number;
     title: string;
-    problemType: 'OPEN' | 'INTERNSHIP';
+    problemType: 'OPEN' | 'INTERNSHIP' | 'FACULTY_INTERNSHIP';
 };
 
 export default function NewOpportunitiesModal({
@@ -119,7 +119,16 @@ export default function NewOpportunitiesModal({
                             </h3>
                             <div className="space-y-2">
                                 {problems.map((p) => (
-                                    <Link key={p.id} href={p.problemType === 'INTERNSHIP' ? '/industry-internship' : '/innovation/problems'}>
+                                    <Link
+                                        key={p.id}
+                                        href={
+                                            p.problemType === 'INTERNSHIP'
+                                                ? '/industry-internship'
+                                                : p.problemType === 'FACULTY_INTERNSHIP'
+                                                  ? '/faculty-internship'
+                                                  : '/innovation/problems'
+                                        }
+                                    >
                                         <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition">
                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             <div className="min-w-0 sm:pr-3">
@@ -136,6 +145,10 @@ export default function NewOpportunitiesModal({
                                                 {p.problemType === 'INTERNSHIP' ? (
                                                     <span className="text-[10px] bg-[#8c4f00] text-white px-2 py-0.5 font-bold uppercase">
                                                         Internship
+                                                    </span>
+                                                ) : p.problemType === 'FACULTY_INTERNSHIP' ? (
+                                                    <span className="text-[10px] bg-[#002155] text-white px-2 py-0.5 font-bold uppercase">
+                                                        Faculty Internship
                                                     </span>
                                                 ) : null}
                                                 <span className="text-[10px] bg-[#fd9923] text-white px-2 py-0.5 font-bold uppercase animate-pulse">

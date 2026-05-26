@@ -50,7 +50,7 @@ const statusBadge = (status: InternshipApplicationStatus) => {
   }
 };
 
-export default function DecisionEngineClient() {
+export default function DecisionEngineClient({ problemType = 'INTERNSHIP' }: { problemType?: 'INTERNSHIP' | 'FACULTY_INTERNSHIP' }) {
   const [applications, setApplications] = useState<InternshipApplicationRow[]>([]);
   const [titles, setTitles] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -72,6 +72,8 @@ export default function DecisionEngineClient() {
   const [addEmail, setAddEmail] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
+  const internshipLabel = problemType === 'FACULTY_INTERNSHIP' ? 'faculty internship' : 'internship';
+
   const selectedCount = selectedIds.size;
   const selectedIdsArray = useMemo(() => Array.from(selectedIds), [selectedIds]);
 
@@ -80,6 +82,7 @@ export default function DecisionEngineClient() {
     if (problemTitle) params.set('problemTitle', problemTitle);
     if (status !== 'ALL') params.set('status', status);
     if (search.trim().length > 0) params.set('search', search.trim());
+    params.set('problemType', problemType);
     window.location.href = `/api/applications/export?${params.toString()}`;
   };
 
@@ -91,6 +94,7 @@ export default function DecisionEngineClient() {
     params.set('page', String(page));
     params.set('pageSize', String(pageSize));
     params.set('includeTitles', 'true');
+    params.set('problemType', problemType);
     if (includeIds) params.set('includeIds', 'true');
 
     const res = await fetch(`/api/applications?${params.toString()}`);
@@ -100,7 +104,7 @@ export default function DecisionEngineClient() {
 
     const json = await res.json();
     return (json.data || {}) as ApplicationsResponse;
-  }, [problemTitle, status, search, page, pageSize]);
+  }, [problemTitle, status, search, page, pageSize, problemType]);
 
   useEffect(() => {
     let active = true;
@@ -149,7 +153,7 @@ export default function DecisionEngineClient() {
 
   const handleSelectAll = async () => {
     if (!problemTitle) {
-      setError('Select a specific internship title before selecting all applications.');
+      setError(`Select a specific ${internshipLabel} title before selecting all applications.`);
       return;
     }
 
@@ -164,7 +168,7 @@ export default function DecisionEngineClient() {
 
   const handleBulkAccept = async () => {
     if (!problemTitle) {
-      setError('Select an internship title before accepting applications.');
+      setError(`Select a ${internshipLabel} title before accepting applications.`);
       return;
     }
 
@@ -189,11 +193,13 @@ export default function DecisionEngineClient() {
         body: JSON.stringify({
           selectionMode: selectAllFiltered ? 'FILTERED' : 'IDS',
           applicationIds: selectAllFiltered ? undefined : selectedIdsArray,
+          problemType,
           filters: selectAllFiltered
             ? {
                 problemTitle,
                 search: search.trim() || undefined,
                 status: 'SUBMITTED',
+                problemType,
               }
             : undefined,
           problemTitle,
@@ -223,7 +229,9 @@ export default function DecisionEngineClient() {
 
       if (problemId) {
         window.setTimeout(() => {
-          window.location.href = `/industry-internship/${problemId}`;
+          window.location.href = problemType === 'FACULTY_INTERNSHIP'
+            ? `/faculty-internship/${problemId}`
+            : `/industry-internship/${problemId}`;
         }, 800);
       }
     } catch (err) {

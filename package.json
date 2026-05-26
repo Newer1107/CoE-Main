@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "next typegen",
     "start": "next start",
     "lint": "eslint",
     "db:migrate:status": "node scripts/prisma-safe-migrate.mjs status",

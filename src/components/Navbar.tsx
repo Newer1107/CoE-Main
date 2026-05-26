@@ -47,6 +47,7 @@ export default function Navbar({ user }: NavbarProps) {
   const canSeeMySubmissions = userRole === "STUDENT";
   const canSeeIndustryInternshipPortal = userRole === "INDUSTRY_PARTNER" || userRole === "ADMIN";
   const canSeeStudentInternshipPortal = userRole === "STUDENT";
+  const canSeeFacultyInternshipPortal = userRole === "FACULTY" || userRole === "ADMIN";
   const isLoggedIn = !!user;
   const bookFacilityHref = isLoggedIn ? "/facility-booking" : bookingLoginHref;
 
@@ -114,6 +115,9 @@ export default function Navbar({ user }: NavbarProps) {
   const portalLinks: NavLinkItem[] = [
     ...(canSeeFacultyPortal
       ? [{ label: userRole === "INDUSTRY_PARTNER" ? "Industry Workspace" : "Faculty Portal", href: userRole === "INDUSTRY_PARTNER" ? "/innovation/faculty" : "/faculty" }]
+      : []),
+    ...(canSeeFacultyInternshipPortal
+      ? [{ label: "Faculty Internship", href: "/faculty-internship" }]
       : []),
     ...(canSeeIndustryInternshipPortal ? [{ label: "Internship Dashboard", href: "/industry-internship/dashboard" }] : []),
     ...(canSeeStudentInternshipPortal ? [{ label: "My Internship Dashboard", href: "/student-internship" }] : []),

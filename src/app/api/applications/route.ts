@@ -44,17 +44,23 @@ export async function GET(req: NextRequest) {
     const problemTitle = searchParams.get('problemTitle')?.trim() || undefined;
     const search = searchParams.get('search')?.trim() || undefined;
     const status = parseStatus(searchParams.get('status'));
+    const problemTypeRaw = searchParams.get('problemType')?.trim().toUpperCase();
+    const problemType = problemTypeRaw === 'FACULTY_INTERNSHIP' ? 'FACULTY_INTERNSHIP' : 'INTERNSHIP';
     const page = parsePositiveInt(searchParams.get('page'), 1);
     const pageSize = Math.min(parsePositiveInt(searchParams.get('pageSize'), 25), 100);
     const includeTitles = parseBoolean(searchParams.get('includeTitles'), false);
     const includeIds = parseBoolean(searchParams.get('includeIds'), false);
 
     const problemWhere: Record<string, unknown> = {
-      problemType: 'INTERNSHIP',
+      problemType,
     };
 
+    if (problemType === 'FACULTY_INTERNSHIP' && !authorize(user, 'ADMIN')) {
+      return errorRes('Forbidden', ['Admin access required for faculty internship applications'], 403);
+    }
+
     // Strict tenant isolation: industry users can only see their own industry's internship applications.
-    if (!authorize(user, 'ADMIN')) {
+    if (!authorize(user, 'ADMIN') && problemType === 'INTERNSHIP') {
       const industryId = typeof user.industryId === 'number' ? user.industryId : null;
       if (!industryId) {
         return errorRes('Forbidden', ['Industry context missing for this account'], 403);
@@ -132,13 +138,15 @@ export async function GET(req: NextRequest) {
           email: app.user.email,
           uid: app.user.uid ?? null,
         },
-        profile: {
-          skills: app.profile?.skills ?? null,
-          experience: app.profile?.experience ?? null,
-          interests: app.profile?.interests ?? null,
-          resumeUrl: app.profile?.resumeUrl ?? null,
-          resumeFileName: app.profile?.resumeFileName ?? null,
-        },
+        profile: app.profile
+          ? {
+              skills: app.profile.skills ?? null,
+              experience: app.profile.experience ?? null,
+              interests: app.profile.interests ?? null,
+              resumeUrl: app.profile.resumeUrl ?? null,
+              resumeFileName: app.profile.resumeFileName ?? null,
+            }
+          : null,
         answers: app.answers.map((ans) => ({
           id: ans.id,
           question: ans.question.questionText,

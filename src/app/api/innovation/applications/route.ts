@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'STUDENT')) return errorRes('Forbidden', ['Student access required'], 403);
+    if (!authorize(user, 'STUDENT', 'FACULTY')) return errorRes('Forbidden', ['Student or faculty access required'], 403);
     logActivity('INNOVATION_OPEN_APPLICATION_ATTEMPT', { userId: user.id });
 
     const body = await req.json();
@@ -27,27 +27,6 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
-    }
-
-    // Get student profile
-    const profile = await prisma.studentProfile.findUnique({
-      where: { userId: user.id },
-    });
-
-    if (!profile) {
-      logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
-        userId: user.id,
-        reason: 'PROFILE_MISSING',
-      });
-      return errorRes('Profile not found', ['You must create a student profile before applying'], 404);
-    }
-
-    if (!profile.isComplete) {
-      logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
-        userId: user.id,
-        reason: 'PROFILE_INCOMPLETE',
-      });
-      return errorRes('Incomplete profile', ['Your profile must be complete (all fields + resume) before applying'], 400);
     }
 
     // Check if problem exists and is open
@@ -58,9 +37,9 @@ export async function POST(req: NextRequest) {
         eventId: null,
         status: 'OPENED',
         approvalStatus: 'APPROVED',
-        problemType: { in: ['OPEN', 'INTERNSHIP'] },
+        problemType: { in: ['OPEN', 'INTERNSHIP', 'FACULTY_INTERNSHIP'] },
       },
-      select: { id: true },
+      select: { id: true, problemType: true },
     });
 
     if (!problem) {
@@ -70,6 +49,39 @@ export async function POST(req: NextRequest) {
         reason: 'PROBLEM_NOT_OPEN',
       });
       return errorRes('Problem not found', ['Open problem not found or closed for applications'], 404);
+    }
+
+    if (problem.problemType === 'FACULTY_INTERNSHIP' && user.role !== 'FACULTY') {
+      return errorRes('Forbidden', ['Only faculty can apply to faculty internships'], 403);
+    }
+
+    if (problem.problemType !== 'FACULTY_INTERNSHIP' && user.role !== 'STUDENT') {
+      return errorRes('Forbidden', ['Only students can apply to this problem'], 403);
+    }
+
+    let profileId: number | null = null;
+    if (user.role === 'STUDENT') {
+      const profile = await prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!profile) {
+        logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
+          userId: user.id,
+          reason: 'PROFILE_MISSING',
+        });
+        return errorRes('Profile not found', ['You must create a student profile before applying'], 404);
+      }
+
+      if (!profile.isComplete) {
+        logActivity('INNOVATION_OPEN_APPLICATION_REJECTED', {
+          userId: user.id,
+          reason: 'PROFILE_INCOMPLETE',
+        });
+        return errorRes('Incomplete profile', ['Your profile must be complete (all fields + resume) before applying'], 400);
+      }
+
+      profileId = profile.id;
     }
 
     // Check for duplicate application
@@ -123,7 +135,7 @@ export async function POST(req: NextRequest) {
     const application = await prisma.application.create({
       data: {
         userId: user.id,
-        profileId: profile.id,
+        profileId,
         problemId: parsed.data.problemId,
         status: 'SUBMITTED',
         answers: {
