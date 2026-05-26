@@ -47,6 +47,14 @@ export default async function FacultyInternshipDashboardPage() {
             <p className="mt-2 text-[#434651] max-w-3xl font-body text-sm">
               Manage faculty internship workspaces and review selected participants.
             </p>
+            <div className="mt-3">
+              <Link
+                href="/faculty-internship/decisions"
+                className="inline-block px-4 py-2 text-xs font-semibold border border-[#002155] text-[#002155] rounded hover:bg-[#002155] hover:text-white transition"
+              >
+                Review Faculty Internship Applications
+              </Link>
+            </div>
           </div>
           <CreateFacultyProblemModal canCreate={payload.role === 'ADMIN'} />
         </div>

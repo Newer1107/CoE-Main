@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         eventId: null,
         status: 'OPENED',
         approvalStatus: 'APPROVED',
-        problemType: { in: ['OPEN', 'INTERNSHIP'] },
+        problemType: { in: ['OPEN', 'INTERNSHIP', 'FACULTY_INTERNSHIP'] },
       },
       select: { id: true },
     });
