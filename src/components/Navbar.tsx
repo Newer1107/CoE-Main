@@ -45,6 +45,7 @@ export default function Navbar({ user }: NavbarProps) {
   const canSeeFacultyPortal = userRole === "FACULTY" || userRole === "ADMIN" || userRole === "INDUSTRY_PARTNER";
   const canSeeAdminPanel = userRole === "ADMIN";
   const canSeeMySubmissions = userRole === "STUDENT";
+  const canSeeFacultyProfile = userRole === "FACULTY";
   const canSeeIndustryInternshipPortal = userRole === "INDUSTRY_PARTNER" || userRole === "ADMIN";
   const canSeeStudentInternshipPortal = userRole === "STUDENT";
   const canSeeFacultyInternshipPortal = userRole === "FACULTY" || userRole === "ADMIN";
@@ -297,6 +298,15 @@ export default function Navbar({ user }: NavbarProps) {
                     {user?.uid ? <p className="mt-1 text-xs text-[#434651]">UID: {user.uid}</p> : null}
 
                     <div className="mt-3 grid grid-cols-1 gap-2">
+                      {canSeeFacultyProfile ? (
+                        <Link
+                          href="/faculty/profile"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
+                        >
+                          My Profile
+                        </Link>
+                      ) : null}
                       {canSeeAdminPanel ? (
                         <Link
                           href="/admin?tab=innovation"
@@ -539,6 +549,15 @@ export default function Navbar({ user }: NavbarProps) {
                       My Submissions
                     </Link>
                   </>
+                ) : null}
+                {canSeeFacultyProfile ? (
+                  <Link
+                    href="/faculty/profile"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="mt-3 inline-block w-full border border-[#002155] py-3 text-center text-xs font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
+                  >
+                    My Profile
+                  </Link>
                 ) : null}
                 <button
                   type="button"

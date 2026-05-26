@@ -60,6 +60,7 @@ Major capability groups:
 - Internship workspace APIs: accepts browser datetime-local values for task deadlines and meeting schedule inputs
 - Faculty internships: admin-created faculty opportunities, decisions workflow, and shared faculty internship workspaces
 - Faculty profiles: department/designation, expertise, resume, and professional links
+- Profile completion prompts for students and faculty
 
 ### 1.1 System Component Architecture
 

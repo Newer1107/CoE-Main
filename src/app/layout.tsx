@@ -6,6 +6,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ProfileCompletionModal } from "@/components/ProfileCompletionModal";
+import { FacultyProfileCompletionModal } from "@/components/FacultyProfileCompletionModal";
 import { verifyAccessToken } from "@/lib/jwt";
 import { ToastProvider } from "@/components/ToastProvider";
 
@@ -54,6 +55,7 @@ export default async function RootLayout({
           <Navbar user={user} />
           {children}
           {user?.role === 'STUDENT' && <ProfileCompletionModal />}
+          {user?.role === 'FACULTY' && <FacultyProfileCompletionModal />}
           <Footer />
         </ToastProvider>
         {process.env.NEXT_PUBLIC_GA_ID && (
