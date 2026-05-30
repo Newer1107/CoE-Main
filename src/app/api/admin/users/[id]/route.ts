@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!user) return errorRes('User not found', [], 404);
 
-    const [industry, studentProfileRaw, bookings, applications, tickets, problemsAuthored, claimMembershipsRaw, counts] = await Promise.all([
+    const [industry, studentProfileRaw, facultyProfileRaw, bookings, applications, tickets, problemsAuthored, claimMembershipsRaw, counts] = await Promise.all([
       user.industryId
         ? prisma.industry.findUnique({
             where: { id: user.industryId },
@@ -51,6 +51,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           experience: true,
           interests: true,
           resumeUrl: true,
+          isComplete: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.facultyProfile.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          department: true,
+          designation: true,
+          expertise: true,
+          resumeUrl: true,
+          profileLinks: true,
           isComplete: true,
           updatedAt: true,
         },
@@ -157,11 +170,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         }
       : null;
 
+    const facultyProfile = facultyProfileRaw
+      ? {
+          ...facultyProfileRaw,
+          profileLinks: Array.isArray(facultyProfileRaw.profileLinks) ? facultyProfileRaw.profileLinks : [],
+          resumeFileName: getStoredFileDisplayName(facultyProfileRaw.resumeUrl),
+          resumeDownloadUrl: facultyProfileRaw.resumeUrl
+            ? await getSignedUrl(facultyProfileRaw.resumeUrl).catch(() => null)
+            : null,
+        }
+      : null;
+
     return successRes(
       {
         ...user,
         industry,
         studentProfile,
+        facultyProfile,
         bookings,
         applications,
         tickets,

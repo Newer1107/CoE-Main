@@ -61,6 +61,7 @@ Major capability groups:
 - Faculty internships: admin-created faculty opportunities, decisions workflow, and shared faculty internship workspaces
 - Faculty profiles: department/designation, expertise, resume, and professional links
 - Profile completion prompts for students and faculty
+- Admin user directory CSV export with year/branch filters
 
 ### 1.1 System Component Architecture
 

@@ -71,6 +71,18 @@ type AdminUserDetail = {
     isComplete: boolean;
     updatedAt: string;
   } | null;
+  facultyProfile: {
+    id: number;
+    department: string | null;
+    designation: string | null;
+    expertise: string | null;
+    resumeUrl: string | null;
+    resumeFileName: string | null;
+    resumeDownloadUrl: string | null;
+    profileLinks: string[];
+    isComplete: boolean;
+    updatedAt: string;
+  } | null;
   bookings: Array<{
     id: number;
     purpose: string;
@@ -896,6 +908,8 @@ export default function AdminPanelClient({
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "FACULTY" | "STUDENT">("ALL");
   const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
+  const [userExportYear, setUserExportYear] = useState<"ALL" | "FIRST" | "SECOND" | "THIRD" | "FOURTH">("ALL");
+  const [userExportBranch, setUserExportBranch] = useState("ALL");
 
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState<number | "ALL">("ALL");
   const [analyticsProblemFilter, setAnalyticsProblemFilter] = useState<number | "ALL">("ALL");
@@ -963,6 +977,31 @@ export default function AdminPanelClient({
       return Boolean(nameMatch || emailMatch || uidMatch);
     });
   }, [allUsers, debouncedUserSearch, userRoleFilter]);
+
+  const userExportBranches = [
+    { label: "All branches", value: "ALL" },
+    { label: "B.E. Computer Engineering", value: "COMP" },
+    { label: "B.E. Information Technology", value: "IT" },
+    { label: "B.E. Electronics & Tele-Communication", value: "ENTC" },
+    { label: "B.E. Electronics and Computer Science", value: "ECS" },
+    { label: "B.E. Mechanical Engineering", value: "MECH" },
+    { label: "B.E. Civil Engineering", value: "CIVIL" },
+    { label: "B.E. Computer Science and Engineering (Cyber Security)", value: "CSCY" },
+    { label: "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)", value: "MME" },
+    { label: "B.Tech - Artificial Intelligence & Machine Learning", value: "AIML" },
+    { label: "B.Tech - Artificial Intelligence & Data Science", value: "AIDS" },
+    { label: "B.Tech - Internet of Things (IoT)", value: "IOT" },
+    { label: "B.Tech - Computer Science & Engineering (CSE-IOT)", value: "CSEIOT" },
+  ];
+
+  const handleExportUsersCsv = () => {
+    const params = new URLSearchParams();
+    if (userExportYear !== "ALL") params.set("year", userExportYear);
+    if (userExportBranch !== "ALL") params.set("branch", userExportBranch);
+
+    const url = `/api/admin/users/export?${params.toString()}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
   const prepBookings = useMemo(() => {
     const now = new Date();
 
@@ -3997,11 +4036,58 @@ export default function AdminPanelClient({
             )}
           </div>
         </div>
+
+        <div className="mt-6 border border-[#c4c6d3] bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-[#434651] font-label">Export Students</p>
+              <p className="mt-1 text-sm text-[#434651]">
+                Export student name, UID, phone, email, skills, and resume link.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportUsersCsv}
+              className="border border-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
+            >
+              Export CSV
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3">
+            <select
+              value={userExportYear}
+              onChange={(e) => setUserExportYear(e.target.value as "ALL" | "FIRST" | "SECOND" | "THIRD" | "FOURTH")}
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            >
+              <option value="ALL">All years</option>
+              <option value="FIRST">First year (25-29)</option>
+              <option value="SECOND">Second year (24-28)</option>
+              <option value="THIRD">Third year (23-27)</option>
+              <option value="FOURTH">Fourth year (22-26)</option>
+            </select>
+            <select
+              value={userExportBranch}
+              onChange={(e) => setUserExportBranch(e.target.value)}
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+            >
+              {userExportBranches.map((branch) => (
+                <option key={branch.value} value={branch.value}>
+                  {branch.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p className="mt-2 text-xs text-[#747782]">
+            Filters use the UID format and only include students with matching UID patterns.
+          </p>
+        </div>
       </section>
 
       {selectedUserDetailId !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00122f]/70 p-4 md:p-8 overflow-y-auto">
-          <div className="w-full max-w-4xl border border-[#c4c6d3] bg-white">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#00122f]/70 p-4 md:p-8 overflow-y-auto">
+          <div className="w-full max-w-4xl border border-[#c4c6d3] bg-white max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#e3e2df] px-5 py-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-[#434651] font-label">User Details</p>
@@ -4053,8 +4139,33 @@ export default function AdminPanelClient({
                   </section>
 
                   <section className="border border-[#e3e2df] p-4 text-sm">
-                    <p className="font-bold text-[#002155]">Student Profile</p>
-                    {selectedUserDetail.studentProfile ? (
+                    <p className="font-bold text-[#002155]">
+                      {selectedUserDetail.role === "FACULTY" ? "Faculty Profile" : "Student Profile"}
+                    </p>
+                    {selectedUserDetail.role === "FACULTY" ? (
+                      selectedUserDetail.facultyProfile ? (
+                        <>
+                          <p className="mt-2 text-[#434651]">Profile Complete: {selectedUserDetail.facultyProfile.isComplete ? "Yes" : "No"}</p>
+                          <p className="text-[#434651]">Department: {selectedUserDetail.facultyProfile.department || "Not provided"}</p>
+                          <p className="text-[#434651]">Designation: {selectedUserDetail.facultyProfile.designation || "Not provided"}</p>
+                          <p className="text-[#434651]">Expertise: {selectedUserDetail.facultyProfile.expertise || "Not provided"}</p>
+                          <p className="text-[#434651]">Profile Links: {selectedUserDetail.facultyProfile.profileLinks.length > 0 ? selectedUserDetail.facultyProfile.profileLinks.join(", ") : "Not provided"}</p>
+                          <p className="text-[#434651]">Resume: {selectedUserDetail.facultyProfile.resumeFileName || "Not uploaded"}</p>
+                          {selectedUserDetail.facultyProfile.resumeDownloadUrl ? (
+                            <a
+                              href={selectedUserDetail.facultyProfile.resumeDownloadUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-block text-[#002155] font-semibold underline underline-offset-4"
+                            >
+                              Open Resume
+                            </a>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="mt-2 text-[#434651]">No faculty profile available for this account.</p>
+                      )
+                    ) : selectedUserDetail.studentProfile ? (
                       <>
                         <p className="mt-2 text-[#434651]">Profile Complete: {selectedUserDetail.studentProfile.isComplete ? "Yes" : "No"}</p>
                         <p className="text-[#434651]">Skills: {selectedUserDetail.studentProfile.skills || "Not provided"}</p>
