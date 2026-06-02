@@ -1,7 +1,11 @@
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import prisma from '@/lib/prisma';
+
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 
 export type EmailDeliveryMode = 'immediate' | 'bulk';
 
@@ -21,7 +25,7 @@ const EMAIL_JOB_STATUSES: EmailJobStatus[] = ['PENDING', 'PROCESSING', 'RETRY', 
 
 const OAUTH_ENV_KEYS = ['SMTP_USER', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'] as const;
 
-type MailTransporter = ReturnType<typeof nodemailer.createTransport>;
+type MailTransporter = nodemailer.Transporter;
 
 const globalForMail = globalThis as typeof globalThis & {
   __coeOAuth2Transporter?: MailTransporter;
@@ -44,8 +48,11 @@ const getTransporter = () => {
     throw new Error(`Missing SMTP OAuth2 environment variables: ${missing.join(', ')}`);
   }
 
-  globalForMail.__coeOAuth2Transporter = nodemailer.createTransport({
-    service: 'gmail',
+  const transporterOptions: SMTPTransport.Options & { family?: 4 } = {
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    family: 4,
     auth: {
       type: 'OAuth2',
       user: process.env.SMTP_USER,
@@ -53,7 +60,9 @@ const getTransporter = () => {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
     },
-  });
+  };
+
+  globalForMail.__coeOAuth2Transporter = nodemailer.createTransport(transporterOptions);
 
   return globalForMail.__coeOAuth2Transporter;
 };
