@@ -850,6 +850,7 @@ export default function AdminPanelClient({
 
   const [emailSnapshot, setEmailSnapshot] = useState<EmailQueueSnapshot | null>(null);
   const [loadingEmailSnapshot, setLoadingEmailSnapshot] = useState(false);
+  const [retryingEmailQueue, setRetryingEmailQueue] = useState(false);
   const [emailStatusFilter, setEmailStatusFilter] = useState<"ALL" | EmailQueueStatus>("ALL");
   const [emailModeFilter, setEmailModeFilter] = useState<"ALL" | "IMMEDIATE" | "BULK">("ALL");
   const [emailCategoryFilter, setEmailCategoryFilter] = useState("");
@@ -1278,6 +1279,37 @@ export default function AdminPanelClient({
       setErrorMessage(err instanceof Error ? err.message : "Could not refresh email monitor.");
     } finally {
       setLoadingEmailSnapshot(false);
+    }
+  };
+
+  const handleRetryEmailQueue = async () => {
+    try {
+      setRetryingEmailQueue(true);
+      setStatusMessage("");
+      setErrorMessage("");
+
+      if (emailStatusFilter === "SENT") {
+        setErrorMessage("Sent emails cannot be retried.");
+        return;
+      }
+
+      const payload = await apiCall("/api/admin/emails/retry", {
+        method: "POST",
+        body: JSON.stringify({
+          status: emailStatusFilter,
+          mode: emailModeFilter !== "ALL" ? emailModeFilter : undefined,
+          category: emailCategoryFilter.trim() || undefined,
+        }),
+      });
+
+      setStatusMessage(payload?.message || "Email jobs queued for retry.");
+      if (activeView === "operations" && operationsTab === "emails") {
+        void handleRefreshEmailSnapshot();
+      }
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not retry email jobs.");
+    } finally {
+      setRetryingEmailQueue(false);
     }
   };
 
@@ -3316,13 +3348,22 @@ export default function AdminPanelClient({
             <h2 className="font-headline text-2xl text-[#002155]">Email Monitor</h2>
             <p className="text-sm text-[#434651]">Queue visibility for pending, processing, retry, sent, and failed emails.</p>
           </div>
-          <button
-            onClick={() => void handleRefreshEmailSnapshot()}
-            disabled={loadingEmailSnapshot}
-            className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-          >
-            {loadingEmailSnapshot ? "Refreshing..." : "Refresh"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => void handleRetryEmailQueue()}
+              disabled={loadingEmailSnapshot || retryingEmailQueue}
+              className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+            >
+              {retryingEmailQueue ? "Retrying..." : "Retry Filtered"}
+            </button>
+            <button
+              onClick={() => void handleRefreshEmailSnapshot()}
+              disabled={loadingEmailSnapshot || retryingEmailQueue}
+              className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+            >
+              {loadingEmailSnapshot ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
