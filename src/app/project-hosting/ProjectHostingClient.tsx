@@ -415,7 +415,7 @@ export default function ProjectHostingClient({ initialData }: { initialData: Das
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-[#002155]">Team Members</span>
+                <span className="mb-2 block text-sm font-medium text-[#002155]">Team Members UID - Separate by Commas</span>
                 <textarea
                   value={form.teamMembers}
                   onChange={(event) => setForm({ ...form, teamMembers: event.target.value })}
