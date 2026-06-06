@@ -8,6 +8,7 @@ const innovationProblemsUrl = `${appBaseUrl}/innovation/problems`;
 const innovationMyApplicationsUrl = `${appBaseUrl}/innovation/my-applications`;
 const innovationMySubmissionsUrl = `${appBaseUrl}/innovation/my-submissions`;
 const innovationFacultyUrl = `${appBaseUrl}/innovation/faculty`;
+const projectHostingUrl = `${appBaseUrl}/project-hosting`;
 
 const brandHeader = `
   <div style="background:#002155;padding:16px 24px;text-align:center;">
@@ -557,6 +558,123 @@ export const sendNewProblemStatementEmail = async (
 };
 
 // ─── 16. Ticket Issued ───
+export const sendHostingRequestSubmittedEmail = async (
+  studentEmail: string,
+  details: {
+    studentName: string;
+    projectName: string;
+    requestId: number;
+    requestUrl?: string;
+    preferredSubdomain?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Project Hosting Request Submitted</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">Your hosting request for <strong>${details.projectName}</strong> has been submitted successfully.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Request ID</td><td style="padding:8px;color:#002155;">${details.requestId}</td></tr>
+      <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Preferred Subdomain</td><td style="padding:8px;color:#002155;">${details.preferredSubdomain || 'Not specified'}</td></tr>
+    </table>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${details.requestUrl || projectHostingUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Track Request Status</a>
+    </div>`;
+
+  await send(studentEmail, 'Project Hosting Request Submitted', body, {
+    mode: 'immediate',
+    category: 'HOSTING_REQUEST_SUBMITTED',
+  });
+};
+
+export const sendHostingRequestApprovedEmail = async (
+  studentEmail: string,
+  details: {
+    studentName: string;
+    projectName: string;
+    requestId: number;
+    requestUrl?: string;
+    assignedDomain?: string | null;
+    adminRemarks?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Project Hosting Request Approved</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">Your request for <strong>${details.projectName}</strong> has been approved.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr style="border-bottom:1px solid #c4c6d3;"><td style="padding:8px;color:#747782;font-weight:bold;">Request ID</td><td style="padding:8px;color:#002155;">${details.requestId}</td></tr>
+      <tr style="background:#f5f4f0;"><td style="padding:8px;color:#747782;font-weight:bold;">Assigned Domain</td><td style="padding:8px;color:#002155;">${details.assignedDomain || 'Pending domain assignment'}</td></tr>
+    </table>
+    <div style="background:#f5f4f0;border-left:4px solid #0b6b2e;padding:12px 16px;margin:16px 0;">
+      <p style="margin:0;color:#434651;font-weight:bold;">Deployment Notes</p>
+      <p style="margin:4px 0 0;color:#002155;">${details.adminRemarks || 'No notes shared.'}</p>
+    </div>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${details.requestUrl || projectHostingUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Open Hosting Dashboard</a>
+    </div>`;
+
+  await send(studentEmail, 'Project Hosting Request Approved', body, {
+    mode: 'immediate',
+    category: 'HOSTING_REQUEST_APPROVED',
+  });
+};
+
+export const sendHostingRequestRejectedEmail = async (
+  studentEmail: string,
+  details: {
+    studentName: string;
+    projectName: string;
+    requestId: number;
+    requestUrl?: string;
+    adminRemarks?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Project Hosting Request Rejected</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">Your request for <strong>${details.projectName}</strong> was not approved.</p>
+    <div style="background:#ffdad6;border-left:4px solid #ba1a1a;padding:12px 16px;margin:16px 0;">
+      <p style="margin:0;color:#93000a;font-weight:bold;font-size:12px;">REJECTION REASON</p>
+      <p style="margin:4px 0 0;color:#434651;">${details.adminRemarks || 'No specific reason shared.'}</p>
+    </div>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${details.requestUrl || projectHostingUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">View Hosting Requests</a>
+    </div>`;
+
+  await send(studentEmail, 'Project Hosting Request Rejected', body, {
+    mode: 'immediate',
+    category: 'HOSTING_REQUEST_REJECTED',
+  });
+};
+
+export const sendHostingRequestChangesRequestedEmail = async (
+  studentEmail: string,
+  details: {
+    studentName: string;
+    projectName: string;
+    requestId: number;
+    requestUrl?: string;
+    adminRemarks?: string | null;
+  }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Changes Requested for Hosting Request</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.studentName}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">The admin team reviewed <strong>${details.projectName}</strong> and requested updates before approval.</p>
+    <div style="background:#fff2cc;border-left:4px solid #f7941d;padding:12px 16px;margin:16px 0;">
+      <p style="margin:0;color:#8c4f00;font-weight:bold;font-size:12px;">REQUESTED CHANGES</p>
+      <p style="margin:4px 0 0;color:#434651;">${details.adminRemarks || 'Please review the latest remarks in the portal.'}</p>
+    </div>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="${details.requestUrl || projectHostingUrl}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">Update Request</a>
+    </div>`;
+
+  await send(studentEmail, 'Project Hosting Request Needs Changes', body, {
+    mode: 'immediate',
+    category: 'HOSTING_REQUEST_CHANGES',
+  });
+};
+
 export const sendTicketIssuedEmail = async (
   email: string,
   details: {

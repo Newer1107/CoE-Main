@@ -94,6 +94,72 @@ export const bookingCreateSchema = z.object({
   lab: z.string().min(1),
 });
 
+export const hostingRequestCreateSchema = z.object({
+  projectName: z.string().trim().min(3, 'Project name must be at least 3 characters'),
+  projectDescription: z.string().trim().min(20, 'Project description must be at least 20 characters'),
+  githubUrl: z.string().trim().url('Enter a valid GitHub repository URL'),
+  projectCategory: z.string().trim().min(2, 'Project category is required'),
+  techStack: z
+    .array(z.string().trim().min(1))
+    .min(1, 'Add at least one technology to the tech stack'),
+  databaseRequired: booleanLikeSchema.default(false),
+  databaseType: z.enum(['NONE', 'MYSQL', 'POSTGRESQL', 'MONGODB']).default('NONE'),
+  preferredSubdomain: z
+    .string()
+    .trim()
+    .min(3, 'Preferred subdomain is required')
+    .max(63, 'Preferred subdomain must be at most 63 characters')
+    .regex(/^[a-z0-9-]+$/, 'Preferred subdomain can only contain lowercase letters, numbers, and hyphens'),
+  teamMembers: z.string().trim().max(4000).optional().or(z.literal('')),
+  facultyMentor: z.string().trim().max(191).optional().or(z.literal('')),
+  hostingDuration: z.string().trim().max(191).optional().or(z.literal('')),
+  additionalNotes: z.string().trim().max(4000).optional().or(z.literal('')),
+}).superRefine((value, ctx) => {
+  if (!value.databaseRequired && value.databaseType !== 'NONE') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['databaseType'],
+      message: 'Database type must be NONE when no database is required',
+    });
+  }
+
+  if (value.databaseRequired && value.databaseType === 'NONE') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['databaseType'],
+      message: 'Select a database type when database hosting is required',
+    });
+  }
+});
+
+export const hostingRequestReviewSchema = z.object({
+  status: z.enum(['UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED']),
+  adminRemarks: z.string().trim().min(3, 'Remarks are required'),
+  assignedDomain: z
+    .string()
+    .trim()
+    .max(191)
+    .regex(/^[a-z0-9.-]*$/, 'Assigned domain can only contain lowercase letters, numbers, dots, and hyphens')
+    .optional()
+    .or(z.literal('')),
+  deploymentStatus: z.string().trim().max(191).optional().or(z.literal('')),
+  coolifyProjectId: z.string().trim().max(191).optional().or(z.literal('')),
+  hostingExpiryDate: z.string().trim().optional().or(z.literal('')).refine((value) => !value || !Number.isNaN(Date.parse(value)), {
+    message: 'Hosting expiry date must be a valid date',
+  }),
+  assignedDatabaseCredentials: z.record(z.string(), z.unknown()).optional().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.status === 'APPROVED') {
+    if (!value.assignedDomain?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['assignedDomain'],
+        message: 'Assigned subdomain is required for approval',
+      });
+    }
+  }
+});
+
 // ─── News Validators ───
 
 export const newsCreateSchema = z.object({

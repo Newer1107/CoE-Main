@@ -106,6 +106,22 @@ enum NotificationType {
   MESSAGE_POSTED
   MEETING_SCHEDULED
   DOCUMENT_UPLOADED
+  HOSTING_REQUEST
+}
+
+enum HostingRequestStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum DatabaseType {
+  NONE
+  MYSQL
+  POSTGRESQL
+  MONGODB
 }
 
 enum TicketType {
@@ -160,6 +176,9 @@ model User {
   internshipMessages InternshipMessage[] @relation("InternshipMessageSender")
   internshipDocuments InternshipDocument[] @relation("InternshipDocumentUploader")
   notifications Notification[]
+  hostingRequests HostingRequest[] @relation("HostingRequestStudent")
+  reviewedHostingRequests HostingRequest[] @relation("HostingRequestReviewer")
+  hostingRequestStatusChanges HostingRequestStatusHistory[] @relation("HostingRequestStatusChangedBy")
   industryId Int?
   industry   Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
 
@@ -462,6 +481,58 @@ model Notification {
   @@index([userId, createdAt])
   @@index([type])
   @@map("notifications")
+}
+
+model HostingRequest {
+  id                         Int                  @id @default(autoincrement())
+  studentId                  Int
+  student                    User                 @relation("HostingRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  projectName                String
+  projectDescription         String               @db.Text
+  githubUrl                  String
+  projectCategory            String
+  techStack                  Json
+  databaseRequired           Boolean              @default(false)
+  databaseType               DatabaseType         @default(NONE)
+  preferredSubdomain         String?
+  teamMembers                String?              @db.Text
+  facultyMentor              String?
+  hostingDuration            String?
+  additionalNotes            String?              @db.Text
+  adminRemarks               String?              @db.Text
+  status                     HostingRequestStatus @default(PENDING)
+  reviewedById               Int?
+  reviewedBy                 User?                @relation("HostingRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt                 DateTime?
+  assignedDomain             String?
+  coolifyProjectId           String?
+  deploymentStatus           String?
+  assignedDatabaseCredentials Json?
+  hostingExpiryDate          DateTime?
+  statusHistory              HostingRequestStatusHistory[]
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+
+  @@index([studentId, createdAt])
+  @@index([status, createdAt])
+  @@index([reviewedById])
+  @@map("hosting_requests")
+}
+
+model HostingRequestStatusHistory {
+  id               Int                  @id @default(autoincrement())
+  hostingRequestId Int
+  hostingRequest   HostingRequest       @relation(fields: [hostingRequestId], references: [id], onDelete: Cascade)
+  oldStatus        HostingRequestStatus
+  newStatus        HostingRequestStatus
+  remarks          String?              @db.Text
+  changedById      Int
+  changedBy        User                 @relation("HostingRequestStatusChangedBy", fields: [changedById], references: [id], onDelete: Cascade)
+  createdAt        DateTime             @default(now())
+
+  @@index([hostingRequestId, createdAt])
+  @@index([changedById])
+  @@map("hosting_request_status_history")
 }
 
 model HackathonEvent {

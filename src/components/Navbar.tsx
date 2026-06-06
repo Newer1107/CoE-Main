@@ -45,12 +45,15 @@ export default function Navbar({ user }: NavbarProps) {
   const canSeeFacultyPortal = userRole === "FACULTY" || userRole === "ADMIN" || userRole === "INDUSTRY_PARTNER";
   const canSeeAdminPanel = userRole === "ADMIN";
   const canSeeMySubmissions = userRole === "STUDENT";
+  const canSeeProjectHosting = userRole === "STUDENT";
   const canSeeFacultyProfile = userRole === "FACULTY";
   const canSeeIndustryInternshipPortal = userRole === "INDUSTRY_PARTNER" || userRole === "ADMIN";
   const canSeeStudentInternshipPortal = userRole === "STUDENT";
   const canSeeFacultyInternshipPortal = userRole === "FACULTY" || userRole === "ADMIN";
   const isLoggedIn = !!user;
   const bookFacilityHref = isLoggedIn ? "/facility-booking" : bookingLoginHref;
+
+  
 
   useEffect(() => {
     setOpenDesktopDropdown(null);
@@ -122,6 +125,8 @@ export default function Navbar({ user }: NavbarProps) {
       : []),
     ...(canSeeIndustryInternshipPortal ? [{ label: "Internship Dashboard", href: "/industry-internship/dashboard" }] : []),
     ...(canSeeStudentInternshipPortal ? [{ label: "My Internship Dashboard", href: "/student-internship" }] : []),
+    ...(canSeeProjectHosting ? [{ label: "Project Hosting", href: "/project-hosting" }] : []),
+    ...(canSeeAdminPanel ? [{ label: "Hosting Requests", href: "/admin/hosting-requests" }] : []),
     ...(canSeeAdminPanel ? [{ label: "Admin Panel", href: "/admin" }] : []),
   ];
 
@@ -207,6 +212,8 @@ export default function Navbar({ user }: NavbarProps) {
                 {link.label}
               </Link>
             ))}
+
+            
 
             {groupedDesktopMenus.map((menu) => {
               const isMenuActive = menu.links.some((link) => isLinkActive(link.href));
@@ -316,6 +323,15 @@ export default function Navbar({ user }: NavbarProps) {
                           Hackathon Control Center
                         </Link>
                       ) : null}
+                      {canSeeAdminPanel ? (
+                        <Link
+                          href="/admin/hosting-requests"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="border border-[#8c4f00] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#8c4f00] hover:bg-[#8c4f00] hover:text-white transition-colors"
+                        >
+                          Hosting Requests
+                        </Link>
+                      ) : null}
                       {canSeeMySubmissions ? (
                         <>
                           <Link
@@ -338,6 +354,13 @@ export default function Navbar({ user }: NavbarProps) {
                             className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155]"
                           >
                             My Submissions
+                          </Link>
+                          <Link
+                            href="/project-hosting"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="border border-[#0b6b2e] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#0b6b2e] hover:bg-[#0b6b2e] hover:text-white transition-colors"
+                          >
+                            Project Hosting
                           </Link>
                         </>
                       ) : null}
@@ -437,6 +460,7 @@ export default function Navbar({ user }: NavbarProps) {
                   {link.label}
                 </Link>
               ))}
+              
             </div>
           </div>
 
