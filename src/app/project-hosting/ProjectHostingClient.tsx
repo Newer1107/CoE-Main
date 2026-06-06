@@ -396,7 +396,7 @@ export default function ProjectHostingClient({ initialData }: { initialData: Das
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-[#002155]">Faculty Mentor</span>
+                  <span className="mb-2 block text-sm font-medium text-[#002155]">Faculty Mentor Email</span>
                   <input
                     value={form.facultyMentor}
                     onChange={(event) => setForm({ ...form, facultyMentor: event.target.value })}
