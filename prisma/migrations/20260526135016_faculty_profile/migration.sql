@@ -1,9 +1,3 @@
--- AlterTable
-ALTER TABLE `applications` MODIFY `profileId` INTEGER NULL;
-
--- AlterTable
-ALTER TABLE `problems` MODIFY `problemType` ENUM('OPEN', 'INTERNSHIP', 'FACULTY_INTERNSHIP') NOT NULL DEFAULT 'OPEN';
-
 -- CreateTable
 CREATE TABLE `faculty_profiles` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
