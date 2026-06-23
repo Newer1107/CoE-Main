@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { successRes, errorRes } from '@/lib/api-helpers';
 import { otpVerifySchema } from '@/lib/validators';
+import { syncDashboardUser } from '@/lib/dashboard-sync';
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,8 +37,23 @@ export async function POST(req: NextRequest) {
       data: { isVerified: true },
     });
 
-    // Delete all OTPs for this email
+    const verifiedUser = await prisma.user.findFirst({
+      where: { email },
+      select: { email: true, name: true, role: true, uid: true },
+    });
+
     await prisma.otp.deleteMany({ where: { email } });
+
+    if (verifiedUser && verifiedUser.role === 'STUDENT') {
+      syncDashboardUser({
+        email: verifiedUser.email,
+        name: verifiedUser.name,
+        role: verifiedUser.role,
+        uid: verifiedUser.uid,
+        status: 'ACTIVE',
+        isActive: true,
+      });
+    }
 
     return successRes(null, 'Email verified successfully. You can now log in.');
   } catch (err) {
