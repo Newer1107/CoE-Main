@@ -50,6 +50,8 @@ export async function syncDashboardUser(user: SyncUserPayload): Promise<void> {
 
   const url = `${DASHBOARD_URL.replace(/\/+$/, "")}/api/internal/users/upsert`;
 
+  console.log(`[dashboard-sync] Syncing ${user.email} (role=${user.role}) to ${url}`);
+
   try {
     const response = await fetch(url, {
       method: "POST",
