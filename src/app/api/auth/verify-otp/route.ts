@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     await prisma.otp.deleteMany({ where: { email } });
 
     if (verifiedUser && verifiedUser.role === 'STUDENT') {
-      syncDashboardUser({
+      await syncDashboardUser({
         email: verifiedUser.email,
         name: verifiedUser.name,
         role: verifiedUser.role,

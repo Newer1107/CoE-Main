@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       console.error('Faculty approval email failed:', emailErr);
     }
 
-    syncDashboardUser({
+    await syncDashboardUser({
       email: faculty.email,
       name: faculty.name,
       role: faculty.role,
