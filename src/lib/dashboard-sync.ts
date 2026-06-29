@@ -5,8 +5,9 @@
  * the Project Dashboard.
  *
  * Architecture:
- *   - Fire-and-forget: never blocks the caller, never throws.
- *   - Logs failures to console.error for observability.
+ *   - Never throws to the caller (all errors are caught internally).
+ *   - Times out after 5s so the OTP-verify flow never hangs.
+ *   - Logs outcome to console for observability.
  *   - Uses SYNC_SECRET shared secret for endpoint protection.
  *
  * Usage:
@@ -68,6 +69,8 @@ export async function syncDashboardUser(user: SyncUserPayload): Promise<void> {
         status: user.status,
         isActive: user.isActive ?? true,
       }),
+      // 5-second timeout so the OT verify flow never hangs
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
