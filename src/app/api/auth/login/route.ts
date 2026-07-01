@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      if (user.googleId) {
+        return errorRes('Invalid credentials. Try signing in with Google.', ['GOOGLE_ACCOUNT_ONLY'], 400);
+      }
       return errorRes('Invalid email/UID or password.', [], 401);
     }
 

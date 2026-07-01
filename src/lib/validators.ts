@@ -84,6 +84,18 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+// ─── Google Auth Validators ───
+
+export const googleAuthSchema = z.object({
+  credential: z.string().min(1, 'Google credential is required'),
+});
+
+export const googleRegistrationSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  uid: tcetUidSchema,
+  phone: z.string().min(10, 'Phone must be at least 10 digits'),
+});
+
 // ─── Booking Validators ───
 
 export const bookingCreateSchema = z.object({

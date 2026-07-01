@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { useToast } from "@/components/ToastProvider";
 import { trackEvent } from "@/lib/analytics";
 import { DEFAULT_CALLBACK_URL, isValidCallbackUrl } from "@/lib/callback-url";
@@ -41,6 +42,14 @@ export default function LoginPage() {
   const [showFacultyWarningModal, setShowFacultyWarningModal] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [showLinkPrompt, setShowLinkPrompt] = useState(false);
+  const [linkPromptData, setLinkPromptData] = useState<{
+    credential: string;
+    email: string;
+    name: string;
+    role?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!needsOtp && !showFacultyWarningModal && !uidPreview) return;
@@ -434,7 +443,224 @@ export default function LoginPage() {
     }
   };
 
-  return (
+  const googleClientId =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      : "";
+
+  const handleGoogleCredential = useCallback(
+    async (credential: string) => {
+      if (googleLoading) return;
+      setGoogleLoading(true);
+      setError("");
+      setStatus("");
+
+      try {
+        const res = await fetch("/api/auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential }),
+          credentials: "include",
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          const code =
+            data?.errors?.[0] || "GOOGLE_AUTH_FAILED";
+          if (code === "GOOGLE_FEATURE_DISABLED") {
+            setError("Google Sign-In is currently disabled.");
+          } else if (code === "GOOGLE_TOKEN_INVALID") {
+            setError("Google authentication failed. Please try again.");
+          } else if (code === "GOOGLE_DOMAIN_INVALID") {
+            setError(
+              `Please use your @tcetmumbai.in email to sign in.`,
+            );
+          } else if (code === "RATE_LIMITED") {
+            setError("Too many attempts. Please try again later.");
+          } else {
+            setError(data?.message || "Google sign-in failed.");
+          }
+          return;
+        }
+
+        const action = data?.data?.action;
+
+        if (action === "login") {
+          try {
+            const role: string =
+              data?.data?.user?.role ?? "UNKNOWN";
+            trackEvent("login", { method: "google", role });
+          } catch {
+            // analytics must never break auth flow
+          }
+          const callbackUrl =
+            new URLSearchParams(
+              typeof window !== "undefined"
+                ? window.location.search
+                : "",
+            ).get("callbackUrl") || "";
+          const destination = isValidCallbackUrl(callbackUrl)
+            ? callbackUrl
+            : DEFAULT_CALLBACK_URL;
+          window.location.assign(destination);
+          return;
+        }
+
+        if (action === "register") {
+          const email = data?.data?.email || "";
+          const name = data?.data?.name || "";
+          const callbackUrl = new URLSearchParams(
+            typeof window !== "undefined"
+              ? window.location.search
+              : "",
+          ).get("callbackUrl") || "";
+          const params = new URLSearchParams();
+          if (name) params.set("name", name);
+          if (email) params.set("email", email);
+          if (callbackUrl)
+            params.set("callbackUrl", callbackUrl);
+          const qs = params.toString();
+          window.location.href = `/register/complete${qs ? `?${qs}` : ""}`;
+          return;
+        }
+
+        if (action === "link_prompt") {
+          setLinkPromptData({ credential, email: data?.data?.email || "", name: data?.data?.name || "", role: data?.data?.role });
+          setShowLinkPrompt(true);
+          return;
+        }
+
+        if (action === "pending") {
+          setStatus(
+            "Your account is awaiting administrator approval.",
+          );
+          return;
+        }
+
+        if (action === "rejected") {
+          setError("Your account registration was rejected.");
+          return;
+        }
+
+        if (action === "invalid_domain") {
+          setError(
+            `Please use your @tcetmumbai.in email to sign in.`,
+          );
+          return;
+        }
+
+        setError("Unexpected response. Please try again.");
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Google sign-in failed.";
+        setError(message);
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [googleLoading],
+  );
+
+  const handleLinkConfirm = async () => {
+    if (!linkPromptData) return;
+    setGoogleLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/google/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credential: linkPromptData.credential,
+        }),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          data?.message || "Failed to link account.",
+        );
+      }
+
+      setShowLinkPrompt(false);
+      setLinkPromptData(null);
+
+      try {
+        trackEvent("login", {
+          method: "google_link",
+          role: "UNKNOWN",
+        });
+      } catch {
+        // analytics must never break auth flow
+      }
+
+      const callbackUrl =
+        new URLSearchParams(
+          typeof window !== "undefined"
+            ? window.location.search
+            : "",
+        ).get("callbackUrl") || "";
+      const destination = isValidCallbackUrl(callbackUrl)
+        ? callbackUrl
+        : DEFAULT_CALLBACK_URL;
+      window.location.assign(destination);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to link account.";
+      setError(message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const googleSignInEnabled = Boolean(googleClientId);
+
+  const renderGoogleButton = () => {
+    if (!googleSignInEnabled) return null;
+    return (
+      <div className="mt-4">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#d9dbe5]" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-[#747782]">
+              or continue with
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex justify-center">
+          <GoogleLogin
+            onSuccess={(response) => {
+              if (response.credential) {
+                void handleGoogleCredential(
+                  response.credential,
+                );
+              }
+            }}
+            onError={() => {
+              setError(
+                "Google sign-in failed. Please try again.",
+              );
+            }}
+            theme="outline"
+            size="large"
+            text="continue_with"
+            shape="rectangular"
+            width="300"
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const content = (
     <main className="min-h-screen pt-[120px] pb-16 px-4 md:px-8">
       <section className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5 bg-[#002155] text-white p-8 md:p-10 border border-[#0b2a5a] relative overflow-hidden">
@@ -583,6 +809,7 @@ export default function LoginPage() {
               >
                 {loading ? "Signing in..." : "Login"}
               </button>
+              {renderGoogleButton()}
             </form>
           ) : (
             <form className="mt-6 space-y-5" onSubmit={handleRegister}>
@@ -817,6 +1044,64 @@ export default function LoginPage() {
         </div>
       ) : null}
 
+      {showLinkPrompt && linkPromptData ? (
+        <div className="fixed inset-0 z-[96] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-[#00122f]/60"
+            onClick={() => {
+              setShowLinkPrompt(false);
+              setLinkPromptData(null);
+            }}
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Link Google account"
+            className="relative w-full max-w-md border border-[#c4c6d3] bg-white p-6 md:p-7 shadow-2xl"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">
+              Account Found
+            </p>
+            <h3 className="mt-1 font-headline text-2xl text-[#002155]">
+              Link Google Account?
+            </h3>
+            <p className="mt-3 text-sm text-[#434651]">
+              An account with{" "}
+              <span className="font-bold text-[#002155]">
+                {linkPromptData.email}
+              </span>{" "}
+              already exists. Link your Google account for faster sign-in?
+            </p>
+            {linkPromptData.role === "faculty" && (
+              <p className="mt-2 text-xs text-[#8c4f00]">
+                Your faculty role will be preserved.
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLinkPrompt(false);
+                  setLinkPromptData(null);
+                }}
+                className="border border-[#c4c6d3] bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#434651] hover:border-[#002155] hover:text-[#002155]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLinkConfirm}
+                disabled={googleLoading}
+                className="border border-[#002155] bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-[#1a438e] disabled:opacity-70"
+              >
+                {googleLoading ? "Linking..." : "Yes, Link Account"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {needsOtp ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
           <div
@@ -891,4 +1176,14 @@ export default function LoginPage() {
       ) : null}
     </main>
   );
+
+  if (googleSignInEnabled && googleClientId) {
+    return (
+      <GoogleOAuthProvider clientId={googleClientId}>
+        {content}
+      </GoogleOAuthProvider>
+    );
+  }
+
+  return content;
 }

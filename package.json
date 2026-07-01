@@ -17,8 +17,10 @@
   "dependencies": {
     "@next/third-parties": "^16.2.1",
     "@prisma/client": "^5.22.0",
+    "@react-oauth/google": "^0.13.5",
     "bcryptjs": "^3.0.3",
     "express-rate-limit": "^8.3.1",
+    "google-auth-library": "^10.9.0",
     "jsonwebtoken": "^9.0.3",
     "jsqr": "^1.4.0",
     "minio": "^8.0.7",
