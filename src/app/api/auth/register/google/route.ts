@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.$transaction(async (tx) => {
       const [emailUser, uidUser, gidUser] = await Promise.all([
         tx.user.findUnique({ where: { email } }),
-        tx.user.findUnique({ where: { uid } }),
+        tx.user.findFirst({ where: { uid } }),
         tx.user.findUnique({ where: { googleId: sub } }),
       ]);
 
