@@ -765,54 +765,82 @@ export default function LoginPage() {
           ) : null}
 
           {activeAuthMode === "login" ? (
-            <form className="mt-6 space-y-5" onSubmit={handleLogin}>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
-                  Email or UID
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={identifier}
-                  onChange={(event) => setIdentifier(event.target.value)}
-                  placeholder="name@tcetmumbai.in or 24-COMPD13-28"
-                  className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
-                />
-                <p className="text-[11px] text-[#434651]">
-                  UID format example: 24-COMPD13-28
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
-                />
-                <div className="pt-1 text-right">
-                  <Link
-                    href="/forgot-password"
-                    className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]"
-                  >
-                    Forgot Password?
-                  </Link>
+            <>
+              {renderGoogleButton()}
+
+              <div className="mt-6 relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#d9dbe5]" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-[#747782] font-bold">
+                    or sign in with email / UID
+                  </span>
                 </div>
               </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70"
-              >
-                {loading ? "Signing in..." : "Login"}
-              </button>
-              {renderGoogleButton()}
-            </form>
+
+              <form className="mt-6 space-y-5" onSubmit={handleLogin}>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                    Email or UID
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={identifier}
+                    onChange={(event) => setIdentifier(event.target.value)}
+                    placeholder="name@tcetmumbai.in or 24-COMPD13-28"
+                    className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                  />
+                  <p className="text-[11px] text-[#434651]">
+                    UID format example: 24-COMPD13-28
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="w-full border border-[#747782] p-3 text-sm outline-none focus:border-[#002155]"
+                  />
+                  <div className="pt-1 text-right">
+                    <Link
+                      href="/forgot-password"
+                      className="text-[11px] font-bold uppercase tracking-wider text-[#8c4f00] hover:text-[#002155]"
+                    >
+                      Forgot Password?
+                    </Link>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70"
+                >
+                  {loading ? "Signing in..." : "Login"}
+                </button>
+              </form>
+            </>
           ) : (
-            <form className="mt-6 space-y-5" onSubmit={handleRegister}>
+            <>
+              {renderGoogleButton()}
+
+              <div className="mt-6 relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#d9dbe5]" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-[#747782] font-bold">
+                    or register with email
+                  </span>
+                </div>
+              </div>
+
+              <form className="mt-6 space-y-5" onSubmit={handleRegister}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
@@ -897,6 +925,7 @@ export default function LoginPage() {
                     : "Register Faculty"}
               </button>
             </form>
+            </>
           )}
         </div>
       </section>
