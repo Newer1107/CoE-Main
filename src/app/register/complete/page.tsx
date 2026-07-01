@@ -1,12 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DEFAULT_CALLBACK_URL, isValidCallbackUrl } from '@/lib/callback-url';
 
+type ParsedUidDetails = {
+  normalizedUid: string;
+  startYear: string;
+  endYear: string;
+  branch: string;
+  division: string;
+  rollNo: string;
+};
+
 export default function RegisterCompletePage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -21,10 +28,10 @@ export default function RegisterCompletePage() {
   // Field errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // UID preview modal
+  const [uidPreview, setUidPreview] = useState<ParsedUidDetails | null>(null);
+
   useEffect(() => {
-    // Check if pending_reg exists by calling a lightweight check
-    // We read from the cookie indirectly — the registration route will reject if missing
-    // Prefill name and email from URL params or a brief cookie check
     const params = new URLSearchParams(window.location.search);
     const prefilledName = params.get('name') || '';
     const prefilledEmail = params.get('email') || '';
@@ -33,14 +40,51 @@ export default function RegisterCompletePage() {
     setLoading(false);
   }, []);
 
+  const parseUidForPreview = (rawUid: string): ParsedUidDetails | null => {
+    const normalizedUid = rawUid.trim().toUpperCase();
+    const match = normalizedUid.match(
+      /^(\d{2})-([A-Z]+)([A-Z])(\d{2,3})-(\d{2})$/,
+    );
+    if (!match) return null;
+
+    const [, startYearShort, branchPart, division, rollNo, endYearShort] = match;
+
+    return {
+      normalizedUid,
+      startYear: `20${startYearShort}`,
+      endYear: `20${endYearShort}`,
+      branch: branchPart,
+      division,
+      rollNo,
+    };
+  };
+
   const extractErrorCode = (errors: unknown[]): string | null => {
     if (!Array.isArray(errors) || errors.length === 0) return null;
     const first = errors[0];
     return typeof first === 'string' ? first : null;
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleFormSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    setError('');
+    setStatus('');
+    setFieldErrors({});
+
+    // Parse UID and show preview modal first, like the login page does
+    const parsed = parseUidForPreview(uid);
+    if (!parsed) {
+      setFieldErrors({ uid: 'Invalid UID format. Expected e.g. 24-COMPD13-28' });
+      setError('Invalid UID format. Use STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28).');
+      return;
+    }
+
+    setUidPreview(parsed);
+  };
+
+  const handleConfirmRegistration = async () => {
+    if (!uidPreview) return;
+
     setError('');
     setStatus('');
     setFieldErrors({});
@@ -50,7 +94,7 @@ export default function RegisterCompletePage() {
       const res = await fetch('/api/auth/register/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, uid, phone }),
+        body: JSON.stringify({ name, uid: uidPreview.normalizedUid, phone }),
         credentials: 'include',
       });
 
@@ -60,24 +104,28 @@ export default function RegisterCompletePage() {
         const errorCode = extractErrorCode(data?.errors);
 
         if (errorCode === 'GOOGLE_REGISTRATION_MISSING' || errorCode === 'GOOGLE_REGISTRATION_EXPIRED') {
+          setUidPreview(null);
           setStatus('Your registration session expired. Redirecting to login...');
           setTimeout(() => { window.location.href = '/login'; }, 2000);
           return;
         }
 
         if (errorCode === 'EMAIL_EXISTS') {
+          setUidPreview(null);
           setError('This email was already registered. Redirecting to login...');
           setTimeout(() => { window.location.href = '/login'; }, 2000);
           return;
         }
 
         if (errorCode === 'UID_EXISTS') {
+          setUidPreview(null);
           setFieldErrors({ uid: 'This UID is already registered.' });
           setError('This UID is already registered. Please use a different UID.');
           return;
         }
 
         if (errorCode === 'GOOGLE_ALREADY_LINKED') {
+          setUidPreview(null);
           setError('This Google account is already linked. Redirecting to login...');
           setTimeout(() => { window.location.href = '/login'; }, 2000);
           return;
@@ -85,6 +133,7 @@ export default function RegisterCompletePage() {
 
         // Validation errors
         if (res.status === 400 && data?.errors) {
+          setUidPreview(null);
           const fieldErrMap: Record<string, string> = {};
           for (const msg of data.errors) {
             const msgStr = String(msg);
@@ -101,11 +150,13 @@ export default function RegisterCompletePage() {
       }
 
       // Success — navigate to destination
+      setUidPreview(null);
       const params = new URLSearchParams(window.location.search);
       const callbackUrl = params.get('callbackUrl') || '';
       const destination = isValidCallbackUrl(callbackUrl) ? callbackUrl : DEFAULT_CALLBACK_URL;
       window.location.assign(destination);
     } catch (err) {
+      setUidPreview(null);
       const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(message);
       setStatus('');
@@ -150,7 +201,7 @@ export default function RegisterCompletePage() {
             <p className="mb-4 border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm">{status}</p>
           ) : null}
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleFormSubmit}>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
                 Email (from Google)
@@ -243,6 +294,90 @@ export default function RegisterCompletePage() {
           </div>
         </div>
       </section>
+
+      {uidPreview ? (
+        <div className="fixed inset-0 z-[98] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-[#00122f]/60"
+            onClick={() => setUidPreview(null)}
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm student UID"
+            className="relative w-full max-w-lg border border-[#c4c6d3] bg-white p-6 md:p-7 shadow-2xl"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#8c4f00]">
+              Verify UID Details
+            </p>
+            <h3 className="mt-1 font-headline text-2xl text-[#002155]">
+              Confirm Before Completing Registration
+            </h3>
+            <p className="mt-3 text-sm text-[#434651]">
+              Please verify the extracted details from your UID.
+            </p>
+
+            <div className="mt-4 rounded border border-[#d9dbe5] bg-[#f8f9fc] p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#747782]">
+                Normalized UID
+              </p>
+              <p className="mt-1 text-sm font-bold text-[#002155]">
+                {uidPreview.normalizedUid}
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                <p>
+                  <span className="text-[#747782]">Start Year:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.startYear}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-[#747782]">End Year:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.endYear}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-[#747782]">Branch:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.branch}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-[#747782]">Division:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.division}
+                  </span>
+                </p>
+                <p className="sm:col-span-2">
+                  <span className="text-[#747782]">Roll No:</span>{" "}
+                  <span className="font-bold text-[#002155]">
+                    {uidPreview.rollNo}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setUidPreview(null)}
+                className="border border-[#c4c6d3] bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#434651] hover:border-[#002155] hover:text-[#002155]"
+              >
+                Edit UID
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmRegistration()}
+                disabled={submitting}
+                className="border border-[#002155] bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-[#1a438e] disabled:opacity-70"
+              >
+                {submitting ? "Completing Registration..." : "Looks Correct, Complete Registration"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
