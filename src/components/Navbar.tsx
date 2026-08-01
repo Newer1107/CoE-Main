@@ -584,7 +584,7 @@ export default function Navbar({ user }: NavbarProps) {
                     <Link
                       href="/innovation/my-submissions"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="mt-3 inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-white hover:bg-white/40 hover:text-[#002155] transition-colors"
+                      className="mt-3 inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-white hover:bg-white/40 hover:text-[#002155] transition-colors "
                     >
                       My Submissions
                     </Link>
