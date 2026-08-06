@@ -54,7 +54,6 @@ export default function Navbar({ user }: NavbarProps) {
   const isLoggedIn = !!user;
   const bookFacilityHref = isLoggedIn ? "/facility-booking" : bookingLoginHref;
 
-  
 
   useEffect(() => {
     setOpenDesktopDropdown(null);
@@ -100,6 +99,16 @@ export default function Navbar({ user }: NavbarProps) {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  // Within a group, only the most specific matching link should appear active.
+  // e.g. on /admin/hosting-requests, "Hosting Requests" wins over "Admin Panel".
+  const getActiveHref = (links: NavLinkItem[]): string | null => {
+    const matches = links.filter((link) => isLinkActive(link.href));
+    if (matches.length === 0) return null;
+    return matches.reduce((longest, link) =>
+      link.href.length > longest.href.length ? link : longest
+    ).href;
+  };
+
   const primaryLinks: NavLinkItem[] = [
     { label: "Home", href: "/" },
     { label: "About", href: "/about" },
@@ -138,6 +147,10 @@ export default function Navbar({ user }: NavbarProps) {
     { label: "Spotlight", key: "spotlight", links: spotlightLinks },
     ...(portalLinks.length > 0 ? [{ label: "Portals", key: "portals", links: portalLinks }] : []),
   ];
+
+  const primaryActiveHref = getActiveHref(primaryLinks);
+  const programsActiveHref = getActiveHref(programsLinks);
+  const portalActiveHref = getActiveHref(portalLinks);
 
   const handleLogout = async () => {
     try {
@@ -216,10 +229,9 @@ export default function Navbar({ user }: NavbarProps) {
               </Link>
             ))}
 
-            
-
             {groupedDesktopMenus.map((menu) => {
               const isMenuActive = menu.links.some((link) => isLinkActive(link.href));
+              const menuActiveHref = getActiveHref(menu.links);
               const isOpen = openDesktopDropdown === menu.key;
               const useActiveHighlight = menu.key !== "spotlight";
 
@@ -255,7 +267,7 @@ export default function Navbar({ user }: NavbarProps) {
                           key={`${menu.key}-${link.href}`}
                           href={link.href}
                           onClick={() => setOpenDesktopDropdown(null)}
-                          className={`${isLinkActive(link.href)
+                          className={`${menuActiveHref === link.href
                             ? "bg-[#fd9923] text-[#002155]"
                             : "text-white hover:bg-white/10"
                             } block px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors`}
@@ -362,7 +374,7 @@ export default function Navbar({ user }: NavbarProps) {
                           <Link
                             href="/innovation/my-submissions"
                             onClick={() => setIsUserMenuOpen(false)}
-                            className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155]"
+                            className="border border-[#002155] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
                           >
                             My Submissions
                           </Link>
@@ -396,14 +408,14 @@ export default function Navbar({ user }: NavbarProps) {
                       <Link
                         href="/facility-booking"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="border border-[#8c4f00] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#8c4f00]"
+                        className="border border-[#8c4f00] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#8c4f00] hover:bg-[#8c4f00] hover:text-white transition-colors"
                       >
                         My Booking Area
                       </Link>
                       <button
                         type="button"
                         onClick={() => void handleLogout()}
-                        className="bg-[#002155] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white"
+                        className="bg-[#002155] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white cursor-pointer"
                       >
                         Logout
                       </button>
@@ -476,7 +488,7 @@ export default function Navbar({ user }: NavbarProps) {
                   key={`main-${link.href}`}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`${isLinkActive(link.href)
+                  className={`${primaryActiveHref === link.href
                     ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
                     : "text-white opacity-80 hover:opacity-100 pl-4"
                     } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
@@ -484,7 +496,6 @@ export default function Navbar({ user }: NavbarProps) {
                   {link.label}
                 </Link>
               ))}
-              
             </div>
           </div>
 
@@ -496,7 +507,7 @@ export default function Navbar({ user }: NavbarProps) {
                   key={`program-${link.href}`}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`${isLinkActive(link.href)
+                  className={`${programsActiveHref === link.href
                     ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
                     : "text-white opacity-80 hover:opacity-100 pl-4"
                     } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
@@ -532,7 +543,7 @@ export default function Navbar({ user }: NavbarProps) {
                     key={`portal-${link.href}`}
                     href={link.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`${isLinkActive(link.href)
+                    className={`${portalActiveHref === link.href
                       ? "text-[#fd9923] font-bold border-l-4 border-[#fd9923] pl-3"
                       : "text-white opacity-80 hover:opacity-100 pl-4"
                       } transition-all text-sm font-['Inter'] uppercase tracking-widest block`}
@@ -578,7 +589,7 @@ export default function Navbar({ user }: NavbarProps) {
                     <Link
                       href="/profile"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="mt-3 inline-block w-full border border-[#002155] py-3 text-center text-xs font-bold uppercase tracking-wider text-[#002155] hover:bg-[#002155] hover:text-white transition-colors"
+                      className="mt-3 inline-block w-full border border-white/40 py-3 text-center text-xs font-bold uppercase tracking-wider text-[#fff] hover:bg-white hover:text-[#002155] transition-colors"
                     >
                       My Profile
                     </Link>
@@ -610,7 +621,7 @@ export default function Navbar({ user }: NavbarProps) {
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
-                  className="mt-3 inline-block w-full bg-[#0b2f66] py-3 text-center text-xs font-bold uppercase tracking-wider text-white"
+                  className="mt-3 inline-block w-full bg-[#0b2f66] py-3 text-center text-xs font-bold uppercase tracking-wider text-white cursor-pointer"
                 >
                   Logout
                 </button>
