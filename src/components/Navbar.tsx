@@ -426,10 +426,11 @@ export default function Navbar({ user }: NavbarProps) {
               <Image
                 src="/tcetlogo.png"
                 alt="TCET Logo"
-                width={64}
-                height={48}
+                width={72}
+                height={60}
                 priority // <--- This also preloads the TCET logo
-                className="object-contain w-12 h-10 md:w-16 md:h-12"
+                unoptimized // <--- Serve the raw file directly so a replaced logo is never stuck in the Next.js image-optimizer cache
+                className="object-contain w-12 h-10 md:w-16 md:h-12 "
               />
             </a>
           </div>
