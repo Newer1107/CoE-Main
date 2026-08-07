@@ -101,7 +101,7 @@ export const googleRegistrationSchema = z.object({
 export const bookingCreateSchema = z.object({
   purpose: z.string().min(5),
   date: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid date'),
-  timeSlot: z.string().min(1),
+  timeSlot: z.string().min(1).refine(isBookingTimeSlot, 'Invalid time slot'),
   facilities: z.array(z.string()).min(0),
   lab: z.string().min(1),
 });
@@ -569,4 +569,19 @@ export type Department = (typeof DEPARTMENT_LIST)[number];
 
 export function isValidDepartment(value: string): value is Department {
   return DEPARTMENT_LIST.includes(value as Department);
+}
+
+// ─── Booking Time Slot Validation ───
+
+export const BOOKING_TIME_SLOTS = [
+  "09:00 - 11:00",
+  "11:00 - 13:00",
+  "13:00 - 15:00",
+  "15:00 - 17:00",
+] as const;
+
+export type BookingTimeSlot = (typeof BOOKING_TIME_SLOTS)[number];
+
+export function isBookingTimeSlot(value: string): value is BookingTimeSlot {
+  return BOOKING_TIME_SLOTS.includes(value as BookingTimeSlot);
 }
