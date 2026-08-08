@@ -4,6 +4,8 @@ import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers
 import { innovationEventCreateSchema } from '@/lib/validators';
 import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
 import { sanitizeFilename } from '@/lib/innovation';
+import { getEventTypeDefaults, getRubricTemplate } from '@/lib/platform-config';
+import { Prisma } from '@prisma/client';
 
 const parseBooleanLike = (value: unknown): boolean => {
   if (typeof value === 'boolean') return value;
@@ -14,10 +16,64 @@ const parseBooleanLike = (value: unknown): boolean => {
   return false;
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Deep-merge `override` over `base` (plain objects recurse, everything else replaces). */
+const deepMerge = (base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> => {
+  const result: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    if (isPlainObject(value) && isPlainObject(result[key])) {
+      result[key] = deepMerge(result[key], value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
+
 // GET /api/innovation/events
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const eventTypeParam = searchParams.get('eventType')?.trim() || undefined;
+    const statusParam = searchParams.get('status')?.trim().toUpperCase() || undefined;
+    const featuredParam = searchParams.get('featured');
+    const searchParam = searchParams.get('search')?.trim() || undefined;
+    const sortParam = searchParams.get('sort')?.trim().toLowerCase() || undefined;
+
+    // Only apply the status filter when the value is a real EventStatus.
+    const EVENT_STATUSES = ['UPCOMING', 'ACTIVE', 'JUDGING', 'CLOSED'] as const;
+    type EventStatusValue = (typeof EVENT_STATUSES)[number];
+    const statusFilter: EventStatusValue | undefined =
+      statusParam && (EVENT_STATUSES as readonly string[]).includes(statusParam)
+        ? (statusParam as EventStatusValue)
+        : undefined;
+
+    let featuredFilter: boolean | undefined;
+    if (featuredParam === 'true') featuredFilter = true;
+    else if (featuredParam === 'false') featuredFilter = false;
+
+    const where: Prisma.HackathonEventWhereInput = {
+      ...(eventTypeParam ? { eventType: eventTypeParam } : {}),
+      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(featuredFilter !== undefined ? { featured: featuredFilter } : {}),
+      // MySQL's default collation makes `contains` case-insensitive.
+      ...(searchParam
+        ? {
+            OR: [
+              { title: { contains: searchParam } },
+              { problems: { some: { title: { contains: searchParam } } } },
+            ],
+          }
+        : {}),
+    };
+
+    const orderBy: Prisma.HackathonEventOrderByWithRelationInput[] =
+      sortParam === 'newest' ? [{ createdAt: 'desc' }] : [{ startTime: 'asc' }];
+
     const events = await prisma.hackathonEvent.findMany({
+      where,
       include: {
         _count: { select: { problems: true, interests: true } },
         createdBy: { select: { id: true, name: true, email: true } },
@@ -26,8 +82,9 @@ export async function GET() {
           orderBy: { session: 'asc' },
           select: { session: true, isOpen: true, updatedAt: true },
         },
+        department: { select: { id: true, name: true } },
       },
-      orderBy: [{ startTime: 'asc' }],
+      orderBy,
     });
 
     const payload = await Promise.all(
@@ -72,6 +129,44 @@ export async function POST(req: NextRequest) {
     const rawProblems = (formData.get('problems') as string) || '[]';
     const pptFile = formData.get('pptFile') as File | null;
 
+    // Per-event type + config (new-style). Legacy requests omit both fields and
+    // keep the pre-existing behavior: eventType defaults to 'hackathon' on the
+    // row, config is stored as null, and no RubricCategory rows are created.
+    const eventTypeField = formData.get('eventType');
+    const configField = formData.get('config');
+    const hasEventType = typeof eventTypeField === 'string' && eventTypeField.trim().length > 0;
+    const hasConfig = typeof configField === 'string' && configField.trim().length > 0;
+    const isNewStyle = hasEventType || hasConfig;
+    const eventType = hasEventType ? (eventTypeField as string).trim() : undefined;
+
+    let explicitConfig: Record<string, unknown> | undefined;
+    if (hasConfig) {
+      try {
+        const parsedConfig = JSON.parse(configField as string) as unknown;
+        if (!isPlainObject(parsedConfig)) {
+          return errorRes('Validation failed', ['config must be a JSON object'], 400);
+        }
+        explicitConfig = parsedConfig;
+      } catch {
+        return errorRes('Validation failed', ['config must be a valid JSON object string'], 400);
+      }
+    }
+
+    const effectiveConfig = isNewStyle
+      ? deepMerge(
+          getEventTypeDefaults(eventType ?? 'hackathon') as unknown as Record<string, unknown>,
+          explicitConfig ?? {},
+        )
+      : null;
+
+    const rubricTemplateKey = effectiveConfig
+      ? (effectiveConfig.rubrics as { template?: unknown } | undefined)?.template
+      : undefined;
+    const rubricTemplate =
+      effectiveConfig && typeof rubricTemplateKey === 'string' && rubricTemplateKey !== 'none'
+        ? getRubricTemplate(rubricTemplateKey)
+        : null;
+
     let problems: { title: string; description: string; isIndustryProblem: boolean; industryName: string }[] = [];
     try {
       const parsedProblems = JSON.parse(rawProblems) as unknown;
@@ -100,6 +195,8 @@ export async function POST(req: NextRequest) {
       submissionLockAt,
       totalSessions: totalSessionsRaw,
       problems,
+      eventType,
+      config: explicitConfig,
     });
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
 
@@ -121,6 +218,12 @@ export async function POST(req: NextRequest) {
           submissionLockAt: submissionLockDate,
           totalSessions: parsed.data.totalSessions,
           createdById: user.id,
+          ...(effectiveConfig
+            ? {
+                eventType: eventType ?? 'hackathon',
+                config: effectiveConfig as Prisma.InputJsonValue,
+              }
+            : {}),
         },
       });
 
@@ -132,6 +235,18 @@ export async function POST(req: NextRequest) {
           updatedByUserId: user.id,
         })),
       });
+
+      if (rubricTemplate) {
+        await tx.rubricCategory.createMany({
+          data: rubricTemplate.categories.map((category, index) => ({
+            eventId: createdEvent.id,
+            key: category.key,
+            label: category.label,
+            weight: category.weight,
+            order: index,
+          })),
+        });
+      }
 
       const created = [] as Array<{ id: number }>;
       for (const problem of parsed.data.problems) {

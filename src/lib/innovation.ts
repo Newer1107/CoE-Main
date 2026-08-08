@@ -17,6 +17,41 @@ export const sanitizeFilename = (fileName: string) => {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
 
+export const MAX_UPLOAD_MB = 20;
+
+const DECK_ALLOWED_TYPES = [
+  'application/pdf',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+
+const SUBMISSION_ALLOWED_TYPES = [
+  'application/pdf',
+  'application/zip',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+];
+
+/** Returns an error message when the upload must be rejected, else null. */
+export const validateUploadFile = (
+  file: File | null,
+  kind: 'deck' | 'submission'
+): string | null => {
+  if (!file) return null;
+  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+    return `File exceeds the ${MAX_UPLOAD_MB}MB limit`;
+  }
+  const allowed = kind === 'deck' ? DECK_ALLOWED_TYPES : SUBMISSION_ALLOWED_TYPES;
+  const mime = (file.type || '').toLowerCase();
+  if (mime && !allowed.includes(mime)) {
+    return `File type not allowed (${kind === 'deck' ? 'PDF or PPT' : 'PDF, ZIP, PPT, DOC or TXT'} only)`;
+  }
+  return null;
+};
+
 export const getStoredFileDisplayName = (fileKey: string | null | undefined): string | null => {
   if (!fileKey) return null;
 

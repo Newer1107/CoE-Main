@@ -6,10 +6,13 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - faculty/admin content publishing (news, events, grants, announcements)
 - innovation platform with separated open-problem and hackathon tracks
 - application-based open-problem workflow (student profile + custom problem questions)
+- public `/hackathons` vertical: event discovery (browse/filter/detail), external opportunities, learning hub, and a unified student **portal hub** (`/hackathons/portal`) consolidating registrations, tickets, certificates and results
+- config-driven hackathon events (per-type defaults + admin "Advanced: Configuration": team size, PPT/problem requirements, ticketing, certificates, leaderboard visibility)
 - two-stage hackathon evaluation with staged sync (PPT screening -> final judging)
 - rubric-based scoring for hackathon judging
 - team ticket issuance on shortlisting (leader receives PDF + QR)
-- per-member attendance tracking from team ticket check-in
+- per-member attendance tracking from team ticket check-in (ADMIN-only, enforced inside the event window)
+- hardened participation flow: atomic team registration (no double-booking), 20MB upload limits, deadline-locked submissions, close guard against unjudged claims, no PII on public leaderboards
 - faculty application review notifications (selected/rejected email)
 - email notifications and cron-driven reminders (active-phase broadcast, stage decisions, closed-event score/rank updates)
 - MinIO-backed object storage with browser-safe proxying
@@ -372,6 +375,9 @@ flowchart LR
 ```
 
 ### 4.4 Hackathon full workflow (conduct flow)
+
+> Latest authoritative flow: `docs/END_TO_END_WORKFLOW.md` (incl. 2026-08-08 hardening
+> pass). UI/UX details: `docs/UI_REDESIGN.md`. Implementation record: `docs/IMPLEMENTATION_CHANGES.md`.
 
 ```mermaid
 flowchart TD

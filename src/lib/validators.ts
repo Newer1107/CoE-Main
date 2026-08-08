@@ -402,7 +402,14 @@ export const innovationClaimAttendanceSchema = z.object({
   isAbsent: z.boolean(),
 });
 
-export const innovationHackathonRubricSchema = innovationRubricSchema;
+// Loose rubric schema for hackathon judging: category keys are event-defined
+// (RubricCategory rows), so any keys are accepted here; per-category max is
+// enforced in the sync route via validateRubricValues against the event's
+// rubric categories (legacy events fall back to the 7 fixed categories).
+export const innovationHackathonRubricSchema = z.record(
+  z.string(),
+  z.coerce.number().int().min(0).max(100)
+);
 
 export const innovationEventCreateSchema = z.object({
   title: z.string().min(2),
@@ -411,6 +418,8 @@ export const innovationEventCreateSchema = z.object({
   endTime: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid endTime'),
   submissionLockAt: z.string().refine((d) => !isNaN(Date.parse(d)), 'Invalid submissionLockAt').optional(),
   totalSessions: z.coerce.number().int().min(1).max(30).default(1),
+  eventType: z.string().trim().min(1).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
   problems: z
     .array(
       z.object({
@@ -438,7 +447,19 @@ export const innovationEventCreateSchema = z.object({
       })
     )
     .min(1, 'At least one hackathon problem statement is required'),
-});
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.config !== undefined &&
+      (value.config === null || typeof value.config !== 'object' || Array.isArray(value.config))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['config'],
+        message: 'config must be an object',
+      });
+    }
+  });
 
 export const innovationEventUpdateSchema = z.object({
   title: z.string().min(2).optional(),
@@ -570,3 +591,60 @@ export type Department = (typeof DEPARTMENT_LIST)[number];
 export function isValidDepartment(value: string): value is Department {
   return DEPARTMENT_LIST.includes(value as Department);
 }
+
+// ─── External Opportunities & Learning Hub Validators ───
+
+export const opportunityCreateSchema = z.object({
+  title: z.string().trim().min(2, 'Title must be at least 2 characters'),
+  category: z.string().trim().min(2, 'Category must be at least 2 characters'),
+  organizer: z.string().trim().min(2, 'Organizer must be at least 2 characters'),
+  description: z.string().trim().optional().or(z.literal('')),
+  eligibility: z.string().trim().optional().or(z.literal('')),
+  prize: z.string().trim().optional().or(z.literal('')),
+  applicationUrl: z.string().trim().optional().or(z.literal('')),
+  registrationDeadline: z
+    .string()
+    .refine((d) => !isNaN(Date.parse(d)), 'Invalid registrationDeadline')
+    .optional()
+    .or(z.literal('')),
+  themes: z.array(z.string().trim().min(1)).optional(),
+  technologies: z.array(z.string().trim().min(1)).optional(),
+  facultyRecommended: z.boolean().optional(),
+});
+
+export const opportunityUpdateSchema = z.object({
+  title: z.string().trim().min(2, 'Title must be at least 2 characters').optional(),
+  category: z.string().trim().min(2, 'Category must be at least 2 characters').optional(),
+  organizer: z.string().trim().min(2, 'Organizer must be at least 2 characters').optional(),
+  description: z.string().trim().optional().or(z.literal('')),
+  eligibility: z.string().trim().optional().or(z.literal('')),
+  prize: z.string().trim().optional().or(z.literal('')),
+  applicationUrl: z.string().trim().optional().or(z.literal('')),
+  registrationDeadline: z
+    .string()
+    .refine((d) => !isNaN(Date.parse(d)), 'Invalid registrationDeadline')
+    .optional()
+    .or(z.literal('')),
+  themes: z.array(z.string().trim().min(1)).optional(),
+  technologies: z.array(z.string().trim().min(1)).optional(),
+  facultyRecommended: z.boolean().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+});
+
+export const opportunityStatusSchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+});
+
+export const opportunityInterestSchema = z.object({
+  status: z.enum(['SAVED', 'INTERESTED']),
+});
+
+export const learningResourceSchema = z.object({
+  title: z.string().trim().min(2, 'Title must be at least 2 characters'),
+  category: z.string().trim().min(2, 'Category must be at least 2 characters'),
+  type: z.enum(['PDF', 'LINK', 'YOUTUBE', 'GITHUB', 'TEMPLATE', 'WINNING_PROJECT']),
+  url: z.string().trim().url('Enter a valid URL').optional().or(z.literal('')),
+  fileKey: z.string().trim().optional().or(z.literal('')),
+  difficulty: z.string().trim().optional().or(z.literal('')),
+  tags: z.array(z.string().trim().min(1)).optional(),
+});

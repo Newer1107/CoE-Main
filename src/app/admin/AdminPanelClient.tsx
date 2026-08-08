@@ -262,17 +262,9 @@ type ManagedHackathonSubmission = {
   }>;
 };
 
-type HackathonRubrics = {
-  innovation: number;
-  technical: number;
-  impact: number;
-  ux: number;
-  execution: number;
-  presentation: number;
-  feasibility: number;
-};
+type HackathonRubrics = Record<string, number>;
 
-type HackathonRubricKey = keyof HackathonRubrics;
+type HackathonRubricKey = string;
 
 type StagedHackathonDecision = "SHORTLISTED" | "REJECTED" | "ACCEPTED";
 
@@ -286,6 +278,217 @@ const rubricFieldConfig: Array<{ key: HackathonRubricKey; label: string; weight:
   { key: "feasibility", label: "Feasibility", weight: HACKATHON_RUBRIC_WEIGHTS.feasibility },
 ];
 
+// ── Event type + rubric template taxonomy ──
+// Mirrors src/lib/platform-config.ts, hardcoded here because that module
+// imports prisma and cannot be used client-side.
+
+type RubricCategoryEntry = {
+  id: number;
+  key: string;
+  label: string;
+  weight: number;
+};
+
+type RubricTemplateDef = {
+  key: string;
+  label: string;
+  categories: Array<{ key: string; label: string; weight: number }>;
+};
+
+const RUBRIC_TEMPLATE_OPTIONS: RubricTemplateDef[] = [
+  { key: "none", label: "None", categories: [] },
+  {
+    key: "sih-7",
+    label: "SIH 7-Category",
+    categories: [
+      { key: "innovation", label: "Innovation", weight: 15 },
+      { key: "technical", label: "Technical", weight: 20 },
+      { key: "impact", label: "Impact", weight: 15 },
+      { key: "ux", label: "UX & Design", weight: 10 },
+      { key: "execution", label: "Execution", weight: 20 },
+      { key: "presentation", label: "Presentation", weight: 10 },
+      { key: "feasibility", label: "Feasibility", weight: 10 },
+    ],
+  },
+  {
+    key: "coding-3",
+    label: "Coding 3-Category",
+    categories: [
+      { key: "correctness", label: "Correctness", weight: 60 },
+      { key: "efficiency", label: "Efficiency", weight: 25 },
+      { key: "presentation", label: "Presentation", weight: 15 },
+    ],
+  },
+  {
+    key: "design-4",
+    label: "Design 4-Category",
+    categories: [
+      { key: "aesthetics", label: "Aesthetics", weight: 30 },
+      { key: "usability", label: "Usability", weight: 30 },
+      { key: "feasibility", label: "Feasibility", weight: 20 },
+      { key: "presentation", label: "Presentation", weight: 20 },
+    ],
+  },
+  {
+    key: "exhibition-5",
+    label: "Exhibition 5-Category",
+    categories: [
+      { key: "innovation", label: "Innovation", weight: 25 },
+      { key: "technical", label: "Technical", weight: 25 },
+      { key: "completeness", label: "Completeness", weight: 20 },
+      { key: "presentation", label: "Presentation", weight: 15 },
+      { key: "feasibility", label: "Feasibility", weight: 15 },
+    ],
+  },
+  {
+    key: "research-4",
+    label: "Research 4-Category",
+    categories: [
+      { key: "novelty", label: "Novelty", weight: 30 },
+      { key: "methodology", label: "Methodology", weight: 30 },
+      { key: "rigour", label: "Rigour", weight: 20 },
+      { key: "presentation", label: "Presentation", weight: 20 },
+    ],
+  },
+  {
+    key: "paper-3",
+    label: "Paper 3-Category",
+    categories: [
+      { key: "content", label: "Content", weight: 50 },
+      { key: "clarity", label: "Clarity", weight: 30 },
+      { key: "presentation", label: "Presentation", weight: 20 },
+    ],
+  },
+  {
+    key: "case-4",
+    label: "Case 4-Category",
+    categories: [
+      { key: "analysis", label: "Analysis", weight: 35 },
+      { key: "solution-quality", label: "Solution Quality", weight: 35 },
+      { key: "presentation", label: "Presentation", weight: 15 },
+      { key: "qna", label: "Q&A", weight: 15 },
+    ],
+  },
+];
+
+const EVENT_TYPE_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: "hackathon", label: "Hackathon" },
+  { key: "coding-competition", label: "Coding Competition" },
+  { key: "design-challenge", label: "Design Challenge" },
+  { key: "project-exhibition", label: "Project Exhibition" },
+  { key: "research-competition", label: "Research Competition" },
+  { key: "paper-presentation", label: "Paper Presentation" },
+  { key: "business-case", label: "Business Case Competition" },
+  { key: "workshop", label: "Workshop" },
+  { key: "bootcamp", label: "Bootcamp" },
+  { key: "innovation-day", label: "Innovation Day" },
+];
+
+type EventCreateConfig = {
+  registration: {
+    requiresPpt: boolean;
+    requiresProblemSelection: boolean;
+    minTeamSize: number;
+    maxTeamSize: number;
+    allowSolo: boolean;
+  };
+  rubrics: { template: string };
+  certificates: { issueOnAccept: boolean };
+  leaderboard: { visibleAfter: "CLOSED" | "LIVE" };
+  ticketing: { enabled: boolean };
+  emails: { enabled: boolean };
+};
+
+type EventCreateConfigOverrides = {
+  registration?: Partial<EventCreateConfig["registration"]>;
+  rubrics?: Partial<EventCreateConfig["rubrics"]>;
+  certificates?: Partial<EventCreateConfig["certificates"]>;
+  leaderboard?: Partial<EventCreateConfig["leaderboard"]>;
+  ticketing?: Partial<EventCreateConfig["ticketing"]>;
+  emails?: Partial<EventCreateConfig["emails"]>;
+};
+
+const getEventConfigForType = (key: string): EventCreateConfig => {
+  const base: EventCreateConfig = {
+    registration: {
+      requiresPpt: false,
+      requiresProblemSelection: false,
+      minTeamSize: 1,
+      maxTeamSize: 4,
+      allowSolo: true,
+    },
+    rubrics: { template: "none" },
+    certificates: { issueOnAccept: true },
+    leaderboard: { visibleAfter: "CLOSED" },
+    ticketing: { enabled: false },
+    emails: { enabled: true },
+  };
+
+  const overrides: Record<string, EventCreateConfigOverrides> = {
+    hackathon: {
+      registration: { requiresPpt: true, requiresProblemSelection: true, maxTeamSize: 5 },
+      rubrics: { template: "sih-7" },
+    },
+    "coding-competition": {
+      registration: { maxTeamSize: 3 },
+      rubrics: { template: "coding-3" },
+      leaderboard: { visibleAfter: "LIVE" },
+    },
+    "design-challenge": {
+      registration: { requiresPpt: true, requiresProblemSelection: true, maxTeamSize: 4 },
+      rubrics: { template: "design-4" },
+    },
+    "project-exhibition": {
+      registration: { requiresPpt: true, maxTeamSize: 5 },
+      rubrics: { template: "exhibition-5" },
+    },
+    "research-competition": {
+      registration: { requiresPpt: true, requiresProblemSelection: true, maxTeamSize: 4 },
+      rubrics: { template: "research-4" },
+    },
+    "paper-presentation": {
+      registration: { requiresPpt: true, maxTeamSize: 3 },
+      rubrics: { template: "paper-3" },
+    },
+    "business-case": {
+      registration: {
+        requiresPpt: true,
+        requiresProblemSelection: true,
+        minTeamSize: 2,
+        maxTeamSize: 5,
+        allowSolo: false,
+      },
+      rubrics: { template: "case-4" },
+    },
+    workshop: {
+      rubrics: { template: "none" },
+      ticketing: { enabled: true },
+    },
+    bootcamp: {
+      rubrics: { template: "none" },
+      ticketing: { enabled: true },
+    },
+    "innovation-day": {
+      registration: { requiresPpt: true, maxTeamSize: 5 },
+      rubrics: { template: "exhibition-5" },
+    },
+  };
+
+  const override = overrides[key];
+  if (!override) return base;
+
+  return {
+    ...base,
+    ...override,
+    registration: { ...base.registration, ...override.registration },
+    rubrics: { ...base.rubrics, ...override.rubrics },
+    certificates: { ...base.certificates, ...override.certificates },
+    leaderboard: { ...base.leaderboard, ...override.leaderboard },
+    ticketing: { ...base.ticketing, ...override.ticketing },
+    emails: { ...base.emails, ...override.emails },
+  };
+};
+
 const clampRubricScore = (value: number, max: number) => {
   if (!Number.isFinite(value)) return 0;
   if (value < 0) return 0;
@@ -293,8 +496,13 @@ const clampRubricScore = (value: number, max: number) => {
   return Math.round(value);
 };
 
-const getRubricTotalScore = (rubrics: HackathonRubrics) => {
-  return rubricFieldConfig.reduce((sum, field) => sum + rubrics[field.key], 0);
+const defaultRubricValueFor = (weight: number) => clampRubricScore(Math.round(weight * 0.7), weight);
+
+const getRubricTotalScore = (
+  rubrics: HackathonRubrics,
+  categories: Array<{ key: string; weight: number }> = rubricFieldConfig
+) => {
+  return categories.reduce((sum, field) => sum + (rubrics[field.key] ?? defaultRubricValueFor(field.weight)), 0);
 };
 
       const BRANCH_CODES = [
@@ -862,6 +1070,8 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
   const [managedSubmissions, setManagedSubmissions] = useState<ManagedHackathonSubmission[]>([]);
   const [loadingManagedSubmissions, setLoadingManagedSubmissions] = useState(false);
   const [managedSubmissionEventFilter, setManagedSubmissionEventFilter] = useState<number | "ALL">("ALL");
+  const [rubricCategoriesByEvent, setRubricCategoriesByEvent] = useState<Record<number, RubricCategoryEntry[]>>({});
+  const [judgingEventRubricTemplate, setJudgingEventRubricTemplate] = useState<Record<number, string | null>>({});
   const [judgingRubricsByClaimId, setJudgingRubricsByClaimId] = useState<Record<number, HackathonRubrics>>({});
   const [stagedDecisions, setStagedDecisions] = useState<Record<number, StagedHackathonDecision>>({});
   const [syncingStage, setSyncingStage] = useState<"SCREENING" | "JUDGING" | null>(null);
@@ -872,6 +1082,9 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
   const [eventEndTime, setEventEndTime] = useState("");
   const [eventTotalSessions, setEventTotalSessions] = useState(1);
   const [eventPptFile, setEventPptFile] = useState<File | null>(null);
+  const [eventType, setEventType] = useState("hackathon");
+  const [eventConfig, setEventConfig] = useState<EventCreateConfig>(() => getEventConfigForType("hackathon"));
+  const [eventFeatured, setEventFeatured] = useState(false);
   const [eventCreating, setEventCreating] = useState(false);
   const [eventProblems, setEventProblems] = useState<EventProblemInput[]>([
     {
@@ -1100,6 +1313,18 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
     [filteredManagedSubmissions]
   );
 
+  const judgingRubricCategories = useMemo(() => {
+    if (managedSubmissionEventFilter === "ALL") return rubricFieldConfig;
+    return rubricCategoriesByEvent[managedSubmissionEventFilter] ?? rubricFieldConfig;
+  }, [managedSubmissionEventFilter, rubricCategoriesByEvent]);
+
+  const isNoneTemplateJudgingEvent = useMemo(
+    () =>
+      managedSubmissionEventFilter !== "ALL" &&
+      judgingEventRubricTemplate[managedSubmissionEventFilter] === "none",
+    [managedSubmissionEventFilter, judgingEventRubricTemplate]
+  );
+
   const finalizedSubmissions = useMemo(
     () => filteredManagedSubmissions.filter((claim) => ["ACCEPTED", "REJECTED"].includes(claim.status)),
     [filteredManagedSubmissions]
@@ -1285,6 +1510,54 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
     void loadManagedSubmissions();
   }, [activeView, hydrateRubricDrafts]);
+
+  useEffect(() => {
+    if (managedSubmissionEventFilter === "ALL") return;
+
+    let cancelled = false;
+    const loadRubricCategoriesForEvent = async () => {
+      try {
+        const payload = await apiCall(`/api/innovation/events/${managedSubmissionEventFilter}`, { method: "GET" });
+        if (cancelled) return;
+        const data = (payload?.data ?? payload) as {
+          rubricCategories?: Array<{ id: number; key: string; label: string; weight: number }>;
+          config?: { rubrics?: { template?: unknown } } | null;
+        };
+        const categories = Array.isArray(data?.rubricCategories)
+          ? data.rubricCategories.map((category) => ({
+              id: category.id,
+              key: category.key,
+              label: category.label,
+              weight: category.weight,
+            }))
+          : [];
+        setRubricCategoriesByEvent((prev) => ({ ...prev, [managedSubmissionEventFilter]: categories }));
+        const template = data?.config?.rubrics?.template;
+        setJudgingEventRubricTemplate((prev) => ({
+          ...prev,
+          [managedSubmissionEventFilter]: typeof template === "string" ? template : null,
+        }));
+      } catch {
+        // Fetch failed — leave the entry empty so the legacy 7-rubric fallback is used.
+        if (cancelled) return;
+        setRubricCategoriesByEvent((prev) => {
+          const next = { ...prev };
+          delete next[managedSubmissionEventFilter];
+          return next;
+        });
+        setJudgingEventRubricTemplate((prev) => {
+          const next = { ...prev };
+          delete next[managedSubmissionEventFilter];
+          return next;
+        });
+      }
+    };
+
+    void loadRubricCategoriesForEvent();
+    return () => {
+      cancelled = true;
+    };
+  }, [managedSubmissionEventFilter]);
 
   useEffect(() => {
     if (activeView !== "operations" || operationsTab !== "emails") return;
@@ -2414,6 +2687,11 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       formData.set("endTime", new Date(eventEndTime).toISOString());
       formData.set("totalSessions", String(eventTotalSessions));
       formData.set("problems", JSON.stringify(problemsPayload));
+      formData.set("eventType", eventType);
+      formData.set("config", JSON.stringify(eventConfig));
+      if (eventFeatured) {
+        formData.set("featured", "true");
+      }
       if (eventPptFile) {
         formData.set("pptFile", eventPptFile);
       }
@@ -2440,6 +2718,9 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       setEventEndTime("");
       setEventTotalSessions(1);
       setEventPptFile(null);
+      setEventType("hackathon");
+      setEventConfig(getEventConfigForType("hackathon"));
+      setEventFeatured(false);
       setEventProblems([{ title: "", description: "", isIndustryProblem: false, industryName: "", supportDocumentFile: null }]);
       setStatusMessage("Hackathon event created successfully.");
       router.refresh();
@@ -2862,7 +3143,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
     });
   };
 
-  const updateJudgingRubric = (claimId: number, key: HackathonRubricKey, rawValue: number) => {
+  const updateJudgingRubric = (claimId: number, key: string, rawValue: number) => {
     setJudgingRubricsByClaimId((prev) => {
       const base = prev[claimId] || {
         innovation: Math.round(HACKATHON_RUBRIC_WEIGHTS.innovation * 0.7),
@@ -2874,7 +3155,12 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
         feasibility: Math.round(HACKATHON_RUBRIC_WEIGHTS.feasibility * 0.7),
       };
 
-      const max = HACKATHON_RUBRIC_WEIGHTS[key];
+      const customCategory = managedSubmissionEventFilter !== "ALL"
+        ? rubricCategoriesByEvent[managedSubmissionEventFilter]?.find((category) => category.key === key)
+        : undefined;
+      const max = customCategory
+        ? customCategory.weight
+        : (HACKATHON_RUBRIC_WEIGHTS[key as keyof typeof HACKATHON_RUBRIC_WEIGHTS] ?? 0);
 
       return {
         ...prev,
@@ -2895,7 +3181,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       .filter((claim) => ["SHORTLISTED", "ACCEPTED", "REJECTED"].includes(claim.status))
       .map((claim) => {
         const hasDraftRubrics = Boolean(judgingRubricsByClaimId[claim.id]);
-        const draftScore = hasDraftRubrics ? getRubricTotalScore(getJudgingRubrics(claim)) : null;
+        const draftScore = hasDraftRubrics ? getRubricTotalScore(getJudgingRubrics(claim), judgingRubricCategories) : null;
         const score = draftScore ?? claim.finalScore;
 
         return {
@@ -2924,7 +3210,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       rank: index + 1,
       ...row,
     }));
-  }, [filteredManagedSubmissions, judgingRubricsByClaimId, getJudgingRubrics]);
+  }, [filteredManagedSubmissions, judgingRubricsByClaimId, getJudgingRubrics, judgingRubricCategories]);
 
   const syncScreeningDecisions = async () => {
     if (managedSubmissionEventFilter === "ALL") {
@@ -4849,6 +5135,37 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Event Type</label>
+                  <select
+                    value={eventType}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setEventType(next);
+                      setEventConfig(getEventConfigForType(next));
+                    }}
+                    className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                  >
+                    {EVENT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm text-[#434651]">
+                    <input
+                      type="checkbox"
+                      checked={eventFeatured}
+                      onChange={(e) => setEventFeatured(e.target.checked)}
+                    />
+                    Featured on portal
+                  </label>
+                </div>
+              </div>
+
               <textarea
                 value={eventDescription}
                 onChange={(e) => setEventDescription(e.target.value)}
@@ -4975,6 +5292,166 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                   </div>
                 ))}
               </div>
+
+              <details className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                <summary className="cursor-pointer text-sm font-bold text-[#002155]">Advanced: Configuration</summary>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Rubric Template</label>
+                    <select
+                      value={eventConfig.rubrics.template}
+                      onChange={(e) => setEventConfig((prev) => ({ ...prev, rubrics: { template: e.target.value } }))}
+                      className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                    >
+                      {RUBRIC_TEMPLATE_OPTIONS.map((template) => (
+                        <option key={template.key} value={template.key}>
+                          {template.label}
+                        </option>
+                      ))}
+                    </select>
+                    {(() => {
+                      const selectedTemplate =
+                        RUBRIC_TEMPLATE_OPTIONS.find((template) => template.key === eventConfig.rubrics.template) ??
+                        RUBRIC_TEMPLATE_OPTIONS[0];
+                      return selectedTemplate.categories.length > 0 ? (
+                        <ul className="mt-2 space-y-1">
+                          {selectedTemplate.categories.map((category) => (
+                            <li key={category.key} className="flex items-center justify-between text-xs text-[#434651]">
+                              <span>{category.label}</span>
+                              <span className="font-bold">{category.weight} pts</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-xs text-[#434651]">No judging rubric for this template.</p>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <label className="flex items-center gap-2 text-sm text-[#434651]">
+                      <input
+                        type="checkbox"
+                        checked={eventConfig.registration.requiresPpt}
+                        onChange={(e) =>
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            registration: { ...prev.registration, requiresPpt: e.target.checked },
+                          }))
+                        }
+                      />
+                      Require PPT
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-[#434651]">
+                      <input
+                        type="checkbox"
+                        checked={eventConfig.registration.requiresProblemSelection}
+                        onChange={(e) =>
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            registration: { ...prev.registration, requiresProblemSelection: e.target.checked },
+                          }))
+                        }
+                      />
+                      Require problem selection
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-[#434651]">
+                      <input
+                        type="checkbox"
+                        checked={eventConfig.registration.allowSolo}
+                        onChange={(e) =>
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            registration: { ...prev.registration, allowSolo: e.target.checked },
+                          }))
+                        }
+                      />
+                      Allow solo participation
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-[#434651]">
+                      <input
+                        type="checkbox"
+                        checked={eventConfig.ticketing.enabled}
+                        onChange={(e) =>
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            ticketing: { enabled: e.target.checked },
+                          }))
+                        }
+                      />
+                      Ticketing enabled
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-[#434651]">
+                      <input
+                        type="checkbox"
+                        checked={eventConfig.certificates.issueOnAccept}
+                        onChange={(e) =>
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            certificates: { issueOnAccept: e.target.checked },
+                          }))
+                        }
+                      />
+                      Issue certificate on accept
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Min Team Size</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={eventConfig.registration.minTeamSize}
+                        onChange={(e) => {
+                          const next = Number(e.target.value);
+                          if (!Number.isFinite(next) || next <= 0) return;
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            registration: { ...prev.registration, minTeamSize: Math.min(10, Math.floor(next)) },
+                          }));
+                        }}
+                        className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Max Team Size</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={eventConfig.registration.maxTeamSize}
+                        onChange={(e) => {
+                          const next = Number(e.target.value);
+                          if (!Number.isFinite(next) || next <= 0) return;
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            registration: { ...prev.registration, maxTeamSize: Math.min(10, Math.floor(next)) },
+                          }));
+                        }}
+                        className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Leaderboard Visibility</label>
+                      <select
+                        value={eventConfig.leaderboard.visibleAfter}
+                        onChange={(e) =>
+                          setEventConfig((prev) => ({
+                            ...prev,
+                            leaderboard: { visibleAfter: e.target.value as "CLOSED" | "LIVE" },
+                          }))
+                        }
+                        className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
+                      >
+                        <option value="CLOSED">After event closes</option>
+                        <option value="LIVE">Live during event</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </details>
 
               <button
                 type="submit"
@@ -5549,7 +6026,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       <div className="space-y-3">
                         {judgingSubmissions.map((claim) => {
                           const rubricDraft = getJudgingRubrics(claim);
-                          const liveFinalScore = getRubricTotalScore(rubricDraft);
+                          const liveFinalScore = getRubricTotalScore(rubricDraft, judgingRubricCategories);
                           const teamLeader = claim.members.find((member) => member.role === "LEAD") ?? claim.members[0] ?? null;
                           const teamLeaderPhone = teamLeader?.user.phone?.trim() || "Not available";
 
@@ -5576,25 +6053,33 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                 ) : null}
                               </div>
 
-                              <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
-                                <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (Score Out Of Weight)</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                  {rubricFieldConfig.map((field) => (
-                                    <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
-                                      {field.label} ({field.weight}%)
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        max={field.weight}
-                                        step={1}
-                                        value={rubricDraft[field.key]}
-                                        onChange={(e) => updateJudgingRubric(claim.id, field.key, Number(e.target.value))}
-                                        className="mt-1 w-full border border-[#c4c6d3] px-2 py-2 text-sm"
-                                      />
-                                    </label>
-                                  ))}
+                              {isNoneTemplateJudgingEvent ? (
+                                <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                                    This event type has no judging rubric
+                                  </p>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="mt-3 border border-[#e3e2df] bg-[#faf9f5] p-4">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-[#434651] mb-3">Rubrics (Score Out Of Weight)</p>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    {judgingRubricCategories.map((field) => (
+                                      <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
+                                        {field.label} ({field.weight} pts)
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={field.weight}
+                                          step={1}
+                                          value={rubricDraft[field.key]}
+                                          onChange={(e) => updateJudgingRubric(claim.id, field.key, Number(e.target.value))}
+                                          className="mt-1 w-full border border-[#c4c6d3] px-2 py-2 text-sm"
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
                               <div className="mt-3 border border-[#dce9da] bg-[#f4faf2] px-3 py-2 flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-xs font-bold uppercase tracking-wider text-[#0b6b2e]">Live Final Marks</p>

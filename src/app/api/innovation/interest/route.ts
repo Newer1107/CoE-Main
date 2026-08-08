@@ -37,11 +37,14 @@ export async function POST(req: NextRequest) {
 
     const event = await prisma.hackathonEvent.findUnique({
       where: { id: parsed.data.eventId },
-      select: { id: true },
+      select: { id: true, status: true },
     });
 
     if (!event) {
       return errorRes('Hackathon event not found', [], 404);
+    }
+    if (event.status === 'CLOSED') {
+      return errorRes('Event closed', ['Interest can no longer be marked for closed events'], 400);
     }
 
     let created = false;

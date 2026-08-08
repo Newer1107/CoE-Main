@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationClaimSubmitSchema } from '@/lib/validators';
-import { sanitizeFilename } from '@/lib/innovation';
+import { sanitizeFilename, validateUploadFile } from '@/lib/innovation';
 import { uploadFileWithObjectKey } from '@/lib/minio';
 
 // PATCH /api/innovation/claims/[id]/submit
@@ -18,7 +18,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const claim = await prisma.claim.findUnique({
       where: { id: claimId },
-      include: { members: { select: { userId: true } } },
+      include: {
+        members: { select: { userId: true } },
+        problem: {
+          include: {
+            event: { select: { id: true, status: true, endTime: true, submissionLockAt: true } },
+          },
+        },
+      },
     });
 
     if (!claim) return errorRes('Claim not found', [], 404);
@@ -27,6 +34,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (!['IN_PROGRESS', 'REVISION_REQUESTED'].includes(claim.status)) {
       return errorRes('Invalid claim state', ['Claim can only be submitted from IN_PROGRESS or REVISION_REQUESTED'], 400);
+    }
+
+    // Deadline enforcement — same guards as registration: no submissions after
+    // the lock, after the event ends, or once the event is closed.
+    const event = claim.problem?.event ?? null;
+    const now = new Date();
+    if (event) {
+      if (event.submissionLockAt && now > event.submissionLockAt) {
+        return errorRes('Submission window closed', ['Submissions are locked for this event'], 400);
+      }
+      if (event.status === 'CLOSED' || now > event.endTime) {
+        return errorRes('Submission closed', ['Submissions are closed after the event ends'], 400);
+      }
     }
 
     const formData = await req.formData();
@@ -38,6 +58,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (!submissionUrl && !file) {
       return errorRes('Submission required', ['Provide submissionUrl and/or file'], 400);
+    }
+
+    const uploadError = validateUploadFile(file, 'submission');
+    if (uploadError) {
+      return errorRes('Invalid upload', [uploadError], 400);
     }
 
     let submissionFileKey: string | null = claim.submissionFileKey;

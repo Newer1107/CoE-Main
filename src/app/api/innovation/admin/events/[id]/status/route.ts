@@ -33,6 +33,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return errorRes('Invalid status transition', [`${event.status} can only transition to the next stage`], 400);
     }
 
+    if (nextStatus === 'CLOSED') {
+      const unjudged = await prisma.claim.count({
+        where: {
+          problem: { eventId },
+          status: { in: ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED'] },
+        },
+      });
+      if (unjudged > 0) {
+        return errorRes(
+          'Pending judging',
+          [
+            `${unjudged} submission${unjudged === 1 ? '' : 's'} still await${unjudged === 1 ? 's' : ''} a judging decision. Judge or reject them before closing the event.`,
+          ],
+          400
+        );
+      }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       if (nextStatus === 'CLOSED') {
         await tx.claim.updateMany({
