@@ -27,6 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         problem: {
           include: {
             createdBy: { select: { id: true, email: true } },
+            event: { select: { id: true, status: true } },
           },
         },
         members: {
@@ -38,6 +39,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
 
     if (!claim) return errorRes('Claim not found', [], 404);
+
+    // State machine gate — mirrors the bulk sync rules so single-claim review
+    // cannot bypass stage validation (accept during UPCOMING, flip decisions
+    // after closure, mint tickets out of order).
+    const eventStatus = claim.problem?.event?.status ?? null;
+    if (eventStatus === 'CLOSED') {
+      return errorRes('Event closed', ['Claims cannot be re-reviewed after the event is closed'], 400);
+    }
+    if (parsed.data.status === 'ACCEPTED') {
+      if (eventStatus === 'UPCOMING') {
+        return errorRes('Invalid event stage', ['Final judging decisions are not allowed while the event is UPCOMING'], 400);
+      }
+      if (claim.status !== 'SHORTLISTED') {
+        return errorRes('Invalid claim state', ['Only SHORTLISTED claims can be accepted'], 400);
+      }
+    } else {
+      const screeningStates = ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED'];
+      if (!screeningStates.includes(claim.status)) {
+        return errorRes('Invalid claim state', [`Claim is ${claim.status} and cannot be reviewed in this stage`], 400);
+      }
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.claim.update({

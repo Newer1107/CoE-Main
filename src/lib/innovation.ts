@@ -35,19 +35,44 @@ const SUBMISSION_ALLOWED_TYPES = [
   'text/plain',
 ];
 
+// Session documents: documents + images (screenshots/photos of work).
+const SESSION_DOC_ALLOWED_TYPES = [
+  'application/pdf',
+  'application/zip',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'text/plain',
+];
+
 /** Returns an error message when the upload must be rejected, else null. */
 export const validateUploadFile = (
   file: File | null,
-  kind: 'deck' | 'submission'
+  kind: 'deck' | 'submission' | 'session-doc'
 ): string | null => {
   if (!file) return null;
   if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
     return `File exceeds the ${MAX_UPLOAD_MB}MB limit`;
   }
-  const allowed = kind === 'deck' ? DECK_ALLOWED_TYPES : SUBMISSION_ALLOWED_TYPES;
+  const allowed =
+    kind === 'deck'
+      ? DECK_ALLOWED_TYPES
+      : kind === 'submission'
+        ? SUBMISSION_ALLOWED_TYPES
+        : SESSION_DOC_ALLOWED_TYPES;
   const mime = (file.type || '').toLowerCase();
   if (mime && !allowed.includes(mime)) {
-    return `File type not allowed (${kind === 'deck' ? 'PDF or PPT' : 'PDF, ZIP, PPT, DOC or TXT'} only)`;
+    const label =
+      kind === 'deck'
+        ? 'PDF or PPT'
+        : kind === 'submission'
+          ? 'PDF, ZIP, PPT, DOC or TXT'
+          : 'PDF, DOC, PPT, ZIP, images or TXT';
+    return `File type not allowed (${label} only)`;
   }
   return null;
 };

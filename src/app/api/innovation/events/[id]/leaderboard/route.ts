@@ -13,8 +13,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
     if (!event) return errorRes('Hackathon event not found', [], 404);
 
-    if (event.status !== 'CLOSED') {
-      return errorRes('Leaderboard not available', ['Leaderboard is visible only after the event is closed'], 400);
+    // Visibility: CLOSED always shows; "LIVE" config also shows during
+    // ACTIVE/JUDGING (leaderboard.visibleAfter per-event setting).
+    const visibleAfter = (event.config as { leaderboard?: { visibleAfter?: 'CLOSED' | 'LIVE' } } | null)
+      ?.leaderboard?.visibleAfter ?? 'CLOSED';
+    const visibleNow =
+      event.status === 'CLOSED' ||
+      (visibleAfter === 'LIVE' && (event.status === 'ACTIVE' || event.status === 'JUDGING'));
+
+    if (!visibleNow) {
+      return errorRes('Leaderboard not available', ['Leaderboard is not visible for this event stage'], 400);
     }
 
     const ranked = await getEventLeaderboard(prisma, eventId);

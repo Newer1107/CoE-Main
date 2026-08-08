@@ -459,6 +459,26 @@ export const innovationEventCreateSchema = z.object({
         message: 'config must be an object',
       });
     }
+
+    const start = Date.parse(value.startTime);
+    const end = Date.parse(value.endTime);
+    if (!isNaN(start) && !isNaN(end) && end <= start) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endTime'],
+        message: 'endTime must be after startTime',
+      });
+    }
+    if (value.submissionLockAt) {
+      const lock = Date.parse(value.submissionLockAt);
+      if (!isNaN(lock) && !isNaN(start) && !isNaN(end) && (lock < start || lock > end)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['submissionLockAt'],
+          message: 'submissionLockAt must be between startTime and endTime',
+        });
+      }
+    }
   });
 
 export const innovationEventUpdateSchema = z.object({
@@ -470,6 +490,22 @@ export const innovationEventUpdateSchema = z.object({
   totalSessions: z.coerce.number().int().min(1).max(30).optional(),
   registrationOpen: z.boolean().optional(),
   status: z.enum(['UPCOMING', 'ACTIVE', 'JUDGING', 'CLOSED']).optional(),
+}).superRefine((value, ctx) => {
+  if (value.startTime && value.endTime) {
+    const start = Date.parse(value.startTime);
+    const end = Date.parse(value.endTime);
+    if (!isNaN(start) && !isNaN(end) && end <= start) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endTime'], message: 'endTime must be after startTime' });
+    }
+  }
+  if (value.submissionLockAt) {
+    const lock = Date.parse(value.submissionLockAt);
+    const start = value.startTime ? Date.parse(value.startTime) : NaN;
+    const end = value.endTime ? Date.parse(value.endTime) : NaN;
+    if (!isNaN(lock) && !isNaN(start) && !isNaN(end) && (lock < start || lock > end)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['submissionLockAt'], message: 'submissionLockAt must be between startTime and endTime' });
+    }
+  }
 });
 
 export const innovationSessionUploadLockUpdateSchema = z.object({

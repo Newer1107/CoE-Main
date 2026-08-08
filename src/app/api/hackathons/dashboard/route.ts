@@ -42,10 +42,21 @@ export async function GET(req: NextRequest) {
 
     const acceptedClaims = claims.filter((claim) => claim.status === 'ACCEPTED' && claim.problem.event != null);
 
-    const certificates = acceptedClaims.map((claim) => ({
-      eventId: claim.problem.event!.id,
-      title: claim.problem.event!.title,
-      earnedAt: claim.updatedAt,
+    // Certificates come from the issued Certificate table (achievement for top-3
+    // teams, participation for present members) — not from raw accepted claims,
+    // which would contradict the top-3 rule.
+    const certificateRows = await prisma.certificate.findMany({
+      where: { userId: user.id },
+      include: { event: { select: { id: true, endTime: true } } },
+      orderBy: [{ eventId: 'desc' }],
+    });
+
+    const certificates = certificateRows.map((certificate) => ({
+      eventId: certificate.event.id,
+      title: certificate.title,
+      earnedAt: certificate.event.endTime.toISOString(),
+      type: certificate.type,
+      serial: certificate.serial,
     }));
 
     const recentResults = claims

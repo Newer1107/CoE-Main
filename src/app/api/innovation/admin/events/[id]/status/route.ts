@@ -4,6 +4,7 @@ import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers
 import { processEmailQueue } from '@/lib/email-delivery';
 import { innovationEventStatusSchema } from '@/lib/validators';
 import { canTransitionEventStatus, getEventLeaderboard, getEventParticipantEmails } from '@/lib/innovation';
+import { issueCertificatesForEvent } from '@/lib/certificate-issuance';
 import { sendInnovationEventActiveEmail, sendInnovationEventClosedScoreEmail } from '@/lib/mailer';
 
 // PATCH /api/innovation/admin/events/[id]/status
@@ -123,6 +124,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           console.error('Innovation closed result email failed:', mailErr);
         }
       }
+    }
+
+    if (nextStatus === 'CLOSED') {
+      // Auto-issue certificates once judging + attendance are final: achievement
+      // for the top 3 teams, participation for present members. Runs in the
+      // background so the close response isn't blocked by ~50 PDF generations
+      // and uploads; failures are logged and re-runnable via the backfill script.
+      void issueCertificatesForEvent(prisma, eventId)
+        .then((result) =>
+          console.log(`Certificates issued for event ${eventId}: ${result.created} created, ${result.skipped} skipped`)
+        )
+        .catch((certErr) => console.error(`Certificate issuance failed for event ${eventId}:`, certErr));
     }
 
     try {

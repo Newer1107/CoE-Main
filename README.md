@@ -12,6 +12,7 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - rubric-based scoring for hackathon judging
 - team ticket issuance on shortlisting (leader receives PDF + QR)
 - per-member attendance tracking from team ticket check-in (ADMIN-only, enforced inside the event window)
+- auto-issued certificates on event close (achievement for top-3 teams, participation for present members) with branded PDF download from the student portal
 - hardened participation flow: atomic team registration (no double-booking), 20MB upload limits, deadline-locked submissions, close guard against unjudged claims, no PII on public leaderboards
 - faculty application review notifications (selected/rejected email)
 - email notifications and cron-driven reminders (active-phase broadcast, stage decisions, closed-event score/rank updates)

@@ -66,6 +66,17 @@ type RecentResult = {
   updatedAt: string;
 };
 
+type CertificateRow = {
+  id: number;
+  type: "ACHIEVEMENT" | "PARTICIPATION";
+  title: string;
+  detail: string | null;
+  serial: string;
+  issuedAt: string;
+  eventDate: string;
+  downloadUrl: string | null;
+};
+
 type RecommendedEvent = {
   eventId: number;
   title: string;
@@ -157,23 +168,27 @@ export default function PortalClient({ user }: { user: PortalUser }) {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [certificates, setCertificates] = useState<CertificateRow[]>([]);
 
   useEffect(() => {
     const run = async () => {
       try {
-        const [dashRes, ticketRes, claimRes] = await Promise.all([
+        const [dashRes, ticketRes, claimRes, certRes] = await Promise.all([
           fetch("/api/hackathons/dashboard", { credentials: "include" }),
           fetch("/api/tickets/my", { credentials: "include" }),
           fetch("/api/innovation/claims/my", { credentials: "include" }),
+          fetch("/api/innovation/certificates/my", { credentials: "include" }),
         ]);
-        const [dashPayload, ticketPayload, claimPayload] = (await Promise.all([
+        const [dashPayload, ticketPayload, claimPayload, certPayload] = (await Promise.all([
           dashRes.json(),
           ticketRes.json(),
           claimRes.json(),
+          certRes.json(),
         ])) as [
           ApiEnvelope<DashboardData>,
           ApiEnvelope<Ticket[]>,
           ApiEnvelope<Claim[]>,
+          ApiEnvelope<CertificateRow[]>,
         ];
         if (!dashRes.ok || !dashPayload.success) {
           throw new Error(dashPayload.message || "Failed to load your portal");
@@ -181,6 +196,7 @@ export default function PortalClient({ user }: { user: PortalUser }) {
         setDashboard(dashPayload.data);
         setTickets(ticketRes.ok && ticketPayload.success ? ticketPayload.data : []);
         setClaims(claimRes.ok && claimPayload.success ? claimPayload.data : []);
+        setCertificates(certRes.ok && certPayload.success ? certPayload.data : []);
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : "Could not load your portal");
       } finally {
@@ -273,7 +289,7 @@ export default function PortalClient({ user }: { user: PortalUser }) {
             {[
               { label: "Registrations", value: dashboard.registeredEvents.length },
               { label: "Upcoming deadlines", value: sortedDeadlines.length },
-              { label: "Certificates", value: dashboard.certificates.length },
+              { label: "Certificates", value: certificates.length },
               { label: "Recent results", value: dashboard.recentResults.length },
             ].map((stat) => (
               <div key={stat.label} className="bg-white p-5">
@@ -394,22 +410,47 @@ export default function PortalClient({ user }: { user: PortalUser }) {
               </div>
 
               <div>
-                <SectionHeader title="Certificates" count={dashboard.certificates.length} />
-                {dashboard.certificates.length === 0 ? (
+                <SectionHeader title="Certificates" count={certificates.length} />
+                {certificates.length === 0 ? (
                   <EmptyBox>Certificates land here after events close.</EmptyBox>
                 ) : (
                   <ul className="divide-y divide-hairline border-y border-hairline">
-                    {dashboard.certificates.map((certificate) => (
-                      <li key={certificate.eventId} className="flex items-center justify-between gap-3 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-primary">{certificate.title}</p>
-                          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-                            Earned {formatDate(certificate.earnedAt)}
-                          </p>
+                    {certificates.map((certificate) => (
+                      <li key={certificate.id} className="py-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] ${
+                                certificate.type === "ACHIEVEMENT"
+                                  ? "bg-secondary text-white"
+                                  : "border border-primary text-primary bg-white"
+                              }`}
+                            >
+                              {certificate.type === "ACHIEVEMENT" ? "Achievement" : "Participation"}
+                            </span>
+                            <p className="mt-1.5 truncate text-sm font-bold text-primary">
+                              {certificate.title}
+                            </p>
+                            {certificate.detail ? (
+                              <p className="mt-0.5 line-clamp-1 text-xs text-on-surface-variant">
+                                {certificate.detail}
+                              </p>
+                            ) : null}
+                            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
+                              {formatDate(certificate.eventDate)} · {certificate.serial}
+                            </p>
+                          </div>
+                          {certificate.downloadUrl ? (
+                            <a
+                              href={certificate.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="shrink-0 inline-flex items-center gap-1.5 border border-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary hover:text-white"
+                            >
+                              Download ↓
+                            </a>
+                          ) : null}
                         </div>
-                        <span className="material-symbols-outlined text-lg text-secondary" aria-hidden="true">
-                          workspace_premium
-                        </span>
                       </li>
                     ))}
                   </ul>

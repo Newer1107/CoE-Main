@@ -79,6 +79,13 @@ reject every submission first.
   judging sync rejects scores outside each category's weight.
 - **Close guard** — status route refuses CLOSED while unjudged claims exist.
 - **Attendance role tightened** — `POST /api/tickets/verify` is ADMIN-only.
+- **Certificates (2026-08-08)** — auto-issued when an event closes: ACHIEVEMENT
+  for members of the top 3 teams only (rank from finalScore), PARTICIPATION for
+  every other member with at least one PRESENT attendance row. Each certificate
+  shows the team's problem statement and is downloadable as a branded PDF from
+  the portal. PDF downloads are ownership-checked on the storage proxy
+  (serials embed the userId, so cross-user access returns 403). Backfill/re-run:
+  `npm run certificates:backfill [--reset] [eventId ...]`.
 
 ### Post-event (Student)
 - Dashboard: registrations, deadlines, certificates, recent results, recommended events.

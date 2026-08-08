@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import jsQR from "jsqr";
+import CertificatesAdmin from "@/components/hackathons/CertificatesAdmin";
 import { HACKATHON_RUBRIC_WEIGHTS } from "@/lib/hackathon-scoring";
 
 type BookingStudent = {
@@ -553,7 +554,7 @@ type InnovationLeaderboardRow = {
 
 type InnovationStatus = ManagedHackathonSubmission["status"];
 
-type InnovationTab = "events" | "review" | "leaderboard" | "analytics";
+type InnovationTab = "events" | "review" | "leaderboard" | "analytics" | "certificates";
 type InnovationAnalyticsTab = "participants" | "teams" | "attendance" | "insights";
 
 type AnalyticsStage = "SCREENING" | "JUDGING" | "CLOSED";
@@ -5106,8 +5107,20 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               >
                 Analytics
               </button>
+              <button
+                onClick={() => setInnovationTab("certificates")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationTab === "certificates"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Certificates
+              </button>
             </div>
           </section>
+
+          {innovationTab === "certificates" ? <CertificatesAdmin /> : null}
 
           {innovationTab === "events" ? (
             <>
