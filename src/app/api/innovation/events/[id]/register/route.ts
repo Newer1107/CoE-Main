@@ -1,11 +1,14 @@
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationEventRegisterSchema } from '@/lib/validators';
-import { parseStringList, sanitizeFilename } from '@/lib/innovation';
-import { uploadFileWithObjectKey } from '@/lib/minio';
+import { parseStringList, sanitizeFilename, validateUploadFile } from '@/lib/innovation';
+import { deleteFile, uploadFileWithObjectKey } from '@/lib/minio';
 import { logActivity } from '@/lib/activity-log';
 import { getSignedUrl } from '@/lib/minio';
+import { EventDefaultConfig, getEventTypeDefaults } from '@/lib/platform-config';
 
 type ClaimSummaryInput = {
   id: number;
@@ -64,6 +67,39 @@ const buildRegistrationSummary = async (claim: ClaimSummaryInput) => {
   };
 };
 
+// ── Event config resolution ──────────────────────────────────
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Deep-merge `override` over `base` (plain objects recurse, everything else replaces). */
+const deepMerge = (base: Record<string, unknown>, override: unknown): Record<string, unknown> => {
+  const result: Record<string, unknown> = { ...base };
+  if (!isPlainObject(override)) return result;
+  for (const [key, value] of Object.entries(override)) {
+    const baseValue = result[key];
+    if (isPlainObject(value) && isPlainObject(baseValue)) {
+      result[key] = deepMerge(baseValue, value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
+
+/**
+ * Effective config for an event: the stored `config` (when present) deep-merged
+ * over the event-type defaults. Returns null for legacy events created before
+ * the config feature, in which case the route keeps the historical behavior.
+ */
+const resolveEffectiveConfig = (config: unknown, eventType: string): EventDefaultConfig | null =>
+  config
+    ? (deepMerge(
+        getEventTypeDefaults(eventType || 'hackathon') as unknown as Record<string, unknown>,
+        config,
+      ) as unknown as EventDefaultConfig)
+    : null;
+
 // POST /api/innovation/events/[id]/register
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -87,6 +123,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const problemId = Number(formData.get('problemId'));
     const pptFile = formData.get('pptFile') as File | null;
 
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
+
     const parsed = innovationEventRegisterSchema.safeParse({
       teamName,
       teamSize,
@@ -94,36 +132,91 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       memberUids,
       problemId,
     });
-    if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((issue) => issue.message), 400);
 
-    if (!pptFile) return errorRes('PPT file is required', ['Registration requires a pptFile upload'], 400);
+    let parsedData: z.infer<typeof innovationEventRegisterSchema> | null = null;
+    const validationErrors = parsed.success ? null : parsed.error.issues.map((issue) => issue.message);
 
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
+    if (parsed.success) {
+      parsedData = parsed.data;
+    } else {
+      // problemId may be omitted for config-driven events where problem selection
+      // is optional — retry without it when the only issues concern problemId.
+      const onlyProblemIdIssues = parsed.error.issues.every((issue) => issue.path[0] === 'problemId');
+      if (onlyProblemIdIssues) {
+        const checkConfig = event ? resolveEffectiveConfig(event.config, event.eventType) : null;
+        if (checkConfig && !checkConfig.registration.requiresProblemSelection) {
+          const relaxed = innovationEventRegisterSchema
+            .omit({ problemId: true })
+            .safeParse({ teamName, teamSize, teamLeadUid, memberUids });
+          if (relaxed.success) parsedData = { ...relaxed.data, problemId: 0 };
+        }
+      }
+    }
+
+    if (!parsedData) {
+      return errorRes('Validation failed', validationErrors ?? [], 400);
+    }
+
+    const effectiveConfig = event ? resolveEffectiveConfig(event.config, event.eventType) : null;
+    const regCfg = effectiveConfig?.registration ?? null;
+    const requiresPpt = regCfg ? regCfg.requiresPpt : true;
+
+    if (requiresPpt && !pptFile) {
+      return errorRes('PPT file is required', ['Registration requires a pptFile upload'], 400);
+    }
+
+    const uploadError = validateUploadFile(pptFile, 'deck');
+    if (uploadError) {
+      return errorRes('Invalid upload', [uploadError], 400);
+    }
+
     if (!event) return errorRes('Hackathon event not found', [], 404);
 
+    const requiresProblemSelection = regCfg ? regCfg.requiresProblemSelection : true;
+
     const now = new Date();
+    if (event.submissionLockAt && now > event.submissionLockAt) {
+      return errorRes('Submission window closed', ['Submissions are locked for this event'], 400);
+    }
     if (!event.registrationOpen || event.status === 'CLOSED' || now > event.endTime) {
       return errorRes('Registration closed', ['Registration is closed after the event registration closing date'], 400);
     }
 
-    if (parsed.data.teamSize !== parsed.data.memberUids.length + 1) {
+    if (parsedData.teamSize !== parsedData.memberUids.length + 1) {
       return errorRes('Invalid team size', ['Team size must match team lead + member UID fields'], 400);
     }
+    if (regCfg) {
+      if (parsedData.teamSize < regCfg.minTeamSize || parsedData.teamSize > regCfg.maxTeamSize) {
+        return errorRes(`Team size must be between ${regCfg.minTeamSize} and ${regCfg.maxTeamSize}`, [], 400);
+      }
+      if (!regCfg.allowSolo && parsedData.teamSize === 1) {
+        return errorRes('Solo registration is not allowed for this event', [], 400);
+      }
+    }
 
-    const hasDuplicateMemberUid = new Set(parsed.data.memberUids.map((uid) => uid.toUpperCase())).size !== parsed.data.memberUids.length;
+    const hasDuplicateMemberUid = new Set(parsedData.memberUids.map((uid) => uid.toUpperCase())).size !== parsedData.memberUids.length;
     if (hasDuplicateMemberUid) {
       return errorRes('Duplicate member UIDs', ['Each member UID must be unique'], 400);
     }
 
-    if (parsed.data.memberUids.some((uid) => uid.toUpperCase() === parsed.data.teamLeadUid.toUpperCase())) {
+    if (parsedData.memberUids.some((uid) => uid.toUpperCase() === parsedData.teamLeadUid.toUpperCase())) {
       return errorRes('Invalid team composition', ['Team lead UID cannot be repeated in member UIDs'], 400);
     }
 
-    const problem = await prisma.problem.findFirst({
-      where: { id: parsed.data.problemId, eventId },
-      select: { id: true, title: true },
-    });
-    if (!problem) return errorRes('Invalid problem selection', ['Selected problem is not part of this event'], 400);
+    let problem: { id: number; title: string } | null;
+    if (!requiresProblemSelection) {
+      problem = await prisma.problem.findFirst({
+        where: { eventId },
+        select: { id: true, title: true },
+      });
+      if (!problem) return errorRes('This event has no problem statements to register against', [], 400);
+    } else {
+      problem = await prisma.problem.findFirst({
+        where: { id: parsedData.problemId, eventId },
+        select: { id: true, title: true },
+      });
+      if (!problem) return errorRes('Invalid problem selection', ['Selected problem is not part of this event'], 400);
+    }
 
     const currentStudent = await prisma.user.findFirst({
       where: {
@@ -139,22 +232,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return errorRes('UID required', ['Your student account must have a valid UID before event registration'], 400);
     }
 
-    if (currentStudent.uid.toUpperCase() !== parsed.data.teamLeadUid.toUpperCase()) {
+    if (currentStudent.uid.toUpperCase() !== parsedData.teamLeadUid.toUpperCase()) {
       return errorRes('Invalid team lead', ['Team lead UID must be your own UID for this registration'], 400);
     }
 
-    const allMemberUids = Array.from(
-      new Set([parsed.data.teamLeadUid.toUpperCase(), ...parsed.data.memberUids.map((uid) => uid.toUpperCase())])
-    );
-    const members = await prisma.user.findMany({
-      where: { uid: { in: allMemberUids }, role: 'STUDENT', status: 'ACTIVE', isVerified: true },
-      select: { id: true, uid: true, email: true },
-    });
+    let members: { id: number; uid: string | null }[];
+    if (parsedData.teamSize === 1) {
+      // Solo registration: no member UID lookups needed — the lead (logged-in
+      // student) is the only member.
+      members = [currentStudent];
+    } else {
+      const allMemberUids = Array.from(
+        new Set([parsedData.teamLeadUid.toUpperCase(), ...parsedData.memberUids.map((uid) => uid.toUpperCase())])
+      );
+      const foundMembers = await prisma.user.findMany({
+        where: { uid: { in: allMemberUids }, role: 'STUDENT', status: 'ACTIVE', isVerified: true },
+        select: { id: true, uid: true },
+      });
 
-    if (members.length !== allMemberUids.length) {
-      const foundUids = new Set(members.map((member) => member.uid).filter(Boolean));
-      const missingUids = allMemberUids.filter((uid) => !foundUids.has(uid));
-      return errorRes('Invalid team members', [`These UIDs are not registered active students: ${missingUids.join(', ')}. Please register these users first.`], 400);
+      if (foundMembers.length !== allMemberUids.length) {
+        const foundUids = new Set(foundMembers.map((member) => member.uid).filter(Boolean));
+        const missingUids = allMemberUids.filter((uid) => !foundUids.has(uid));
+        return errorRes('Invalid team members', [`These UIDs are not registered active students: ${missingUids.join(', ')}. Please register these users first.`], 400);
+      }
+      members = foundMembers;
     }
 
     const memberIds = members.map((member) => member.id);
@@ -213,54 +314,110 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
-    const claim = await prisma.claim.create({
-      data: {
+    // Upload FIRST: a failed upload now aborts before any claim exists, so it
+    // can never leave an orphan claim (or block re-registration with a 409).
+    let fileKey: string | null = null;
+    if (pptFile) {
+      const buffer = Buffer.from(await pptFile.arrayBuffer());
+      const objectKey = `innovation/events/${eventId}/registration/${Date.now()}-${currentStudent.uid}-${sanitizeFilename(pptFile.name)}`;
+      fileKey = await uploadFileWithObjectKey(objectKey, {
+        buffer,
+        mimetype: pptFile.type || 'application/octet-stream',
+        size: buffer.length,
+      });
+    }
+
+    // Authoritative duplicate check + create in one transaction. The involved
+    // student rows are locked FOR UPDATE so concurrent registrations touching
+    // the same member serialize: the second transaction blocks, then sees the
+    // first one's claim after the lock releases.
+    // ponytail: row-lock serialization; replace with a DB unique index on
+    // (userId, eventId) if registration volume ever makes contention visible.
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id IN (${Prisma.join(memberIds)}) FOR UPDATE`;
+
+      const existing = await tx.claimMember.findFirst({
+        where: {
+          userId: { in: memberIds },
+          claim: {
+            problem: { eventId },
+          },
+        },
+        include: {
+          claim: {
+            include: {
+              problem: { select: { id: true, title: true } },
+              members: {
+                include: {
+                  user: { select: { id: true, name: true, email: true, uid: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (existing) return { kind: 'existing', existing: existing.claim } as const;
+
+      const claim = await tx.claim.create({
+        data: {
+          problemId: problem.id,
+          teamName: parsedData.teamName,
+          submissionFileKey: fileKey,
+          status: 'SUBMITTED',
+          members: {
+            create: memberIds.map((memberId) => ({
+              userId: memberId,
+              role: memberId === user.id ? 'LEAD' : 'MEMBER',
+            })),
+          },
+        },
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true, uid: true } },
+            },
+          },
+          problem: { select: { id: true, title: true } },
+        },
+      });
+      return { kind: 'created', claim } as const;
+    });
+
+    if (result.kind === 'existing') {
+      // A duplicate slipped in between the fast-path check and the lock —
+      // remove the just-uploaded file (best effort) and report the existing team.
+      if (fileKey) await deleteFile(fileKey).catch(() => null);
+      const existingSummary = await buildRegistrationSummary({
+        id: result.existing.id,
+        teamName: result.existing.teamName,
+        createdAt: result.existing.createdAt,
+        updatedAt: result.existing.updatedAt,
+        submissionFileKey: result.existing.submissionFileKey,
+        problem: result.existing.problem,
+        members: result.existing.members,
+      });
+
+      logActivity('INNOVATION_HACKATHON_REGISTER_REJECTED', {
+        userId: user.id,
+        eventId,
         problemId: problem.id,
-        teamName: parsed.data.teamName,
-        members: {
-          create: memberIds.map((memberId) => ({
-            userId: memberId,
-            role: memberId === user.id ? 'LEAD' : 'MEMBER',
-          })),
-        },
-      },
-      include: {
-        members: {
-          include: {
-            user: { select: { id: true, name: true, email: true, uid: true } },
-          },
-        },
-        problem: { select: { id: true, title: true } },
-      },
-    });
+        reason: 'DUPLICATE_MEMBER_IN_EVENT',
+        conflictingClaimId: result.existing.id,
+      });
 
-    const buffer = Buffer.from(await pptFile.arrayBuffer());
-    const objectKey = `innovation/events/${eventId}/registration/${claim.id}-${sanitizeFilename(pptFile.name)}`;
-    const fileKey = await uploadFileWithObjectKey(objectKey, {
-      buffer,
-      mimetype: pptFile.type || 'application/octet-stream',
-      size: buffer.length,
-    });
+      return Response.json(
+        {
+          success: false,
+          message: 'Already registered for this event. A selected member already belongs to an existing team.',
+          data: existingSummary,
+          errors: ['A selected member already belongs to an existing team for this hackathon event.'],
+        },
+        { status: 409 }
+      );
+    }
 
-    const updated = await prisma.claim.update({
-      where: { id: claim.id },
-      data: {
-        submissionFileKey: fileKey,
-        status: 'SUBMITTED',
-      },
-      include: {
-        members: {
-          include: {
-            user: { select: { id: true, name: true, email: true, uid: true } },
-          },
-        },
-        problem: {
-          include: {
-            event: { select: { id: true, title: true, status: true } },
-          },
-        },
-      },
-    });
+    const updated = result.claim;
 
     logActivity('INNOVATION_HACKATHON_REGISTER_SUBMITTED', {
       userId: user.id,

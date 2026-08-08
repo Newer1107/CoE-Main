@@ -188,6 +188,12 @@ model User {
   hostingRequestStatusChanges HostingRequestStatusHistory[] @relation("HostingRequestStatusChangedBy")
   industryId Int?
   industry   Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  isCoordinator Boolean @default(false)
+  opportunitiesCreated     Opportunity[]
+  opportunityInterests     OpportunityInterest[]
+  learningResourcesCreated LearningResource[]
 
   @@index([googleId])
   @@index([industryId])
@@ -224,6 +230,10 @@ model Problem {
   event       HackathonEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
   claims      Claim[]
   supportDocumentKey String?
+  difficulty String?
+  sdgTags Json?
+  departmentId Int?
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   applications Application[]
   internshipTasks InternshipTask[] @relation("InternshipProblemTasks")
   internshipMessages InternshipMessage[] @relation("InternshipProblemMessages")
@@ -268,6 +278,7 @@ model Claim {
   reminderSent      Boolean       @default(false)
   tickets           Ticket[]
   attendanceRecords TicketAttendance[]
+  rubricScores      RubricScore[]
   sessionDocuments  SessionDocument[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -560,6 +571,12 @@ model HackathonEvent {
   interests   HackathonInterest[]
   sessionUploadLocks HackathonSessionUploadLock[]
   pptFileKey  String?
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  eventType    String      @default("hackathon")
+  config       Json?
+  featured     Boolean     @default(false)
+  rubrics      RubricCategory[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -828,4 +845,119 @@ model EmailJob {
   @@index([mode])
   @@index([createdAt])
   @@map("email_jobs")
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String   @unique
+  hodUserId Int?
+  createdAt DateTime @default(now())
+
+  users    User[]
+  problems Problem[]
+  events   HackathonEvent[]
+
+  @@map("departments")
+}
+
+model SiteSetting {
+  key         String  @id
+  value       Json
+  group       String
+  label       String
+  description String?
+
+  @@index([group])
+  @@map("site_settings")
+}
+
+model RubricCategory {
+  id      Int           @id @default(autoincrement())
+  eventId Int
+  event   HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  key     String
+  label   String
+  weight  Int           @default(10)
+  order   Int           @default(0)
+  scores  RubricScore[]
+
+  @@unique([eventId, key])
+  @@index([eventId])
+  @@map("rubric_categories")
+}
+
+model RubricScore {
+  id               Int            @id @default(autoincrement())
+  claimId          Int
+  claim            Claim          @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  rubricCategoryId Int
+  rubricCategory   RubricCategory @relation(fields: [rubricCategoryId], references: [id], onDelete: Cascade)
+  score            Int
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([claimId, rubricCategoryId])
+  @@index([claimId])
+  @@index([rubricCategoryId])
+  @@map("rubric_scores")
+}
+
+model Opportunity {
+  id                   Int      @id @default(autoincrement())
+  title                String
+  category             String
+  organizer            String
+  description          String?  @db.Text
+  registrationDeadline DateTime?
+  eligibility          String?
+  prize                String?
+  themes               Json?
+  technologies         Json?
+  applicationUrl       String?
+  facultyRecommended   Boolean  @default(false)
+  status               String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdById          Int
+  createdBy            User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  interests OpportunityInterest[]
+
+  @@index([status])
+  @@index([category])
+  @@index([registrationDeadline])
+  @@map("opportunities")
+}
+
+model OpportunityInterest {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunityId Int
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  status        String      @default("SAVED") // SAVED | INTERESTED
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, opportunityId])
+  @@map("opportunity_interests")
+}
+
+model LearningResource {
+  id          Int      @id @default(autoincrement())
+  title       String
+  category    String
+  type        String // PDF | LINK | YOUTUBE | GITHUB | TEMPLATE | WINNING_PROJECT
+  url         String?
+  fileKey     String?
+  difficulty  String?
+  tags        Json?
+  createdById Int
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([type])
+  @@map("learning_resources")
 }

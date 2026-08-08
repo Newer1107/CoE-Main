@@ -1201,7 +1201,7 @@ export default function InnovationEventClient({
                 <ul className="mt-2 space-y-2">
                   {uidLookupRows.map((row) => (
                     <li key={row.uid} className="text-xs text-[#434651]">
-                      <span className="font-bold text-[#002155]">{row.uid}</span>: {row.found ? `${row.name || 'Unknown'} (${row.email || 'No email'})` : 'Not found'}
+                      <span className="font-bold text-[#002155]">{row.uid}</span>: {row.found ? `${row.name || 'Unknown'}` : 'Not found'}
                       {row.found ? ` | ${row.role} | ${row.status} | ${row.isVerified ? 'Verified' : 'Not verified'}` : ''}
                       {' | '}
                       <span className={row.eligible ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}>

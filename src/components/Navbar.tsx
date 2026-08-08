@@ -112,6 +112,7 @@ export default function Navbar({ user }: NavbarProps) {
   const primaryLinks: NavLinkItem[] = [
     { label: "Home", href: "/" },
     { label: "About", href: "/about" },
+    { label: "Hackathons", href: "/hackathons" },
   ];
 
   const programsLinks: NavLinkItem[] = [

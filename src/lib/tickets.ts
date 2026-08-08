@@ -780,6 +780,16 @@ export const markHackathonTeamMembersPresent = async (
     return { ok: false as const, code: 'WRONG_TICKET_TYPE' as const, ticket };
   }
 
+  // Attendance is only meaningful inside the event window — no marking before
+  // the event starts or after it ends (multi-session events share this window).
+  const event = ticket.claim.problem?.event ?? null;
+  if (event) {
+    const now = new Date();
+    if (now < event.startTime || now > event.endTime) {
+      return { ok: false as const, code: 'OUTSIDE_EVENT_WINDOW' as const, ticket };
+    }
+  }
+
   const totalSessions = ticket.claim.problem?.event?.totalSessions ?? 1;
   if (session > totalSessions) {
     return { ok: false as const, code: 'INVALID_SESSION' as const, ticket };

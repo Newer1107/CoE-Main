@@ -50,9 +50,23 @@
   --color-error-container: #ffdad6;
   --color-on-secondary: #ffffff;
 
+  /* Semantic status (Carbon-style support colours, kept tokenized) */
+  --color-success: #0b6b2e;
+  --color-success-container: #e6f4e9;
+  --color-warning: #8c4f00;
+
+  /* Hairline — the subtlest divider. Use for rules between rows/cards. */
+  --color-hairline: #e6e5e1;
+
+  /* Muted text — the de-emphasised ink used across the app (was missing,
+     so every `text-muted` class silently no-op'd). */
+  --color-muted: #747782;
+
   --font-headline: "Newsreader", serif;
   --font-body: "Public Sans", sans-serif;
   --font-label: "Inter", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo,
+    Consolas, "Liberation Mono", monospace;
 
   --radius-DEFAULT: 0px;
   --radius-lg: 0px;
@@ -65,6 +79,40 @@
 html,
 body {
   overflow-x: hidden;
+}
+
+/* Inter/Public Sans geometric alternates — keeps UI text engineered, not default. */
+body {
+  font-feature-settings: "cv01", "ss03", "tnum" 0;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p,
+li {
+  text-wrap: pretty;
+}
+
+/* Editorial ghost numeral — oversized, low-contrast figure behind content. */
+.ghost-num {
+  font-family: var(--font-headline);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+/* Carbon-style keyboard focus: 2px inset ring in institutional blue. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: #ffffff;
 }
 
 .material-symbols-outlined {
@@ -96,6 +144,15 @@ body {
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-content {
+    animation: none;
+  }
+  .animate-pulse {
+    animation: none;
+  }
 }
 
 /* Custom scrollbar */

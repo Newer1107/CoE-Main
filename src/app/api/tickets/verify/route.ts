@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN', 'FACULTY')) return errorRes('Forbidden', ['Admin or faculty access required'], 403);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
 
     const body = await req.json();
     const parsed = verifyTicketSchema.safeParse(body);
@@ -65,6 +65,9 @@ export async function POST(req: NextRequest) {
         if (marked.code === 'NOT_FOUND') return errorRes('Ticket not found', [], 404);
         if (marked.code === 'CANCELLED') return errorRes('Ticket is cancelled', [], 400);
         if (marked.code === 'INVALID_SESSION') return errorRes('Invalid session', [], 400);
+        if (marked.code === 'OUTSIDE_EVENT_WINDOW') {
+          return errorRes('Outside check-in window', ['Attendance can only be marked during the event window'], 400);
+        }
         return errorRes('Ticket attendance update failed', [], 400);
       }
 

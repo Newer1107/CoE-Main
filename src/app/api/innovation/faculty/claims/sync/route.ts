@@ -5,7 +5,13 @@ import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers
 import { processEmailQueue } from '@/lib/email-delivery';
 import { innovationBulkClaimDecisionSchema } from '@/lib/validators';
 import { sendInnovationRubricScoreEmail, sendInnovationScreeningResultEmail } from '@/lib/mailer';
-import { calculateWeightedHackathonScore, HackathonRubricScores } from '@/lib/hackathon-scoring';
+import {
+  calculateScoreFromRubrics,
+  HackathonRubricScores,
+  LEGACY_CATEGORIES,
+  RubricCategoryConfig,
+  validateRubricValues,
+} from '@/lib/hackathon-scoring';
 import { issueHackathonSelectionTicketsForClaim } from '@/lib/tickets';
 import { logActivity } from '@/lib/activity-log';
 
@@ -27,7 +33,16 @@ export async function PATCH(req: NextRequest) {
     }
 
     const stage = parsed.data.stage;
-    const unique = new Map<number, { status: 'SHORTLISTED' | 'ACCEPTED' | 'REJECTED'; rubrics?: HackathonRubricScores; finalScore?: number }>();
+    const unique = new Map<
+      number,
+      {
+        status: 'SHORTLISTED' | 'ACCEPTED' | 'REJECTED';
+        rubrics?: HackathonRubricScores;
+        rubricValues?: Record<string, number>;
+        rubricKeys?: string[];
+        finalScore?: number;
+      }
+    >();
     for (const row of parsed.data.decisions) {
       if (stage === 'SCREENING') {
         unique.set(row.claimId, {
@@ -40,20 +55,22 @@ export async function PATCH(req: NextRequest) {
         return errorRes('Validation failed', ['Rubric scores are required for judging sync'], 400);
       }
 
+      // Legacy-shaped rubrics (for the fixed claim columns + email); raw values kept for
+      // config-driven scoring once the event's RubricCategory rows are resolved below.
       const rubrics: HackathonRubricScores = {
-        innovation: row.rubrics.innovation,
-        technical: row.rubrics.technical,
-        impact: row.rubrics.impact,
-        ux: row.rubrics.ux,
-        execution: row.rubrics.execution,
-        presentation: row.rubrics.presentation,
-        feasibility: row.rubrics.feasibility,
+        innovation: row.rubrics.innovation ?? 0,
+        technical: row.rubrics.technical ?? 0,
+        impact: row.rubrics.impact ?? 0,
+        ux: row.rubrics.ux ?? 0,
+        execution: row.rubrics.execution ?? 0,
+        presentation: row.rubrics.presentation ?? 0,
+        feasibility: row.rubrics.feasibility ?? 0,
       };
 
       unique.set(row.claimId, {
         status: row.status,
         rubrics,
-        finalScore: calculateWeightedHackathonScore(rubrics),
+        rubricValues: row.rubrics,
       });
     }
 
@@ -115,6 +132,50 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    // Config-driven judging: resolve each event's RubricCategory rows (falling back to the
+    // legacy 7 categories), validate the submitted rubric values, and compute final scores.
+    const eventCategories = new Map<number, RubricCategoryConfig[]>();
+    if (stage === 'JUDGING') {
+      const eventIds = Array.from(
+        new Set(claims.map((claim) => claim.problem.event?.id).filter((id): id is number => typeof id === 'number'))
+      );
+
+      if (eventIds.length > 0) {
+        const rubricRows = await prisma.rubricCategory.findMany({
+          where: { eventId: { in: eventIds } },
+          orderBy: { order: 'asc' },
+          select: { id: true, eventId: true, key: true, label: true, weight: true },
+        });
+
+        for (const eventId of eventIds) {
+          const rows = rubricRows.filter((row) => row.eventId === eventId);
+          eventCategories.set(eventId, rows.length > 0 ? rows : LEGACY_CATEGORIES);
+        }
+      }
+
+      for (const claim of claims) {
+        const decision = unique.get(claim.id);
+        if (!decision) continue;
+
+        const eventId = claim.problem.event?.id;
+        if (typeof eventId !== 'number') continue;
+
+        const categories = eventCategories.get(eventId) ?? LEGACY_CATEGORIES;
+
+        if (!decision.rubricValues) {
+          return errorRes('Validation failed', ['Rubric scores are required for judging sync'], 400);
+        }
+
+        const validationErrors = validateRubricValues(decision.rubricValues, categories);
+        if (validationErrors) {
+          return errorRes('Validation failed', validationErrors, 400);
+        }
+
+        decision.finalScore = calculateScoreFromRubrics(decision.rubricValues, categories);
+        decision.rubricKeys = categories.map((category) => category.key);
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       for (const claim of claims) {
         const decision = unique.get(claim.id);
@@ -125,17 +186,41 @@ export async function PATCH(req: NextRequest) {
           data: {
             status: decision.status,
             isAbsent: stage === 'JUDGING' ? false : claim.isAbsent,
-            innovationScore: stage === 'JUDGING' ? decision.rubrics?.innovation : null,
-            technicalScore: stage === 'JUDGING' ? decision.rubrics?.technical : null,
-            impactScore: stage === 'JUDGING' ? decision.rubrics?.impact : null,
-            uxScore: stage === 'JUDGING' ? decision.rubrics?.ux : null,
-            executionScore: stage === 'JUDGING' ? decision.rubrics?.execution : null,
-            presentationScore: stage === 'JUDGING' ? decision.rubrics?.presentation : null,
-            feasibilityScore: stage === 'JUDGING' ? decision.rubrics?.feasibility : null,
+            innovationScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('innovation') ? decision.rubrics?.innovation : null) : null,
+            technicalScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('technical') ? decision.rubrics?.technical : null) : null,
+            impactScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('impact') ? decision.rubrics?.impact : null) : null,
+            uxScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('ux') ? decision.rubrics?.ux : null) : null,
+            executionScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('execution') ? decision.rubrics?.execution : null) : null,
+            presentationScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('presentation') ? decision.rubrics?.presentation : null) : null,
+            feasibilityScore: stage === 'JUDGING' ? (decision.rubricKeys?.includes('feasibility') ? decision.rubrics?.feasibility : null) : null,
             finalScore: stage === 'JUDGING' ? decision.finalScore : null,
             score: stage === 'JUDGING' ? decision.finalScore : null,
           } as Prisma.ClaimUncheckedUpdateInput,
         });
+
+        // Persist per-category scores for events with RubricCategory rows (legacy events
+        // have no rows, so their scores keep living in the fixed claim columns above).
+        if (stage === 'JUDGING' && decision.rubricValues) {
+          const eventId = claim.problem.event?.id;
+          const categories = typeof eventId === 'number' ? eventCategories.get(eventId) : undefined;
+          if (categories) {
+            for (const category of categories) {
+              if (typeof category.id !== 'number') continue;
+              const score = decision.rubricValues[category.key];
+              if (typeof score !== 'number') continue;
+              await tx.rubricScore.upsert({
+                where: {
+                  claimId_rubricCategoryId: {
+                    claimId: claim.id,
+                    rubricCategoryId: category.id,
+                  },
+                },
+                update: { score },
+                create: { claimId: claim.id, rubricCategoryId: category.id, score },
+              });
+            }
+          }
+        }
 
         if (stage === 'JUDGING' && decision.status === 'ACCEPTED' && claim.problem.mode === 'CLOSED') {
           await tx.problem.update({

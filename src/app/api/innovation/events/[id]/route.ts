@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationEventUpdateSchema } from '@/lib/validators';
 import { canTransitionEventStatus } from '@/lib/innovation';
-import { uploadFileWithObjectKey } from '@/lib/minio';
+import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
 import { sanitizeFilename } from '@/lib/innovation';
 
 const parseBooleanLike = (value: unknown): boolean => {
@@ -14,6 +14,121 @@ const parseBooleanLike = (value: unknown): boolean => {
   }
   return false;
 };
+
+// GET /api/innovation/events/[id]
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const eventId = Number(id);
+    if (!Number.isInteger(eventId) || eventId <= 0) return errorRes('Invalid event id', [], 400);
+
+    const event = await prisma.hackathonEvent.findUnique({
+      where: { id: eventId },
+      include: {
+        _count: { select: { problems: true, interests: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        interests: { select: { hasDetails: true } },
+        sessionUploadLocks: {
+          orderBy: { session: 'asc' },
+          select: { session: true, isOpen: true, updatedAt: true },
+        },
+        problems: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            tags: true,
+            isIndustryProblem: true,
+            industryName: true,
+            difficulty: true,
+            sdgTags: true,
+            supportDocumentKey: true,
+            mode: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        rubrics: {
+          orderBy: { order: 'asc' },
+          select: { id: true, key: true, label: true, weight: true },
+        },
+        department: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!event) return errorRes('Hackathon event not found', [], 404);
+
+    const { interests, problems, rubrics, ...eventData } = event;
+    const totalWithDetails = interests.reduce(
+      (count, interest) => count + (interest.hasDetails ? 1 : 0),
+      0,
+    );
+
+    // Auth-aware extras — only surfaced for authenticated students.
+    const user = authenticate(req);
+    let myClaim: { id: number; status: string; teamName: string | null; problemId: number } | null = null;
+    let myInterest: { status: string } | null = null;
+    if (user && user.role === 'STUDENT') {
+      const [claimMember, interest] = await Promise.all([
+        prisma.claimMember.findFirst({
+          where: {
+            userId: user.id,
+            claim: { problem: { eventId } },
+          },
+          select: {
+            claim: { select: { id: true, status: true, teamName: true, problemId: true } },
+          },
+        }),
+        prisma.hackathonInterest.findUnique({
+          where: { userId_eventId: { userId: user.id, eventId } },
+          select: { id: true },
+        }),
+      ]);
+
+      if (claimMember) {
+        myClaim = {
+          id: claimMember.claim.id,
+          status: claimMember.claim.status,
+          teamName: claimMember.claim.teamName,
+          problemId: claimMember.claim.problemId,
+        };
+      }
+      // HackathonInterest has no status column — a present row means the student
+      // has signaled interest, so surface a constant status.
+      myInterest = interest ? { status: 'INTERESTED' } : null;
+    }
+
+    const problemsWithUrls = await Promise.all(
+      problems.map(async (problem) => ({
+        ...problem,
+        supportDocumentUrl: problem.supportDocumentKey
+          ? await getSignedUrl(problem.supportDocumentKey).catch(() => null)
+          : null,
+      })),
+    );
+
+    return successRes(
+      {
+        ...eventData,
+        totalInterested: event._count.interests,
+        totalInterestedWithDetails: totalWithDetails,
+        pptFileUrl: eventData.pptFileKey
+          ? await getSignedUrl(eventData.pptFileKey).catch(() => null)
+          : null,
+        problems: problemsWithUrls,
+        rubricCategories: rubrics,
+        myClaim,
+        myInterest,
+      },
+      'Hackathon event retrieved.',
+    );
+  } catch (err) {
+    console.error('Innovation event GET error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
 
 // PATCH /api/innovation/events/[id]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
