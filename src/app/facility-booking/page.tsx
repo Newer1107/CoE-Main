@@ -99,7 +99,7 @@ export default function FacilityBookingPage() {
   };
 
   const availableEquipment = lab ? labEquipmentMap[lab] ?? [] : [];
-  const timeSlots = ["09:00 - 11:00", "11:00 - 13:00", "13:00 - 15:00", "15:00 - 17:00", "17:00 - 19:00"];
+  const timeSlots = ["09:00 - 11:00", "11:00 - 13:00", "13:00 - 15:00", "15:00 - 17:00"];
 
   const loadMyBookings = async () => {
     const res = await fetch("/api/bookings/my", {
