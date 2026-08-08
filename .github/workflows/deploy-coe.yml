@@ -27,6 +27,7 @@ jobs:
 
           echo "Running Prisma migrations..."
           npx prisma migrate deploy
+          npx prisma generate
 
           echo "Building app..."
           npm run build
