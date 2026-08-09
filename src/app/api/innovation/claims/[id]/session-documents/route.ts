@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { getSignedUrl, uploadFileWithObjectKey } from '@/lib/minio';
-import { sanitizeFilename } from '@/lib/innovation';
+import { sanitizeFilename, validateUploadFile } from '@/lib/innovation';
 import { innovationSessionDocumentUploadSchema } from '@/lib/validators';
 
 const CLAIM_STATUSES_ALLOWED_FOR_SESSION_DOCUMENTS = ['SUBMITTED', 'SHORTLISTED', 'ACCEPTED'] as const;
@@ -167,6 +167,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (file.size <= 0) {
       return errorRes('Validation failed', ['Uploaded file is empty'], 400);
+    }
+
+    const uploadError = validateUploadFile(file, 'session-doc');
+    if (uploadError) {
+      return errorRes('Invalid upload', [uploadError], 400);
     }
 
     const session = parsed.data.session;

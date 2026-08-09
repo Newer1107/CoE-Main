@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import jsQR from "jsqr";
+import CertificatesAdmin from "@/components/hackathons/CertificatesAdmin";
 import { HACKATHON_RUBRIC_WEIGHTS } from "@/lib/hackathon-scoring";
 
 type BookingStudent = {
@@ -553,7 +554,7 @@ type InnovationLeaderboardRow = {
 
 type InnovationStatus = ManagedHackathonSubmission["status"];
 
-type InnovationTab = "events" | "review" | "leaderboard" | "analytics";
+type InnovationTab = "events" | "review" | "leaderboard" | "analytics" | "certificates";
 type InnovationAnalyticsTab = "participants" | "teams" | "attendance" | "insights";
 
 type AnalyticsStage = "SCREENING" | "JUDGING" | "CLOSED";
@@ -5106,8 +5107,20 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               >
                 Analytics
               </button>
+              <button
+                onClick={() => setInnovationTab("certificates")}
+                className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border ${
+                  innovationTab === "certificates"
+                    ? "bg-[#002155] text-white border-[#002155]"
+                    : "bg-white text-[#002155] border-[#c4c6d3]"
+                }`}
+              >
+                Certificates
+              </button>
             </div>
           </section>
+
+          {innovationTab === "certificates" ? <CertificatesAdmin /> : null}
 
           {innovationTab === "events" ? (
             <>
@@ -6171,11 +6184,28 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
           {innovationTab === "leaderboard" ? (
             <section>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Leaderboard Overview</h2>
-              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
-                {selectedInnovationEventId ? `event #${selectedInnovationEventId}` : "select event"}
-              </span>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedInnovationEventId ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) void handleLoadInnovationLeaderboard(Number(v));
+                  }}
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                >
+                  <option value="">Select event</option>
+                  {innovationEvents.map((event) => (
+                    <option key={`leaderboard-filter-${event.id}`} value={event.id}>
+                      #{event.id} {event.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+                  {selectedInnovationEventId ? `event #${selectedInnovationEventId}` : "select event"}
+                </span>
+              </div>
             </div>
 
             {loadingInnovationLeaderboard ? (

@@ -109,6 +109,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                 select: {
                   id: true,
                   totalSessions: true,
+                  status: true,
+                  config: true,
                 },
               },
             },
@@ -145,8 +147,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const eventId = claim.problem.event?.id ?? null;
       const totalSessions = claim.problem.event?.totalSessions ?? 1;
       const ticket = claim.tickets[0] || null;
+      const eventStatus = claim.problem.event?.status ?? null;
+      // Effective team-size bounds from the event config (deep-merged defaults).
+      const rawConfig = claim.problem.event?.config as
+        | { team?: { minSize?: number; maxSize?: number; allowSolo?: boolean } }
+        | null
+        | undefined;
+      const minSize = rawConfig?.team?.minSize ?? 1;
+      const maxSize = rawConfig?.team?.maxSize ?? 5;
+
+      if (eventStatus === 'CLOSED') {
+        throw new TeamMemberMutationError(
+          'Event closed',
+          400,
+          ['Team composition cannot be changed after the event is closed.']
+        );
+      }
 
       if (payload.action === 'ADD_MEMBER') {
+        if (claim.members.length >= maxSize) {
+          throw new TeamMemberMutationError(
+            'Team full',
+            400,
+            [`This event allows a maximum of ${maxSize} members per team.`]
+          );
+        }
         const identifier = payload.identifier.trim();
         const normalizedUid = identifier.toUpperCase();
         const normalizedEmail = identifier.toLowerCase();
@@ -211,6 +236,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
 
       if (payload.action === 'REMOVE_MEMBER') {
+        if (claim.members.length - 1 < minSize) {
+          throw new TeamMemberMutationError(
+            'Team too small',
+            400,
+            [`This event requires a minimum of ${minSize} member(s) per team.`]
+          );
+        }
         const targetMember = claim.members.find((member) => member.id === payload.claimMemberId);
         if (!targetMember) {
           throw new TeamMemberMutationError('Member not found in this team', 404);

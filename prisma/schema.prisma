@@ -154,46 +154,47 @@ model User {
   password   String
   role       Role
   uid        String?
-  googleId   String?   @unique
+  googleId   String?    @unique
   isVerified Boolean    @default(false)
   status     UserStatus @default(ACTIVE)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  bookings          Booking[]
-  newsPosts         NewsPost[]
-  grants            Grant[]
-  events            Event[]
-  announcements     Announcement[]
-  problemsCreated   ClaimMember[]
-  hackathonsCreated HackathonEvent[] @relation("HackathonCreator")
-  problemsAuthored  Problem[]        @relation("ProblemAuthor")
-  studentProfile    StudentProfile?
-  facultyProfile    FacultyProfile?
-  applications      Application[]
-  tickets           Ticket[]
-  hackathonInterests HackathonInterest[]
-  programsCreated   InnovationProgram[] @relation("ProgramCreator")
-  programInterests  ProgramInterest[]
-  uploadedSessionDocuments SessionDocument[] @relation("SessionDocumentUploader")
-  sessionUploadLockUpdates HackathonSessionUploadLock[] @relation("SessionUploadLockUpdater")
-  attendanceMarkedEntries TicketAttendance[] @relation("AttendanceMarker")
-  attendanceEntries TicketAttendance[] @relation("AttendanceParticipant")
-  internshipTasks InternshipTask[] @relation("InternshipTaskAssignee")
-  internshipMessages InternshipMessage[] @relation("InternshipMessageSender")
-  internshipDocuments InternshipDocument[] @relation("InternshipDocumentUploader")
-  notifications Notification[]
-  hostingRequests HostingRequest[] @relation("HostingRequestStudent")
-  reviewedHostingRequests HostingRequest[] @relation("HostingRequestReviewer")
+  bookings                    Booking[]
+  newsPosts                   NewsPost[]
+  grants                      Grant[]
+  events                      Event[]
+  announcements               Announcement[]
+  problemsCreated             ClaimMember[]
+  hackathonsCreated           HackathonEvent[]              @relation("HackathonCreator")
+  problemsAuthored            Problem[]                     @relation("ProblemAuthor")
+  studentProfile              StudentProfile?
+  facultyProfile              FacultyProfile?
+  applications                Application[]
+  tickets                     Ticket[]
+  hackathonInterests          HackathonInterest[]
+  certificates                Certificate[]
+  programsCreated             InnovationProgram[]           @relation("ProgramCreator")
+  programInterests            ProgramInterest[]
+  uploadedSessionDocuments    SessionDocument[]             @relation("SessionDocumentUploader")
+  sessionUploadLockUpdates    HackathonSessionUploadLock[]  @relation("SessionUploadLockUpdater")
+  attendanceMarkedEntries     TicketAttendance[]            @relation("AttendanceMarker")
+  attendanceEntries           TicketAttendance[]            @relation("AttendanceParticipant")
+  internshipTasks             InternshipTask[]              @relation("InternshipTaskAssignee")
+  internshipMessages          InternshipMessage[]           @relation("InternshipMessageSender")
+  internshipDocuments         InternshipDocument[]          @relation("InternshipDocumentUploader")
+  notifications               Notification[]
+  hostingRequests             HostingRequest[]              @relation("HostingRequestStudent")
+  reviewedHostingRequests     HostingRequest[]              @relation("HostingRequestReviewer")
   hostingRequestStatusChanges HostingRequestStatusHistory[] @relation("HostingRequestStatusChangedBy")
-  industryId Int?
-  industry   Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
-  departmentId Int?
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  isCoordinator Boolean @default(false)
-  opportunitiesCreated     Opportunity[]
-  opportunityInterests     OpportunityInterest[]
-  learningResourcesCreated LearningResource[]
+  industryId                  Int?
+  industry                    Industry?                     @relation(fields: [industryId], references: [id], onDelete: SetNull)
+  departmentId                Int?
+  department                  Department?                   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  isCoordinator               Boolean                       @default(false)
+  opportunitiesCreated        Opportunity[]
+  opportunityInterests        OpportunityInterest[]
+  learningResourcesCreated    LearningResource[]
 
   @@index([googleId])
   @@index([industryId])
@@ -212,37 +213,37 @@ model Industry {
 }
 
 model Problem {
-  id          Int             @id @default(autoincrement())
-  title       String
-  description String          @db.Text
-  tags        String?
-  isIndustryProblem Boolean   @default(false)
-  industryName String?
-  problemType ProblemType     @default(OPEN)
-  approvalStatus ProblemApprovalStatus @default(APPROVED)
-  mode        ProblemMode     @default(OPEN)
-  status      ProblemStatus   @default(CLOSED)
-  createdById Int
-  createdBy   User            @relation("ProblemAuthor", fields: [createdById], references: [id], onDelete: Cascade)
-  industryId  Int?
-  industry    Industry?       @relation(fields: [industryId], references: [id], onDelete: SetNull)
-  eventId     Int?
-  event       HackathonEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  claims      Claim[]
-  supportDocumentKey String?
-  difficulty String?
-  sdgTags Json?
-  departmentId Int?
-  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  applications Application[]
-  internshipTasks InternshipTask[] @relation("InternshipProblemTasks")
-  internshipMessages InternshipMessage[] @relation("InternshipProblemMessages")
-  internshipMeetings InternshipMeeting[] @relation("InternshipProblemMeetings")
-  internshipDocuments InternshipDocument[] @relation("InternshipProblemDocuments")
-  questions   ProblemQuestion[]
-  notificationSent Boolean @default(false)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                  Int                   @id @default(autoincrement())
+  title               String
+  description         String                @db.Text
+  tags                String?
+  isIndustryProblem   Boolean               @default(false)
+  industryName        String?
+  problemType         ProblemType           @default(OPEN)
+  approvalStatus      ProblemApprovalStatus @default(APPROVED)
+  mode                ProblemMode           @default(OPEN)
+  status              ProblemStatus         @default(CLOSED)
+  createdById         Int
+  createdBy           User                  @relation("ProblemAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  industryId          Int?
+  industry            Industry?             @relation(fields: [industryId], references: [id], onDelete: SetNull)
+  eventId             Int?
+  event               HackathonEvent?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  claims              Claim[]
+  supportDocumentKey  String?
+  difficulty          String?
+  sdgTags             Json?
+  departmentId        Int?
+  department          Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  applications        Application[]
+  internshipTasks     InternshipTask[]      @relation("InternshipProblemTasks")
+  internshipMessages  InternshipMessage[]   @relation("InternshipProblemMessages")
+  internshipMeetings  InternshipMeeting[]   @relation("InternshipProblemMeetings")
+  internshipDocuments InternshipDocument[]  @relation("InternshipProblemDocuments")
+  questions           ProblemQuestion[]
+  notificationSent    Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   @@index([createdById])
   @@index([industryId])
@@ -255,12 +256,12 @@ model Problem {
 }
 
 model Claim {
-  id                Int           @id @default(autoincrement())
+  id                Int                @id @default(autoincrement())
   problemId         Int
-  problem           Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  problem           Problem            @relation(fields: [problemId], references: [id], onDelete: Cascade)
   teamName          String?
   members           ClaimMember[]
-  status            ClaimStatus   @default(IN_PROGRESS)
+  status            ClaimStatus        @default(IN_PROGRESS)
   submissionUrl     String?
   submissionFileKey String?
   innovationScore   Int?
@@ -272,16 +273,16 @@ model Claim {
   feasibilityScore  Int?
   finalScore        Int?
   score             Int?
-  feedback          String?       @db.Text
+  feedback          String?            @db.Text
   badges            String?
-  isAbsent          Boolean       @default(false)
-  reminderSent      Boolean       @default(false)
+  isAbsent          Boolean            @default(false)
+  reminderSent      Boolean            @default(false)
   tickets           Ticket[]
   attendanceRecords TicketAttendance[]
   rubricScores      RubricScore[]
   sessionDocuments  SessionDocument[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([problemId])
   @@index([status])
@@ -290,12 +291,12 @@ model Claim {
 }
 
 model ClaimMember {
-  id      Int    @id @default(autoincrement())
-  claimId Int
-  claim   Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
-  userId  Int
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role    String @default("MEMBER")
+  id                Int                @id @default(autoincrement())
+  claimId           Int
+  claim             Claim              @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  userId            Int
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              String             @default("MEMBER")
   attendanceRecords TicketAttendance[]
 
   @@unique([claimId, userId])
@@ -342,15 +343,15 @@ model HackathonSessionUploadLock {
 }
 
 model StudentProfile {
-  id          Int       @id @default(autoincrement())
-  userId      Int       @unique
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skills      String?   @db.Text
-  experience  String?   @db.Text
-  interests   String?   @db.Text
-  resumeUrl   String?
-  isComplete  Boolean   @default(false)
-  updatedAt   DateTime  @updatedAt
+  id           Int           @id @default(autoincrement())
+  userId       Int           @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills       String?       @db.Text
+  experience   String?       @db.Text
+  interests    String?       @db.Text
+  resumeUrl    String?
+  isComplete   Boolean       @default(false)
+  updatedAt    DateTime      @updatedAt
   applications Application[]
 
   @@map("student_profiles")
@@ -373,12 +374,12 @@ model FacultyProfile {
 }
 
 model ProblemQuestion {
-  id         Int       @id @default(autoincrement())
-  problemId  Int
-  problem    Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  questionText String  @db.Text
-  type       String    @default("TEXT")
-  createdAt  DateTime  @default(now())
+  id           Int      @id @default(autoincrement())
+  problemId    Int
+  problem      Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  questionText String   @db.Text
+  type         String   @default("TEXT")
+  createdAt    DateTime @default(now())
 
   answers ApplicationAnswer[]
 
@@ -387,18 +388,18 @@ model ProblemQuestion {
 }
 
 model Application {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profileId   Int?
-  profile     StudentProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  problemId   Int
-  problem     Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  status      ApplicationStatus @default(SUBMITTED)
-  answers     ApplicationAnswer[]
-  feedback    String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int                 @id @default(autoincrement())
+  userId    Int
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId Int?
+  profile   StudentProfile?     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  problemId Int
+  problem   Problem             @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  status    ApplicationStatus   @default(SUBMITTED)
+  answers   ApplicationAnswer[]
+  feedback  String?             @db.Text
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   @@unique([userId, problemId])
   @@index([problemId])
@@ -408,12 +409,12 @@ model Application {
 }
 
 model ApplicationAnswer {
-  id          Int       @id @default(autoincrement())
+  id            Int             @id @default(autoincrement())
   applicationId Int
-  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  questionId  Int
-  question    ProblemQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  answerText  String    @db.Text
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  questionId    Int
+  question      ProblemQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerText    String          @db.Text
 
   @@unique([applicationId, questionId])
   @@index([applicationId])
@@ -421,17 +422,17 @@ model ApplicationAnswer {
 }
 
 model InternshipTask {
-  id           Int                 @id @default(autoincrement())
+  id           Int                  @id @default(autoincrement())
   problemId    Int
-  problem      Problem             @relation("InternshipProblemTasks", fields: [problemId], references: [id], onDelete: Cascade)
+  problem      Problem              @relation("InternshipProblemTasks", fields: [problemId], references: [id], onDelete: Cascade)
   title        String
-  description  String?             @db.Text
+  description  String?              @db.Text
   assignedToId Int
-  assignedTo   User                @relation("InternshipTaskAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedTo   User                 @relation("InternshipTaskAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
   deadline     DateTime?
   status       InternshipTaskStatus @default(PENDING)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   @@index([problemId, status])
   @@index([assignedToId, status])
@@ -439,13 +440,13 @@ model InternshipTask {
 }
 
 model InternshipMessage {
-  id           Int        @id @default(autoincrement())
-  problemId    Int
-  problem      Problem    @relation("InternshipProblemMessages", fields: [problemId], references: [id], onDelete: Cascade)
-  senderId     Int
-  sender       User       @relation("InternshipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  content      String     @db.Text
-  createdAt    DateTime   @default(now())
+  id        Int      @id @default(autoincrement())
+  problemId Int
+  problem   Problem  @relation("InternshipProblemMessages", fields: [problemId], references: [id], onDelete: Cascade)
+  senderId  Int
+  sender    User     @relation("InternshipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
 
   @@index([problemId, createdAt])
   @@index([senderId])
@@ -453,35 +454,35 @@ model InternshipMessage {
 }
 
 model InternshipMeeting {
-  id           Int        @id @default(autoincrement())
-  problemId    Int
-  problem      Problem    @relation("InternshipProblemMeetings", fields: [problemId], references: [id], onDelete: Cascade)
-  title        String
-  datetime     DateTime
-  link         String
-  description  String?    @db.Text
-  recurrenceType MeetingRecurrenceType @default(NONE)
-  recurrenceInterval Int     @default(1)
-  recurrenceDay Int?
-  isActive     Boolean   @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                 Int                   @id @default(autoincrement())
+  problemId          Int
+  problem            Problem               @relation("InternshipProblemMeetings", fields: [problemId], references: [id], onDelete: Cascade)
+  title              String
+  datetime           DateTime
+  link               String
+  description        String?               @db.Text
+  recurrenceType     MeetingRecurrenceType @default(NONE)
+  recurrenceInterval Int                   @default(1)
+  recurrenceDay      Int?
+  isActive           Boolean               @default(true)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
 
   @@index([problemId, datetime])
   @@map("internship_meetings")
 }
 
 model InternshipDocument {
-  id           Int        @id @default(autoincrement())
+  id           Int                    @id @default(autoincrement())
   problemId    Int
-  problem      Problem    @relation("InternshipProblemDocuments", fields: [problemId], references: [id], onDelete: Cascade)
+  problem      Problem                @relation("InternshipProblemDocuments", fields: [problemId], references: [id], onDelete: Cascade)
   fileUrl      String?
   linkUrl      String?
   title        String?
   documentType InternshipDocumentType @default(FILE)
   uploadedById Int
-  uploadedBy   User       @relation("InternshipDocumentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
+  uploadedBy   User                   @relation("InternshipDocumentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime               @default(now())
 
   @@index([problemId, createdAt])
   @@index([uploadedById])
@@ -504,34 +505,34 @@ model Notification {
 }
 
 model HostingRequest {
-  id                         Int                  @id @default(autoincrement())
-  studentId                  Int
-  student                    User                 @relation("HostingRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  projectName                String
-  projectDescription         String               @db.Text
-  githubUrl                  String
-  projectCategory            String
-  techStack                  Json
-  databaseRequired           Boolean              @default(false)
-  databaseType               DatabaseType         @default(NONE)
-  preferredSubdomain         String?
-  teamMembers                String?              @db.Text
-  facultyMentor              String?
-  hostingDuration            String?
-  additionalNotes            String?              @db.Text
-  adminRemarks               String?              @db.Text
-  status                     HostingRequestStatus @default(PENDING)
-  reviewedById               Int?
-  reviewedBy                 User?                @relation("HostingRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt                 DateTime?
-  assignedDomain             String?
-  coolifyProjectId           String?
-  deploymentStatus           String?
+  id                          Int                           @id @default(autoincrement())
+  studentId                   Int
+  student                     User                          @relation("HostingRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  projectName                 String
+  projectDescription          String                        @db.Text
+  githubUrl                   String
+  projectCategory             String
+  techStack                   Json
+  databaseRequired            Boolean                       @default(false)
+  databaseType                DatabaseType                  @default(NONE)
+  preferredSubdomain          String?
+  teamMembers                 String?                       @db.Text
+  facultyMentor               String?
+  hostingDuration             String?
+  additionalNotes             String?                       @db.Text
+  adminRemarks                String?                       @db.Text
+  status                      HostingRequestStatus          @default(PENDING)
+  reviewedById                Int?
+  reviewedBy                  User?                         @relation("HostingRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt                  DateTime?
+  assignedDomain              String?
+  coolifyProjectId            String?
+  deploymentStatus            String?
   assignedDatabaseCredentials Json?
-  hostingExpiryDate          DateTime?
-  statusHistory              HostingRequestStatusHistory[]
-  createdAt                  DateTime             @default(now())
-  updatedAt                  DateTime             @updatedAt
+  hostingExpiryDate           DateTime?
+  statusHistory               HostingRequestStatusHistory[]
+  createdAt                   DateTime                      @default(now())
+  updatedAt                   DateTime                      @updatedAt
 
   @@index([studentId, createdAt])
   @@index([status, createdAt])
@@ -556,35 +557,56 @@ model HostingRequestStatusHistory {
 }
 
 model HackathonEvent {
-  id          Int         @id @default(autoincrement())
-  title       String
-  description String?     @db.Text
-  startTime   DateTime
-  endTime     DateTime
-  submissionLockAt DateTime?
-  totalSessions Int @default(1)
-  registrationOpen Boolean @default(true)
-  status      EventStatus @default(UPCOMING)
-  createdById Int
-  createdBy   User        @relation("HackathonCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  problems    Problem[]
-  interests   HackathonInterest[]
+  id                 Int                          @id @default(autoincrement())
+  title              String
+  description        String?                      @db.Text
+  startTime          DateTime
+  endTime            DateTime
+  submissionLockAt   DateTime?
+  totalSessions      Int                          @default(1)
+  registrationOpen   Boolean                      @default(true)
+  status             EventStatus                  @default(UPCOMING)
+  createdById        Int
+  createdBy          User                         @relation("HackathonCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  problems           Problem[]
+  interests          HackathonInterest[]
   sessionUploadLocks HackathonSessionUploadLock[]
-  pptFileKey  String?
-  departmentId Int?
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  eventType    String      @default("hackathon")
-  config       Json?
-  featured     Boolean     @default(false)
-  rubrics      RubricCategory[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  pptFileKey         String?
+  departmentId       Int?
+  department         Department?                  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  eventType          String                       @default("hackathon")
+  config             Json?
+  featured           Boolean                      @default(false)
+  rubrics            RubricCategory[]
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+  certificates       Certificate[]
 
   @@index([status])
   @@index([startTime])
   @@index([endTime])
   @@index([createdById])
   @@map("hackathon_events")
+}
+
+model Certificate {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  eventId  Int
+  type     String // ACHIEVEMENT | PARTICIPATION
+  title    String
+  detail   String?
+  fileKey  String?
+  serial   String   @unique
+  issuedAt DateTime @default(now())
+  nameOverride String? // admin-corrected name shown on the PDF instead of user.name
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId, type])
+  @@index([userId])
+  @@map("certificates")
 }
 
 model HackathonInterest {
@@ -596,8 +618,8 @@ model HackathonInterest {
   teamSize   Int?
   createdAt  DateTime @default(now())
 
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event      HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@index([eventId, hasDetails])
@@ -619,8 +641,8 @@ model InnovationProgram {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  createdBy     User              @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  interests     ProgramInterest[]
+  createdBy User              @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  interests ProgramInterest[]
 
   @@index([eventDate])
   @@index([createdById])
@@ -628,13 +650,13 @@ model InnovationProgram {
 }
 
 model ProgramInterest {
-  id         String   @id @default(cuid())
-  userId     Int
-  programId  String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    Int
+  programId String
+  createdAt DateTime @default(now())
 
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  program    InnovationProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program InnovationProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@unique([userId, programId])
   @@index([programId, createdAt])
@@ -671,28 +693,28 @@ model Booking {
 }
 
 model Ticket {
-  id          Int          @id @default(autoincrement())
-  ticketId    String       @unique
-  type        TicketType
-  status      TicketStatus @default(ACTIVE)
-  userId      Int
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookingId   Int?         @unique
-  booking     Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  claimId     Int?
-  claim       Claim?       @relation(fields: [claimId], references: [id], onDelete: SetNull)
-  title       String
-  subjectName String
-  scheduledAt DateTime?
-  pdfObjectKey String
-  qrValue     String
-  issuedAt    DateTime     @default(now())
-  usedAt      DateTime?
-  cancelledAt DateTime?
-  metadata    Json?
+  id                Int                @id @default(autoincrement())
+  ticketId          String             @unique
+  type              TicketType
+  status            TicketStatus       @default(ACTIVE)
+  userId            Int
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingId         Int?               @unique
+  booking           Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  claimId           Int?
+  claim             Claim?             @relation(fields: [claimId], references: [id], onDelete: SetNull)
+  title             String
+  subjectName       String
+  scheduledAt       DateTime?
+  pdfObjectKey      String
+  qrValue           String
+  issuedAt          DateTime           @default(now())
+  usedAt            DateTime?
+  cancelledAt       DateTime?
+  metadata          Json?
   attendanceRecords TicketAttendance[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@unique([claimId, type])
   @@index([userId, status])
@@ -775,15 +797,15 @@ model Event {
 }
 
 model ImpersonationSession {
-  id              String               @id @default(uuid())
+  id              String              @id @default(uuid())
   adminId         Int
   targetUserId    Int
-  status          ImpersonationStatus  @default(ACTIVE)
-  startedAt       DateTime             @default(now())
+  status          ImpersonationStatus @default(ACTIVE)
+  startedAt       DateTime            @default(now())
   endedAt         DateTime?
   durationSeconds Int?
-  ipAddress       String?              @db.VarChar(45)
-  userAgent       String?              @db.Text
+  ipAddress       String?             @db.VarChar(45)
+  userAgent       String?             @db.Text
   metadata        Json?
 
   // Performance indexes
@@ -873,13 +895,13 @@ model SiteSetting {
 }
 
 model RubricCategory {
-  id      Int           @id @default(autoincrement())
+  id      Int            @id @default(autoincrement())
   eventId Int
   event   HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   key     String
   label   String
-  weight  Int           @default(10)
-  order   Int           @default(0)
+  weight  Int            @default(10)
+  order   Int            @default(0)
   scores  RubricScore[]
 
   @@unique([eventId, key])
@@ -904,23 +926,23 @@ model RubricScore {
 }
 
 model Opportunity {
-  id                   Int      @id @default(autoincrement())
+  id                   Int       @id @default(autoincrement())
   title                String
   category             String
   organizer            String
-  description          String?  @db.Text
+  description          String?   @db.Text
   registrationDeadline DateTime?
   eligibility          String?
   prize                String?
   themes               Json?
   technologies         Json?
   applicationUrl       String?
-  facultyRecommended   Boolean  @default(false)
-  status               String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  facultyRecommended   Boolean   @default(false)
+  status               String    @default("PENDING") // PENDING | APPROVED | REJECTED
   createdById          Int
-  createdBy            User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdBy            User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   interests OpportunityInterest[]
 

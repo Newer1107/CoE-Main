@@ -60,7 +60,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!event) return errorRes('Hackathon event not found', [], 404);
 
-    const { interests, problems, rubrics, ...eventData } = event;
+    const { interests, problems, rubrics, config, pptFileKey, createdById, ...eventData } = event;
     const totalWithDetails = interests.reduce(
       (count, interest) => count + (interest.hasDetails ? 1 : 0),
       0,
@@ -114,8 +114,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         ...eventData,
         totalInterested: event._count.interests,
         totalInterestedWithDetails: totalWithDetails,
-        pptFileUrl: eventData.pptFileKey
-          ? await getSignedUrl(eventData.pptFileKey).catch(() => null)
+        pptFileUrl: pptFileKey
+          ? await getSignedUrl(pptFileKey).catch(() => null)
           : null,
         problems: problemsWithUrls,
         rubricCategories: rubrics,

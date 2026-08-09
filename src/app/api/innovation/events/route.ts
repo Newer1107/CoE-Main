@@ -76,12 +76,8 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         _count: { select: { problems: true, interests: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true } },
         interests: { select: { hasDetails: true } },
-        sessionUploadLocks: {
-          orderBy: { session: 'asc' },
-          select: { session: true, isOpen: true, updatedAt: true },
-        },
         department: { select: { id: true, name: true } },
       },
       orderBy,
@@ -89,7 +85,7 @@ export async function GET(req: NextRequest) {
 
     const payload = await Promise.all(
       events.map(async (event) => {
-        const { interests, ...eventData } = event;
+        const { interests, config, pptFileKey, createdById, ...eventData } = event;
         const totalWithDetails = interests.reduce(
           (count, interest) => count + (interest.hasDetails ? 1 : 0),
           0,
