@@ -6184,11 +6184,28 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
           {innovationTab === "leaderboard" ? (
             <section>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Leaderboard Overview</h2>
-              <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
-                {selectedInnovationEventId ? `event #${selectedInnovationEventId}` : "select event"}
-              </span>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedInnovationEventId ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) void handleLoadInnovationLeaderboard(Number(v));
+                  }}
+                  className="border border-[#c4c6d3] px-3 py-2 text-sm"
+                >
+                  <option value="">Select event</option>
+                  {innovationEvents.map((event) => (
+                    <option key={`leaderboard-filter-${event.id}`} value={event.id}>
+                      #{event.id} {event.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs uppercase tracking-widest text-[#434651] font-label">
+                  {selectedInnovationEventId ? `event #${selectedInnovationEventId}` : "select event"}
+                </span>
+              </div>
             </div>
 
             {loadingInnovationLeaderboard ? (

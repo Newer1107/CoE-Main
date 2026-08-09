@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, BlendMode, rgb } from 'pdf-lib';
 
 // Stitch institutional palette
 const NAVY = rgb(0, 0.13, 0.33);
@@ -92,10 +92,8 @@ export async function generateCertificatePdf(params: {
   corner(40, H - 40, 1, -1);
   corner(W - 40, H - 40, -1, -1);
 
-  // Watermark monogram
-  drawCentered(page, timesBold, 'TCET', 150, 240, NAVY, 0.035);
-
-  // Logos (TCET logo is a WebP with a .png extension — convert via sharp when needed)
+  // Watermark: TCET logo (same asset as the top-left header) centered behind
+  // the text, multiply-blended so the logo's white background disappears.
   if (fs.existsSync(params.logoPaths.tcet)) {
     let buf = fs.readFileSync(params.logoPaths.tcet);
     if (!buf.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) {
@@ -103,6 +101,18 @@ export async function generateCertificatePdf(params: {
       buf = Buffer.from(await sharp(buf).png().toBuffer());
     }
     const png = await pdf.embedPng(buf);
+    // Background watermark: large, centered, multiply-blended, faint.
+    const wmW = 400;
+    const wmH = (png.height / png.width) * wmW;
+    page.drawImage(png, {
+      x: (W - wmW) / 2,
+      y: (H - wmH) / 2 - 10,
+      width: wmW,
+      height: wmH,
+      opacity: 0.1,
+      blendMode: BlendMode.Multiply,
+    });
+    // Header logo (left top)
     page.drawImage(png, { x: 72, y: H - 118, width: 58, height: 58 });
   }
   if (fs.existsSync(params.logoPaths.coe)) {
