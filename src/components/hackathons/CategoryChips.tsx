@@ -45,8 +45,37 @@ export default function CategoryChips({
     </button>
   );
 
-  return (
-    <div className="flex flex-wrap gap-2" role={hrefPrefix ? undefined : "group"}>
+  // On phones a long chip strip wraps into an ugly wall of boxes — collapse it
+  // into a native dropdown whenever there are enough categories to justify it.
+  const useSelect = categories.length > 4;
+
+  const select = (
+    <label className="md:hidden">
+      <span className="sr-only">Filter by category</span>
+      <select
+        value={active || ""}
+        onChange={(e) => {
+          const key = e.target.value;
+          if (hrefPrefix) {
+            window.location.href = key ? `${hrefPrefix}?type=${encodeURIComponent(key)}` : hrefPrefix;
+          } else {
+            onChange?.(key);
+          }
+        }}
+        className="w-full border border-outline-variant bg-white px-3 py-2.5 text-sm font-medium text-on-surface focus:border-primary focus:outline-none"
+      >
+        <option value="">All categories</option>
+        {categories.map((category) => (
+          <option key={category.key} value={category.key}>
+            {category.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const chips = (
+    <div className={`flex flex-wrap gap-2 ${useSelect ? "hidden md:flex" : ""}`} role={hrefPrefix ? undefined : "group"}>
       {allChip}
       {categories.map((category) => {
         if (hrefPrefix) {
@@ -73,5 +102,14 @@ export default function CategoryChips({
         );
       })}
     </div>
+  );
+
+  return useSelect ? (
+    <>
+      {select}
+      {chips}
+    </>
+  ) : (
+    chips
   );
 }
