@@ -113,10 +113,18 @@ export default function HackathonsBrowsePage() {
           </p>
         </header>
 
-        {/* ── Categories ──────────────────────────────────── */}
+        {/* ── Categories (data-driven: only types with events + active) ── */}
         <div className="mt-7">
           <CategoryChips
-            categories={EVENT_CATEGORIES}
+            categories={(() => {
+              const availableKeys = new Set<string>();
+              for (const event of events ?? []) {
+                if (event.eventType) availableKeys.add(event.eventType);
+              }
+              return EVENT_CATEGORIES.filter(
+                (category) => availableKeys.has(category.key) || category.key === type
+              );
+            })()}
             active={type}
             onChange={(key) => {
               const params = new URLSearchParams(searchParams.toString());

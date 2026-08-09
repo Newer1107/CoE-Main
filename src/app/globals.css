@@ -187,3 +187,7 @@ li {
     animation-duration: 24s;
   }
 }
+
+/* Hide scrollbars on horizontal scroll strips (sub-nav links) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
