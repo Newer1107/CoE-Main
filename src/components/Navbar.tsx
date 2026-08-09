@@ -204,9 +204,9 @@ export default function Navbar({ user }: NavbarProps) {
 
           <Link
             href="/"
-            className="hidden sm:flex min-w-0 flex-col text-lg md:text-xl font-bold text-white tracking-tighter uppercase leading-tight cursor-pointer"
+            className="flex min-w-0 flex-col text-lg md:text-xl font-bold text-white tracking-tighter uppercase leading-tight cursor-pointer"
           >
-            <span className="truncate font-multiple whitespace-nowrap">TCET CENTRE OF EXCELLENCE</span>
+            <span className="font-multiple">TCET CENTRE OF EXCELLENCE</span>
             <span className="text-[8px] md:text-[10px] tracking-[0.2em] font-label opacity-90 hidden sm:block whitespace-nowrap">
               For Research Culture & Development
             </span>
