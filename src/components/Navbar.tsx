@@ -181,13 +181,13 @@ export default function Navbar({ user }: NavbarProps) {
 
       {/* TopNavBar */}
       <nav
-        className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-w-0 w-full px-4 md:px-8 z-50 fixed border-none transition-all duration-300 ${isScrolled
+        className={`flex items-center justify-between gap-x-3 min-w-0 w-full px-4 md:px-8 z-50 fixed border-none transition-all duration-300 ${isScrolled
           ? "top-0 bg-[#001a42]/92 backdrop-blur-md py-3 shadow-[0_8px_24px_rgba(0,24,61,0.25)]"
           : "top-[32px] sm:top-[32px] bg-[#002155] py-4 shadow-md"
           }`}
       >
         {/* LEFT SIDE: CoE Logo and Brand Name */}
-        <div className="flex shrink-0 min-w-0 items-center gap-3 md:gap-5 z-50">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-5 z-50">
           <Link
             href="/"
             className="shrink-0 flex items-center justify-center group"
@@ -204,9 +204,9 @@ export default function Navbar({ user }: NavbarProps) {
 
           <Link
             href="/"
-            className="shrink-0 text-lg md:text-xl font-bold text-white tracking-tighter uppercase flex flex-col leading-tight cursor-pointer"
+            className="hidden sm:flex min-w-0 flex-col text-lg md:text-xl font-bold text-white tracking-tighter uppercase leading-tight cursor-pointer"
           >
-            <span className="font-multiple whitespace-nowrap">TCET CENTRE OF EXCELLENCE</span>
+            <span className="truncate font-multiple whitespace-nowrap">TCET CENTRE OF EXCELLENCE</span>
             <span className="text-[8px] md:text-[10px] tracking-[0.2em] font-label opacity-90 hidden sm:block whitespace-nowrap">
               For Research Culture & Development
             </span>
