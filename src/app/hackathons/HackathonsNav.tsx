@@ -52,8 +52,9 @@ export default function HackathonsNav({ user }: { user: NavUser }) {
 
         <span aria-hidden="true" className="h-4 w-px shrink-0 bg-outline-variant" />
 
-        {/* Section links — single scrollable row on phones, wraps never */}
-        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-x-1 overflow-x-auto">
+        {/* Section links — wrap instead of hidden overflow: at any zoom or
+            width (incl. logged-in CTA) every link stays visible and clickable */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1">
           {visibleLinks.map((link) => {
             const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
