@@ -45,3 +45,5 @@ next-env.d.ts
 /src/generated/prisma
 .graymatter
 /project-dashboard
+deverr.txt
+devlog.txt
