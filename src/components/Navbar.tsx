@@ -181,13 +181,13 @@ export default function Navbar({ user }: NavbarProps) {
 
       {/* TopNavBar */}
       <nav
-        className={`flex justify-between items-center w-full px-4 md:px-8 z-50 fixed border-none transition-all duration-300 ${isScrolled
+        className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-w-0 w-full px-4 md:px-8 z-50 fixed border-none transition-all duration-300 ${isScrolled
           ? "top-0 bg-[#001a42]/92 backdrop-blur-md py-3 shadow-[0_8px_24px_rgba(0,24,61,0.25)]"
           : "top-[32px] sm:top-[32px] bg-[#002155] py-4 shadow-md"
           }`}
       >
         {/* LEFT SIDE: CoE Logo and Brand Name */}
-        <div className="flex items-center gap-4 md:gap-5 z-50">
+        <div className="flex shrink-0 min-w-0 items-center gap-3 md:gap-5 z-50">
           <Link
             href="/"
             className="shrink-0 flex items-center justify-center group"
@@ -204,19 +204,19 @@ export default function Navbar({ user }: NavbarProps) {
 
           <Link
             href="/"
-            className="text-lg md:text-xl font-bold text-white tracking-tighter uppercase flex flex-col leading-tight cursor-pointer"
+            className="shrink-0 text-lg md:text-xl font-bold text-white tracking-tighter uppercase flex flex-col leading-tight cursor-pointer"
           >
-            <span className="font-multiple ">TCET CENTRE OF EXCELLENCE</span>
-            <span className="text-[8px] md:text-[10px] tracking-[0.2em] font-label opacity-90 hidden sm:block">
+            <span className="font-multiple whitespace-nowrap">TCET CENTRE OF EXCELLENCE</span>
+            <span className="text-[8px] md:text-[10px] tracking-[0.2em] font-label opacity-90 hidden sm:block whitespace-nowrap">
               For Research Culture & Development
             </span>
           </Link>
         </div>
 
         {/* RIGHT SIDE: Desktop Links + TCET Logo + Mobile Toggle */}
-        <div className="flex items-center gap-6 z-50">
+        <div className="flex min-w-0 items-center justify-end gap-2 md:gap-4 2xl:gap-6 z-50">
           {/* Desktop Links */}
-          <div className="hidden lg:flex items-center gap-5">
+          <div className="hidden min-[1270px]:flex items-center justify-end whitespace-nowrap gap-3 2xl:gap-5">
             {primaryLinks.map((link) => (
               <Link
                 key={link.label}
@@ -308,7 +308,7 @@ export default function Navbar({ user }: NavbarProps) {
                   className="flex items-center gap-2 border border-white/30 px-2 py-1 text-white hover:bg-white/10"
                 >
                   <span className="material-symbols-outlined text-lg">account_circle</span>
-                  <span className="max-w-[120px] truncate text-[10px] font-bold uppercase tracking-wider">
+                  <span className="max-w-[90px] min-[1270px]:max-w-[120px] truncate text-[10px] font-bold uppercase tracking-wider">
                     {user?.name || "Account"}
                   </span>
                   {user?.isImpersonating ? (
@@ -450,7 +450,7 @@ export default function Navbar({ user }: NavbarProps) {
 
           {/* Mobile Toggle Button */}
           <button
-            className="lg:hidden text-white p-2 hover:bg-[#003580] rounded transition-colors"
+            className="min-[1270px]:hidden text-white p-2 hover:bg-[#003580] rounded transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <span className="material-symbols-outlined text-2xl">
@@ -461,7 +461,7 @@ export default function Navbar({ user }: NavbarProps) {
       </nav>
       {/* Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 bg-[#002155] z-40 lg:hidden flex flex-col pt-24 px-6 transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed inset-0 bg-[#002155] z-40 min-[1270px]:hidden flex flex-col pt-24 px-6 transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
           }`}
       >
         <div className="relative mb-8 w-full block md:hidden"></div>
