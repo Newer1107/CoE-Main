@@ -107,14 +107,20 @@ New `src/app/hackathons/HackathonsNav.tsx` (client, receives verified user):
 - Root "Hackathons" link active only on the exact landing route (was always active).
 
 ### One hub instead of three pages
-New `/hackathons/portal` (server page + `PortalClient.tsx`) — a single Monitor
-surface where a signed-in student gets everything: profile strip (name, email,
-UID, role, initials block), stat strip, registrations with status pills, recent
-results with scores, tickets rail (QR download), certificates rail, and
-recommended events (reusing the status-variant EventCard grid). Logged-out →
-307 to `/login?next=/hackathons/portal`. Old `/hackathons/dashboard`,
-`/hackathons/my`, `/hackathons/portfolio` redirect clients into the portal;
-landing + event detail links point at the portal.
+> ⚠️ **Not shipped as described.** The `/hackathons/portal` consolidation in this
+> section was **not implemented** (or was reverted): there is no
+> `src/app/hackathons/portal/` directory, and `/hackathons/dashboard`,
+> `/hackathons/my`, `/hackathons/portfolio` remain **standalone pages** (each
+> with its own `page.tsx`, no redirects into a portal). Current student
+> surfaces: `/hackathons/dashboard` (stat cards, registrations, deadlines,
+> certificates, results, recommendations), `/hackathons/my` (registrations +
+> ticket downloads), `/hackathons/portfolio` (awards, certificates, attendance).
+
+A single Monitor surface was planned where a signed-in student gets everything:
+profile strip, stat strip, registrations with status pills, recent results,
+tickets rail (QR download), certificates rail, and recommended events. The
+decluttered landing/sub-nav/description-link changes below **did** ship;
+the portal consolidation did not.
 
 ### Declutter pass (feedback round 2)
 - **Sub-nav polished** — replaced the mono micro-labels with the app's editorial

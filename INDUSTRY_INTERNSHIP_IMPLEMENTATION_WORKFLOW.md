@@ -41,6 +41,7 @@ Added/extended:
 - `ProblemType`
   - `OPEN`
   - `INTERNSHIP`
+  - `FACULTY_INTERNSHIP` (added later — a separate faculty-internship flow, see `/faculty-internship` and `src/app/api/innovation/faculty-internship*` routes; not covered in this document)
 - `ProblemApprovalStatus`
   - `PENDING_APPROVAL`
   - `APPROVED`
@@ -48,6 +49,9 @@ Added/extended:
 - `Problem` model fields:
   - `problemType`
   - `approvalStatus`
+- `User`/`Problem` fields added by the later industry entity migration (`20260414193000_add_industry_entity_and_shared_ownership`):
+  - `User.industryId` / `Industry` entity
+  - `Problem.industryId`, `departmentId`, `difficulty`, `sdgTags`, `notificationSent`
 - DB indexes:
   - `problems_problemType_idx`
   - `problems_approvalStatus_idx`

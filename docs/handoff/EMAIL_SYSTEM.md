@@ -188,73 +188,61 @@ const wrap = (body: string) => `
 
 ### All Email Template Functions
 
+All templates live in `src/lib/mailer.ts`. Every function wraps its HTML in the shared `wrap()` layout and dispatches through `dispatchEmail()` with a fixed category:
+
 | Function | Category | Trigger |
 |----------|----------|---------|
-| `sendOTPEmail(email, otp)` | OTP | Registration OTP |
-| `sendPasswordResetOTPEmail(email, otp)` | PASSWORD_RESET | Forgot password |
-| `sendBookingConfirmationEmail(email, details)` | BOOKING_CONFIRMED | Booking confirmed |
-| `sendBookingRejectionEmail(email, details, reason)` | BOOKING_REJECTED | Booking rejected |
-| `sendBookingReminderEmail(email, details)` | BOOKING_REMINDER | 30-min reminder |
-| `sendFacultyPendingNotification(adminEmail, details)` | FACULTY_PENDING | Faculty registered |
-| `sendTicketIssuedEmail(email, details)` | TICKET_ISSUED | Ticket generated |
-| `sendHackathonResultEmail(email, details)` | HACKATHON_RESULT | Hackathon closed |
-| `sendApplicationDecisionEmail(email, details)` | APPLICATION_DECISION | Application reviewed |
-| `sendTeamTicketEmail(leaderEmail, details)` | TEAM_TICKET | Team shortlisted |
+| `sendOTPEmail(email, otp)` | `AUTH_OTP` | Registration OTP |
+| `sendPasswordResetOTPEmail(email, otp)` | `AUTH_PASSWORD_RESET_OTP` | Forgot password |
+| `sendBookingConfirmationEmail(email, details)` | `BOOKING_CONFIRMED` | Booking confirmed |
+| `sendBookingRejectionEmail(email, details, reason)` | `BOOKING_REJECTED` | Booking rejected |
+| `sendBookingReminderEmail(email, details)` | `BOOKING_REMINDER` | 30-min reminder |
+| `sendFacultyPendingNotification(adminEmail, details)` | `FACULTY_PENDING` | Faculty registered |
+| `sendFacultyApprovalEmail(email, name)` | `FACULTY_APPROVED` | Faculty approved |
+| `sendFacultyRejectionEmail(email, name)` | `FACULTY_REJECTED` | Faculty rejected |
+| `sendInnovationProblemClaimedEmail(email, details)` | `INNOVATION_PROBLEM_CLAIMED` | Problem claimed |
+| `sendInnovationClaimReviewEmail(email, details)` | `INNOVATION_CLAIM_REVIEW` | Claim reviewed |
+| `sendInnovationScreeningResultEmail(email, details)` | `HACKATHON_SCREENING_RESULT` | PPT screening result (SHORTLISTED/REJECTED) |
+| `sendInnovationRubricScoreEmail(email, details)` | `HACKATHON_JUDGING_RESULT` | Judging rubric scores |
+| `sendInnovationEventReminderEmail(email, details)` | `HACKATHON_EVENT_REMINDER` | Event ending reminder |
+| `sendInnovationEventActiveEmail(email, details)` | `HACKATHON_EVENT_ACTIVE` | Event activated |
+| `sendInnovationEventUpcomingBroadcastEmail(email, details)` | `HACKATHON_EVENT_UPCOMING_ALL` | Upcoming-event broadcast to all students |
+| `sendInnovationEventJudgingEmail` | `HACKATHON_EVENT_ACTIVE` | Alias of `sendInnovationEventActiveEmail` |
+| `sendInnovationWinnerEmail(email, details)` | `HACKATHON_WINNER` | Winner announcement |
+| `sendInnovationEventClosedScoreEmail(email, details)` | `HACKATHON_EVENT_CLOSED_RESULT` | Final scores after event closes |
+| `sendApplicationSelectionEmail(email, details)` | `APPLICATION_SELECTED` | Application selected |
+| `sendApplicationRejectionEmail(email, details)` | `APPLICATION_REJECTED` | Application rejected |
+| `sendNewProblemStatementEmail(email, details)` | `PROBLEM_STATEMENT_NOTIFICATION` | New problem statement |
+| `sendHostingRequestSubmittedEmail(email, details)` | `HOSTING_REQUEST_SUBMITTED` | Hosting request submitted |
+| `sendHostingRequestApprovedEmail(email, details)` | `HOSTING_REQUEST_APPROVED` | Hosting request approved |
+| `sendHostingRequestRejectedEmail(email, details)` | `HOSTING_REQUEST_REJECTED` | Hosting request rejected |
+| `sendHostingRequestChangesRequestedEmail(email, details)` | `HOSTING_REQUEST_CHANGES` | Hosting request changes requested |
+| `sendTicketIssuedEmail(email, details)` | `TICKET_ISSUED` | Ticket generated (with PDF attachment) |
+
+> There is **no** `sendHackathonResultEmail`, `sendApplicationDecisionEmail`, or `sendTeamTicketEmail` — those names were retired. Use the functions above.
 
 ## Cron Worker
 
 **File: `src/app/api/cron/email-queue/route.ts`**
 
+The worker delegates the actual draining to **`processEmailQueue(limit = 50)`** in `src/lib/email-delivery.ts`:
+
 ```typescript
+import { processEmailQueue } from '@/lib/email-delivery';
+
 export async function GET(req: NextRequest) {
-  // Protected by CRON_SECRET
+  // Protected by CRON_SECRET or ADMIN auth (see CRON_JOBS.md)
 
   // 1. Claim pending jobs (mark as PROCESSING)
-  const jobs = await prisma.emailJob.findMany({
-    where: {
-      OR: [
-        { status: 'PENDING', nextAttemptAt: null },
-        { status: 'RETRY', nextAttemptAt: { lte: new Date() } },
-      ],
-      AND: [
-        { OR: [{ lockedAt: null }, { lockedAt: { lt: fiveMinAgo } }] },
-      ],
-    },
-    orderBy: { priority: 'desc' },
-    take: 50,
-  });
-
   // 2. Send each via SMTP
-  for (const job of jobs) {
-    try {
-      await sendEmail({ to: job.toEmail, subject: job.subject, html: job.htmlBody });
-      await prisma.emailJob.update({
-        where: { id: job.id },
-        data: { status: 'SENT', sentAt: new Date(), attempts: job.attempts + 1 },
-      });
-    } catch (err) {
-      if (job.attempts >= job.maxAttempts) {
-        await prisma.emailJob.update({
-          where: { id: job.id },
-          data: { status: 'FAILED', lastError: String(err) },
-        });
-      } else {
-        await prisma.emailJob.update({
-          where: { id: job.id },
-          data: {
-            status: 'RETRY',
-            attempts: job.attempts + 1,
-            lastError: String(err),
-            nextAttemptAt: calculateNextRetry(job.attempts + 1),
-          },
-        });
-      }
-    }
-  }
-
-  // 3. Release locks
+  // 3. Success → SENT, failure → RETRY (or FAILED past maxAttempts)
+  // 4. Release locks
+  const processed = await processEmailQueue(50);
+  return successRes({ processed });
 }
 ```
+
+`processEmailQueue()` claims up to 50 `PENDING` (due) or `RETRY` (due) jobs that are not locked (or whose lock is older than 5 minutes), sends each via SMTP, and updates status/attempts/`nextAttemptAt` (exponential backoff). `getEmailQueueSnapshot()` powers the admin email dashboard.
 
 ## Admin Email Broadcast
 
@@ -268,13 +256,25 @@ Admins can send broadcast emails through the admin panel:
 
 ## Email Categories (for filtering/admin)
 
+Categories are assigned per template in `mailer.ts` and stored on `EmailJob.category`:
+
 ```
-OTP, PASSWORD_RESET, BOOKING_CONFIRMED, BOOKING_REJECTED,
-BOOKING_REMINDER, BOOKING_TICKET_ISSUED, ADMIN_BOOKING_REQUEST,
-FACULTY_PENDING, HACKATHON_RESULT, HACKATHON_ACTIVE,
-HACKATHON_SCREENING, HACKATHON_JUDGING, APPLICATION_DECISION,
-TICKET_ISSUED, TEAM_TICKET, BROADCAST
+AUTH_OTP, AUTH_PASSWORD_RESET_OTP,
+BOOKING_CONFIRMED, BOOKING_REJECTED, BOOKING_REMINDER,
+FACULTY_PENDING, FACULTY_APPROVED, FACULTY_REJECTED,
+INNOVATION_PROBLEM_CLAIMED, INNOVATION_CLAIM_REVIEW,
+HACKATHON_SCREENING_RESULT, HACKATHON_JUDGING_RESULT,
+HACKATHON_EVENT_REMINDER, HACKATHON_EVENT_ACTIVE,
+HACKATHON_EVENT_UPCOMING_ALL, HACKATHON_WINNER,
+HACKATHON_EVENT_CLOSED_RESULT,
+APPLICATION_SELECTED, APPLICATION_REJECTED,
+PROBLEM_STATEMENT_NOTIFICATION,
+HOSTING_REQUEST_SUBMITTED, HOSTING_REQUEST_APPROVED,
+HOSTING_REQUEST_REJECTED, HOSTING_REQUEST_CHANGES,
+TICKET_ISSUED
 ```
+
+(`ADMIN_BOOKING_REQUEST` is also used — it is dispatched inline from `POST /api/bookings` to notify admins of new booking requests.)
 
 ## Common Bugs
 

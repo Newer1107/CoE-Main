@@ -1,8 +1,10 @@
 # Project Dashboard
 
+> **⚠️ EXTERNAL APPLICATION**: The Project Dashboard lives in `project-dashboard/`, which is **gitignored and not part of this repository's source tree**. Everything below documents the integration contract and the app as it historically existed for context; it is not verifiable against this repo's code. The live source of truth is the dashboard's own repository.
+
 ## Overview
 
-The Project Dashboard is a **separate Next.js application** within this repository that handles academic project management. It shares authentication with the CoE Portal through a cross-domain JWT cookie.
+The Project Dashboard is a **separate Next.js application** that handles academic project management. It shares authentication with the CoE Portal through a cross-domain JWT cookie.
 
 ## Why This Module Exists
 
@@ -16,7 +18,7 @@ They are separate applications because:
 
 ## Location
 
-All dashboard code is in `project-dashboard/` directory.
+All dashboard code lives in the external `project-dashboard/` directory (gitignored here — the CoE portal only integrates with it over HTTP via `src/lib/dashboard-sync.ts` and the shared cookie).
 
 ## Real-World Analogy
 
@@ -183,7 +185,9 @@ Admin can upload a CSV file with `email` and `projectName` columns to bulk-assig
 - `/majorprojects` — Browse major projects
 - `/rblprojects-te` — Browse TE RBL projects
 
-## Dashboard API Routes
+## API Endpoints
+
+> These live in the **external** dashboard app, not in this repo.
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -197,6 +201,8 @@ Admin can upload a CSV file with `email` and `projectName` columns to bulk-assig
 | `POST /api/webhooks/chatwoot` | Chatwoot integration |
 
 ## Environment Variables
+
+> Dashboard-side variables (external app). The CoE-side contract is `DASHBOARD_URL` + `SYNC_SECRET` in the portal's `.env`.
 
 ```env
 COE_JWT_SECRET="<must-match-JWT_ACCESS_SECRET-from-CoE>"

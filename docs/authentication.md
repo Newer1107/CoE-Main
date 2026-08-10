@@ -56,8 +56,9 @@ All three tokens are **stored in httpOnly cookies**, not in `localStorage` or `s
 |--------|-----------------|
 | Email/Password + OTP | STUDENT, FACULTY |
 | Google Sign-In (via `@tcetmumbai.in`) | STUDENT (registration), FACULTY/ADMIN (account linking only) |
-| Admin seed (dev only) | ADMIN (created via `POST /api/seed`) |
-| Dev bypass (dev only) | Any role via query param or cookie |
+| Admin seed (dev only) | ADMIN (created via `POST /api/seed` from `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars) |
+
+> Note: an older "dev bypass" (`dev_auth_role` cookie / query-param role override) existed in earlier versions but has been removed — `authenticate()` in `src/lib/api-helpers.ts` only accepts a Bearer header or the `accessToken` cookie.
 
 ### The Three-Application Architecture
 
@@ -235,7 +236,7 @@ const hashedPassword = await bcrypt.hash(password, 12);
 - Uses **bcryptjs** library
 - Salt rounds: **12** (deliberately slow — makes brute-force attacks expensive)
 - Password comparison uses `bcrypt.compare()`
-- Google-registered users get a **60-character random hex string** as password (never used for login)
+- Google-registered users get a **64-character random hex string** (`crypto.randomBytes(32).toString('hex')`) as password (never used for login)
 
 ### 2.6 Database Tables Involved
 
@@ -668,7 +669,6 @@ COOKIE_SECURE="true"                   # Set true in production (HTTPS)
 | 2 | `refreshToken` | JWT | Gets a new access token without re-login |
 | 3 | `coe_shared_token` | JWT | Cross-subdomain SSO for the Project Dashboard |
 | 4 | `pending_reg` | JWT | Holds pending Google registration info (15 min TTL) |
-| 5 | `dev_auth_role` | String | Development-only — bypasses auth in dev mode |
 
 ### Cookie 1: `accessToken`
 
@@ -729,21 +729,6 @@ COOKIE_SECURE="true"                   # Set true in production (HTTPS)
 | **path** | `/` |
 | **When created** | During Google OAuth when user is new (needs to complete form) |
 | **When deleted** | After successful Google registration, or expiry |
-
-### Cookie 5: `dev_auth_role`
-
-| Property | Value |
-|----------|-------|
-| **Purpose** | Development-only — persist selected dev role across requests |
-| **Value** | Plain string: `ADMIN`, `TEACHER`, `STUDENT`, `HOD`, or `PRINCIPAL` |
-| **Lifetime** | 7 days |
-| **httpOnly** | Not set (readable by JS) |
-| **secure** | Not set |
-| **sameSite** | Not set |
-| **domain** | Not set |
-| **path** | `/` |
-| **When created** | Dev mode: middleware reads role param and persists it |
-| **When deleted** | Never (manual dev action) |
 
 ---
 
@@ -1024,6 +1009,10 @@ FRONTEND
 ```
 │  Step 7 (alternate): userByEmail found but no googleId
 │  Return { action: 'link_prompt', email, name, role }
+│
+│  Edge case: userByEmail found AND it already has a googleId that did not
+│  match this token's `sub` → 409 GOOGLE_ALREADY_LINKED ("already linked to
+│  a different user")
 │
 ▼
 FRONTEND
@@ -1438,7 +1427,7 @@ model User {
 }
 ```
 
-**Otp model** (line 627):
+**Otp model** (line 666):
 ```prisma
 model Otp {
   id        Int      @id @default(autoincrement())
@@ -1448,7 +1437,7 @@ model Otp {
 }
 ```
 
-**ImpersonationSession model** (line 760):
+**ImpersonationSession model** (line 799):
 ```prisma
 model ImpersonationSession {
   id              String              @id @default(uuid())

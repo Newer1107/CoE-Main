@@ -1,3 +1,25 @@
+> ## ⚠️ ARCHIVED — superseded by the implemented feature
+>
+> This document is the **pre-implementation specification** for cross-portal
+> admin impersonation. The feature is **fully implemented and live** in this
+> repository. This file is kept for historical reference only — do **not**
+> follow it as a work order.
+>
+> **Current implementation (source of truth):**
+> - Schema: `ImpersonationSession` model + `ImpersonationStatus` enum in
+>   `prisma/schema.prisma` (migrations `20260706070845_add_impersonation_sessions`,
+>   `20260706070924_add_impersonation_session_active_unique`)
+> - Token strategy: `isImpersonating` + `impersonation.sessionId` claims on all
+>   three tokens (`src/lib/jwt.ts` — `buildImpersonationAccessTokenPayload`,
+>   `src/lib/shared-auth.ts` — `buildSharedTokenPayload`)
+> - API routes: `src/app/api/admin/impersonate/{start,stop,sessions,search,session-info}/route.ts`
+> - UI: `src/components/ImpersonationBanner.tsx` (fixed amber banner, "Stop
+>   impersonating" → returns to `/admin`); admin panel
+>   (`src/app/admin/AdminPanelClient.tsx`) has the impersonate/search UI
+> - Auth restrictions: ADMIN only, cannot impersonate self or
+>   `INDUSTRY_PARTNER`, target must be ACTIVE, no nested impersonation;
+>   refresh/logout handle session restoration (`src/app/api/auth/refresh/route.ts`)
+
 # Cross-Portal Admin User Impersonation — Implementation Specification (Frozen)
 
 > **Status:** Implementation Specification — **Frozen. Do not redesign, simplify, or modify architecture.**

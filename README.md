@@ -16,6 +16,10 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 - hardened participation flow: atomic team registration (no double-booking), 20MB upload limits, deadline-locked submissions, close guard against unjudged claims, no PII on public leaderboards
 - faculty application review notifications (selected/rejected email)
 - email notifications and cron-driven reminders (active-phase broadcast, stage decisions, closed-event score/rank updates)
+- QR-code ticketing beyond hackathons: facility bookings also receive PDF + QR tickets (`BKG-` prefix); tickets support verification, cancellation, and per-member attendance check-in
+- learning hub (`/hackathons/learn`) with admin-managed resources via `/admin/hackathons-content`
+- innovation programs (long-running tracks with student interest capture) and project hosting requests with an admin approval workflow
+- admin impersonation with full audit trail (session list/info, start/stop) and a custom branded 404 page
 - MinIO-backed object storage with browser-safe proxying
 - Google Analytics 4 instrumentation for auth, booking, innovation, and homepage engagement events
 
@@ -39,11 +43,12 @@ Production-oriented Next.js App Router portal for TCET CoE with:
 
 ## 1) System Overview
 
-The portal serves three authenticated personas plus public visitors:
-- Students: register (email/password or Google), verify OTP, login, book facilities, participate in innovation
-- Faculty: manage content, create and review innovation/hackathon workflows
-- Admin: operational moderation, analytics, and platform governance
-- Public: browse homepage content and innovation landing/event pages
+The portal serves four authenticated personas plus public visitors:
+- Students: register (email/password or Google), verify OTP, login, book facilities, participate in innovation and hackathons
+- Faculty: manage content, create and review innovation/hackathon workflows, faculty profiles and internships
+- Admin: operational moderation, analytics, platform governance, impersonation
+- Industry partners: invited accounts with internship dashboards, decisions, and shared workspaces
+- Public: browse homepage content, hackathon vertical, and innovation landing/event pages
 
 Major capability groups:
 - Public content feed: news, grants, events, announcements, hero slides
@@ -226,13 +231,19 @@ graph LR
 | Manage open problem status (`OPENED`/`CLOSED`/`ARCHIVED`) | No | No | Yes (own problems) | Yes |
 | Moderate faculty users | No | No | No | Yes |
 | Moderate bookings and view admin stats | No | No | No | Yes |
+| View/download hackathon certificates | No | Yes | No | Yes |
+| Download/verify QR tickets | No | Yes | No | Yes |
+| Access portal hub (`/hackathons/portal`) | No | Yes | No | No |
+| Browse learning hub (`/hackathons/learn`) | Yes | Yes | Yes | Yes |
+| Request project hosting | No | Yes | No | No |
+| Admin impersonation (with audit trail) | No | No | No | Yes |
 
 ## 3) Technical Stack
 
-- Framework: Next.js 16.2.1 (App Router)
+- Framework: Next.js 16.2.1 (App Router, `src/` directory)
 - Runtime: Node.js
 - Language: TypeScript
-- UI: React 19 + Tailwind CSS v4
+- UI: React 19 (19.2.4) + Tailwind CSS v4
 - Analytics: Google Analytics 4 via `@next/third-parties`
 - Database: MySQL + Prisma ORM
 - Auth: JWT access/refresh in httpOnly cookies, Google OAuth 2.0 via `google-auth-library`
@@ -240,6 +251,8 @@ graph LR
 - Validation: Zod
 - Email: Nodemailer (SMTP) with durable DB-backed queue (`email_jobs`) and explicit job logging for direct attachment sends
 - Storage: MinIO (S3-compatible)
+- PDF/QR: `pdf-lib` (certificates, tickets) + `qrcode` (generate) and `jsqr` (scan)
+- Rate limiting: `express-rate-limit` on auth endpoints
 - Scheduled jobs: cron-triggered route handlers + email queue worker
 - Startup: `instrumentation.ts` for server-level initialization (IPv4 DNS fix)
 
@@ -585,6 +598,12 @@ graph TD
   profile_mgmt["GET /<br/>POST /<br/>PATCH /"]
   profile_check["GET /check-completion"]
 
+  ticket["🎫 /tickets"]
+  ticket_ops["GET /my<br/>GET /[ticketId]/download<br/>PATCH /[ticketId]/cancel<br/>POST /verify"]
+
+  cert["📜 /innovation/certificates"]
+  cert_ops["GET /my<br/>GET+POST /admin/certificates"]
+
   util["⚙️ Utilities"]
   util_store["GET /storage/:path"]
   util_health["GET /health"]
@@ -623,6 +642,11 @@ graph TD
 
   profile --> profile_mgmt
   profile --> profile_check
+
+  root --> ticket
+  ticket --> ticket_ops
+  root --> cert
+  cert --> cert_ops
 
   util --> util_store
   util --> util_health
@@ -733,23 +757,30 @@ stateDiagram-v2
 ## 5) Data Model
 
 Primary entities:
-- `User` (role/status/verification, `googleId` for Google OAuth mapping)
-- `Otp` (verification/reset OTP)
+- `User` (role/status/verification, `googleId` for Google OAuth mapping; roles: `ADMIN`, `FACULTY`, `STUDENT`, `INDUSTRY_PARTNER`)
+- `Otp` (DB-backed verification/reset OTP, 10-minute TTL)
 - `Booking`
 - `NewsPost`
 - `Grant`
 - `Event`
 - `Announcement`
 - `HeroSlide`
-- `HackathonEvent`
-- `Problem`
-- `Claim`
-- `ClaimMember`
-- `StudentProfile`
+- `HackathonEvent` (status: `UPCOMING`/`ACTIVE`/`JUDGING`/`CLOSED`; JSON `config` for per-type defaults incl. `certificates.issueOnAccept` and leaderboard visibility)
+- `Certificate` (type `ACHIEVEMENT`/`PARTICIPATION`, unique `serial`, `nameOverride`, MinIO `fileKey`)
+- `Ticket`, `TicketAttendance` (facility booking + hackathon selection QR tickets)
+- `Problem` (`problemType`: `OPEN`/`INTERNSHIP`/`FACULTY_INTERNSHIP`; `approvalStatus` for internship statements)
+- `Claim`, `ClaimMember`, `SessionDocument`, `HackathonSessionUploadLock`
+- `StudentProfile`, `FacultyProfile`
 - `ProblemQuestion`
-- `Application`
-- `ApplicationAnswer`
+- `Application`, `ApplicationAnswer`
+- `HackathonInterest`, `InnovationProgram`, `ProgramInterest`
+- `Opportunity`, `OpportunityInterest` (external hackathon/opportunity board)
 - `InternshipTask`, `InternshipMessage`, `InternshipMeeting`, `InternshipDocument` (problem-scoped internship workspaces)
+- `HostingRequest`, `HostingRequestStatusHistory` (project hosting requests)
+- `LearningResource` (learning hub)
+- `Notification`, `ImpersonationSession` (admin audit trail)
+- `RubricCategory`, `RubricScore` (rubric-driven hackathon judging)
+- `Industry`, `Department`, `SiteSetting`
 - `EmailJob`
 
 Key innovation enums and lifecycle:
@@ -776,9 +807,18 @@ Open-problem application fields persisted on `Application`:
 - custom responses via `ApplicationAnswer`
 
 Internship workspaces:
-- Internships are modeled as `Problem` rows with `problemType = INTERNSHIP`.
+- Internships are modeled as `Problem` rows with `problemType = INTERNSHIP` (or `FACULTY_INTERNSHIP` for faculty internships).
+- Internship problem statements carry a required support PDF and an `approvalStatus` (`PENDING_APPROVAL`/`APPROVED`/`REJECTED`); pending items are visible only on admin/industry dashboards until approved.
 - Selected participants are derived from `Application` with `status = SELECTED`.
 - Workspace collaboration data (tasks/messages/meetings/documents) references the internship `Problem` directly.
+
+Tickets:
+- `Ticket.ticketId` is a unique code like `HKT-YYYYMMDD-<hex>` (hackathon selection) or `BKG-YYYYMMDD-<hex>` (facility booking); `type` is `HACKATHON_SELECTION` or `FACILITY_BOOKING`, `status` is `ACTIVE`/`USED`/`CANCELLED`.
+- Ticket PDF + QR code are generated at issuance (MinIO `pdfObjectKey`); members check in via ticket verification, and `syncHackathonTicketUsageStatus` flips `ACTIVE -> USED` once all members are present.
+
+Certificates:
+- `Certificate` rows are issued when an event closes (or on demand by admins): `ACHIEVEMENT` for members of the top-3 teams by `finalScore` (respecting the event config `certificates.issueOnAccept`), `PARTICIPATION` for other members with at least one `PRESENT` attendance row.
+- PDFs are rendered with `pdf-lib` and stored in MinIO; admins can reissue and override the displayed name (`nameOverride`). `scripts/backfill-certificates.ts` backfills certificates for past events.
 
 ### 5.1 Principal Data Entities Flow Diagram
 
@@ -838,36 +878,49 @@ graph TD
   end
 ```
 
-Open-problem application fields persisted on `Application`:
+## 6) App Routes and UX Flows
 
 Public/common pages:
 - `/`
 - `/about`
 - `/laboratory`
+- `/privacy-policy`
+- `/hackathons` (innovation & competitions landing)
+- `/hackathons/browse`, `/hackathons/external`, `/hackathons/learn` (public vertical)
+- `/hackathons/[id]` (event detail)
 - `/innovation`
-- `/innovation/events/[id]`
-- `/register/complete` (Google registration completion)
+- `/innovation/events`, `/innovation/events/[id]`
+- `/register`, `/register/complete` (Google registration completion)
+- `/not-found` (custom branded 404)
 
 Auth pages:
 - `/login`
 - `/forgot-password`
 
-Protected pages:
-- `/facility-booking` (student)
-- `/faculty` (faculty/admin)
-- `/admin` (admin)
-- `/admin?tab=innovation` (admin hackathon control center)
-- `/innovation/problems` (student/faculty/admin)
-- `/innovation/profile` (student)
-- `/innovation/my-applications` (student)
-- `/innovation/my-submissions` (student)
-- `/innovation/faculty` (faculty/admin)
-- `/innovation/faculty/problems/create` (faculty/admin)
-- `/innovation/faculty/applications` (faculty/admin)
+Student pages:
+- `/facility-booking`
+- `/hackathons/portal` (portal hub: profile, registrations, tickets, certificates, results)
+- `/hackathons/my`, `/hackathons/portfolio`, `/hackathons/dashboard`
+- `/innovation/problems`, `/innovation/profile`, `/innovation/my-applications`, `/innovation/my-submissions`
+- `/innovation/programs`, `/innovation/programs/[id]`
+- `/industry-internship`, `/student-internship/[id]`
+- `/project-hosting`
+- `/profile`
+
+Faculty pages:
+- `/faculty`, `/faculty/profile`
+- `/innovation/faculty`, `/innovation/faculty/problems/create`, `/innovation/faculty/applications`, `/innovation/faculty/applications/[id]`
+- `/faculty-internship`, `/faculty-internship/dashboard`, `/faculty-internship/decisions`, `/faculty-internship/[id]`
+
+Admin pages:
+- `/admin` (tabs: overview, bookings, faculty, tickets, content, emails, industry + innovation events/review/leaderboard/analytics/certificates)
+- `/admin/hackathons-config`, `/admin/hackathons-content`, `/admin/hosting-requests`
+- `/innovation/admin`, `/innovation/admin/programs`
+- `/industry-internship/dashboard`, `/industry-internship/decisions`, `/industry-internship/[id]`
 
 Navigation and access behavior:
-- Navbar is role-aware (faculty/admin links hidden from unauthorized users)
-- Admin account menu includes `Hackathon Control Center` shortcut to `/admin?tab=innovation`
+- Navbar is role-aware (faculty/admin links hidden from unauthorized users); the hackathon vertical lives under a **Programs** dropdown, with a custom 1270px desktop breakpoint (`min-[1270px]`)
+- Admin account menu includes a `Hackathon Control Center` shortcut to `/admin?tab=innovation`
 - Login supports `next` redirect for student return flow
 - Admin/faculty pages hard-redirect unauthorized users
 
@@ -1120,19 +1173,73 @@ Event stage controls and review:
     - `stage=SCREENING`: decision statuses `SHORTLISTED` or `REJECTED`
     - `stage=JUDGING`: decision statuses `ACCEPTED` or `REJECTED`, rubrics required, event cannot be `UPCOMING`, absent teams excluded
 
+### 7.5a Tickets
+
+- `GET /api/tickets/my` (authenticated)
+- `GET /api/tickets/[ticketId]/download` (authenticated) — ticket PDF download
+- `PATCH /api/tickets/[ticketId]/cancel` (owner/admin)
+- `POST /api/tickets/verify` (admin) — manual or camera QR verification; drives member attendance check-in
+
+### 7.5b Certificates
+
+- `GET /api/innovation/certificates/my` (student) — own certificates with PDF download links
+- `GET /api/innovation/admin/certificates` (admin) — list certificates (filter by event/type)
+- `POST /api/innovation/admin/certificates` (admin) — issue/reissue certificates for an event, incl. `nameOverride` corrections
+
+### 7.5c Learning Resources
+
+- `GET /api/learning-resources` (public) — browse learning hub resources
+- `POST /api/learning-resources` (admin) — create resource (title/category/type/url/fileKey; no upload endpoint yet)
+- `DELETE /api/learning-resources/[id]` (admin)
+
+### 7.5d Innovation Programs & Interest
+
+- `GET /api/innovation/programs` (public), `POST` (admin)
+- `GET /api/innovation/programs/[id]`, `PATCH` / `DELETE` (admin)
+- `GET/POST/DELETE /api/innovation/programs/[id]/interest` (student interest)
+- `POST/PATCH /api/innovation/interest` (student) — hackathon event interest
+- `GET /api/innovation/admin/interests` (admin)
+
+### 7.5e Internships & Workspaces
+
+- `GET /api/applications` (applications incl. internships), `POST /api/applications/accept-bulk` (bulk selection), `GET /api/applications/export` (CSV export)
+- `GET /api/internships`, `POST /api/internships/add-participant`
+- Workspace APIs: `GET/POST/PATCH /api/tasks`, `GET/POST /api/messages` (direct file attachments), `GET/POST /api/meetings`, `GET/POST /api/documents` (PDF/image inline previews), `POST /api/attendance`
+- Opportunities (external): `GET/POST /api/opportunities`, `GET /api/opportunities/my`, `POST/DELETE /api/opportunities/[id]/interest`
+- Faculty internships: `GET/POST /api/admin/industry-partners`, `PATCH/DELETE /api/admin/opportunities/[id]`, `PATCH /api/admin/faculty/[id]/hod` (HOD toggle)
+
+### 7.5f Project Hosting
+
+- `GET/POST /api/project-hosting` (student submits request)
+- `GET/PATCH /api/project-hosting/[id]` (admin review/decision)
+
+### 7.5g Admin Operations
+
+- `GET /api/admin/emails` (queue monitor), `GET/POST /api/admin/emails/send` (broadcast), `POST /api/admin/emails/retry`
+- `GET /api/admin/users/export` (CSV with year/branch filters), `GET /api/admin/users/[id]`
+- `GET/PATCH /api/admin/hackathons-config` (site-level platform config)
+- `GET /api/admin/hosting-requests`, `GET /api/admin/hosting-requests/[id]`, `PATCH /api/admin/hosting-requests/[id]/status`
+- Impersonation: `GET /api/admin/impersonate/search`, `POST /api/admin/impersonate/start`, `POST /api/admin/impersonate/stop`, `GET /api/admin/impersonate/sessions`, `GET /api/admin/impersonate/session-info`
+- `GET /api/faculty/profile`, `POST`/`PATCH` (faculty profiles), `GET /api/faculty/profile/check-completion`
+- `GET /api/profile/innovation-portfolio` (student portfolio aggregation)
+- `GET /api/hackathons/dashboard` (student hackathon dashboard aggregation)
+- `GET /api/internal/users/lookup`, `GET /api/innovation/users/lookup` (authenticated user lookup)
+
 ### 7.6 Utility and Ops APIs
 
 - `GET /api/storage/[...path]` (proxy stream for MinIO object access)
 - `GET /api/health`
-- `POST /api/seed`
+- `POST /api/seed` (seeds admin from env; optionally guarded by `SEED_SECRET` via `x-seed-secret` header or `?secret=`)
 - `GET /api/cron/reminder`
 - `GET /api/cron/innovation-reminder`
   - optional query params:
     - `mode=ALL|UPCOMING_ALL_STUDENTS|ACTIVATE_REGISTERED|ENDING_REMINDER`
     - `eventId=<hackathonEventId>`
   - default (`mode=ALL`) runs all innovation cron paths in one call
+- `GET /api/cron/email-queue` — drains pending/retry `EmailJob` rows
+- `GET /api/cron/problem-statement-notification` — emails creators of unnotified standalone open problems
 
-### 7.7 API Request/Response Flow & Error Handling
+### 7.8 API Request/Response Flow & Error Handling
 
 ```mermaid
 graph TD
@@ -1180,7 +1287,7 @@ graph TD
   LOGIC_ERROR --> RESP
 ```
 
-### 7.8 Service Module Interaction Diagram
+### 7.9 Service Module Interaction Diagram
 
 ```mermaid
 graph TB
@@ -1238,10 +1345,12 @@ graph TB
 
 ## 8) Environment Configuration
 
+> There is no `.env.example` in the repository — the committed template is `.env.docker.example`. For local development, copy it to `.env` and fill in real values (`cp .env.docker.example .env`). The production `.env` lives on the server and is never committed.
+
 Required variables:
 
 ```bash
-DATABASE_URL="mysql://user:password@localhost:3306/coe_main"
+DATABASE_URL="mysql://user:***@localhost:3306/coe_main"
 JWT_ACCESS_SECRET="change-me-access"
 JWT_REFRESH_SECRET="change-me-refresh"
 
@@ -1260,6 +1369,8 @@ EMAIL_MAX_ATTEMPTS="5"
 EMAIL_PRIORITY_IMMEDIATE="100"
 EMAIL_PRIORITY_BULK="20"
 COOKIE_SECURE="false"
+
+PRINCIPAL_EMAILS="principal@tcetmumbai.in"   # comma-separated; shown with a "Principal" badge in the navbar
 
 MINIO_ENDPOINT="localhost"
 MINIO_PORT=9000
@@ -1288,6 +1399,10 @@ Optional variables:
 - `FRONTEND_URL`
 - `MINIO_USE_PROXY=true|false`
 - `COOKIE_SECURE=true|false` (set `false` for HTTP development, `true` for HTTPS production)
+- `JWT_ACCESS_TTL_SECONDS` / `JWT_REFRESH_TTL_SECONDS` (defaults: 8h access, 7d refresh)
+- `SEED_SECRET` (when set, `/api/seed` requires `x-seed-secret` header or `?secret=`)
+- `DASHBOARD_URL` / `SYNC_SECRET` (external dashboard sync used by `src/lib/dashboard-sync.ts`)
+- `PORT` (server listen port)
 
 ### Google Sign-In Variables
 
@@ -1313,6 +1428,17 @@ npm install
 npm run db:migrate:status
 npm run db:migrate
 npm run dev
+```
+
+Other npm scripts:
+
+```bash
+npm run db:migrate:create -- --name <change>   # create a forward-only migration (no reset)
+npm run db:generate                            # regenerate the Prisma client
+npm run certificates:backfill                  # backfill certificates for past hackathon events (npx tsx --env-file=.env scripts/backfill-certificates.ts)
+npm run lint                                   # ESLint
+npm run build                                  # production build (runs `next typegen` via prebuild)
+npm start                                      # start the production server
 ```
 
 No-reset migration workflow (recommended):
@@ -1377,7 +1503,7 @@ Quick validation in GA DebugView:
 graph TB
   subgraph "Client Tier"
     BROWSER["🌐 Web Browser<br/>Desktop/Mobile"]
-    DNS["🔗 DNS Resolution<br/>domain.com"]
+    DNS["🔗 DNS Resolution<br/>coe.raunakcodes.me"]
   end
 
   subgraph "CDN & Reverse Proxy"
@@ -1581,6 +1707,27 @@ Notes:
 - App startup runs `prisma migrate deploy` automatically when `RUN_MIGRATIONS=true`.
 - For external managed MySQL, remove/disable the `db` service in compose and set `DATABASE_URL` to external host.
 
+### 11.2 Production Deployment (GitHub Actions + PM2)
+
+Production deploys are driven by the **Deploy COE** GitHub Actions workflow (`.github/workflows/deploy-coe.yml`), which runs on the self-hosted runner `tcetcercd-main` whenever code is pushed to `main`. The workflow executes on the server (app directory `/home/tcetcercd/CoE-Main`):
+
+```bash
+git fetch origin
+git reset --hard origin/main
+npm install
+npx prisma migrate deploy
+npx prisma generate
+npm run build
+pm2 reload coe
+```
+
+Notes:
+- The workflow always resets the working tree to `origin/main` — never keep uncommitted changes on the server.
+- Migrations run automatically on every deploy (`npx prisma migrate deploy`), so schema changes ship with the code.
+- The app runs under PM2 as process `coe` (`next start`; `next.config.ts` uses `output: 'standalone'`), behind the reverse proxy at `coe.raunakcodes.me`.
+- The production `.env` lives on the server and is not committed; environment changes must be applied manually on the runner.
+- For past events missing certificates, run `npm run certificates:backfill` on the server after deploy.
+
 ## 12) Operational Runbook
 
 ### 12.0 Email Notification Flow Across Features
@@ -1710,6 +1857,14 @@ Innovation reminder job:
   - `GET /api/cron/innovation-reminder?mode=UPCOMING_ALL_STUDENTS&eventId=12`
   - `GET /api/cron/innovation-reminder?mode=ACTIVATE_REGISTERED&eventId=12`
 
+Email queue worker:
+- Endpoint: `GET /api/cron/email-queue`
+- Drains pending/retry `EmailJob` rows, respecting `EMAIL_MAX_ATTEMPTS`, `EMAIL_PRIORITY_IMMEDIATE`, and `EMAIL_PRIORITY_BULK`.
+
+Problem statement notification job:
+- Endpoint: `GET /api/cron/problem-statement-notification`
+- Emails the creators of standalone (non-hackathon) open problems that have not yet been notified.
+
 Operational health:
 - `GET /api/health`
 
@@ -1743,7 +1898,7 @@ graph TD
   AUTH_ISSUE["🔐 Authentication"]
   AUTH1["User can't login"]
   AUTH1 --> CHECK_PASS["Verify password<br/>and email"]
-  CHECK_PASS --> CHECK_OTP["Check OTP valid<br/>for 5 minutes"]
+  CHECK_PASS --> CHECK_OTP["Check OTP valid<br/>for 10 minutes"]
   CHECK_OTP --> CHECK_JWT["Verify JWT in<br/>browser cookies"]
   CHECK_JWT --> FIX_AUTH["❌ Token expired<br/>→ Refresh<br/>❌ Invalid<br/>→ Re-login"]
 
@@ -1821,7 +1976,7 @@ Google registration fails with `GOOGLE_REGISTRATION_EXPIRED`:
 - The `pending_reg` cookie expired (15 min TTL). User must start again from the login page.
 
 New Google user not appearing in dashboard:
-- Dashboard sync is fire-and-forget; run `npm run db:sync-users` as a manual backfill or verify `DASHBOARD_URL` and `SYNC_SECRET` are configured
+- Dashboard sync is fire-and-forget (runs automatically after login/registration via `src/lib/dashboard-sync.ts`); if a new user is missing, verify `DASHBOARD_URL` and `SYNC_SECRET` are configured on the server
 
 Mixed-content or broken media URLs:
 - Use `/api/storage/[...path]` proxy for non-SSL MinIO setups
@@ -1914,7 +2069,7 @@ graph TD
 
   AUTH_CHECK["Authentication Flows"]
   AUTH_CHECK1["Register student/faculty"]
-  AUTH_CHECK2["Verify OTP (5 min TTL)"]
+  AUTH_CHECK2["Verify OTP (10 min TTL)"]
   AUTH_CHECK3["Login & token in cookies"]
   AUTH_CHECK4["Forgot/reset password"]
   AUTH_CHECK5["Google Sign-In login"]
@@ -1995,10 +2150,10 @@ Before release:
 - Verify innovation two-stage flow:
   - registration/submission
   - screening sync and shortlist decision emails
-  - team ticket issuance to leader after shortlisting
-  - member attendance marking from team ticket
+  - team ticket issuance to leader after shortlisting (PDF download, QR verification, member check-in)
   - judging sync with rubric scoring for present teams
   - event close result emails with score/rank + leaderboard output
+  - certificate issuance on event close (ACHIEVEMENT top-3 / PARTICIPATION) and admin reissue/name-override
 - Verify open-problem application flow:
   - student profile completion gate before apply
   - application submission with dynamic problem questions
@@ -2049,10 +2204,29 @@ mindmap
         Judging Stage
         Rubric Scoring
         Leaderboard
+        QR Tickets (HKT-/BKG-)
+        Certificates (Achievement/Participation)
+        Portal Hub
+    🎫 Tickets & Certificates
+      PDF + QR Generation
+      Verification & Check-in
+      Certificate Issuance
+    📚 Learning Hub
+      Admin-Managed Resources
+    🎯 Innovation Programs
+      Interest Capture
+    🏢 Internships
+      Industry & Faculty Tracks
+      Shared Workspaces
+      Bulk Selection & CSV Export
+    🖥️ Project Hosting
+      Student Requests
+      Admin Approval
     👥 User Management
       Role-Based Access
       Faculty Approval
       User Statistics
+      Admin Impersonation (Audited)
     📊 Analytics
       Google Analytics 4
       Event Tracking
@@ -2073,18 +2247,26 @@ graph LR
   BOOKING["Facility Booking<br/>🟢 Production Ready"]
   OPENPROB["Open Problems<br/>🟡 Recently Enhanced"]
   HACKATHON["Hackathon Track<br/>🟡 Recently Enhanced"]
+  TICKETS["Tickets & Certificates<br/>🟢 Production Ready"]
+  LEARNING["Learning Hub<br/>🟢 Production Ready"]
+  INTERNSHIPS["Internships & Workspaces<br/>🟢 Production Ready"]
   ANALYTICS["Analytics<br/>🟢 Production Ready"]
   STORAGE["File Storage<br/>🟢 Production Ready"]
   NOTIFICATIONS["Notifications<br/>🟢 Production Ready"]
+  ADMIN["Admin Panel<br/>🟢 Production Ready"]
 
   style AUTH fill:#c8e6c9
   style CONTENT fill:#c8e6c9
   style BOOKING fill:#c8e6c9
   style OPENPROB fill:#fff9c4
   style HACKATHON fill:#fff9c4
+  style TICKETS fill:#c8e6c9
+  style LEARNING fill:#c8e6c9
+  style INTERNSHIPS fill:#c8e6c9
   style ANALYTICS fill:#c8e6c9
   style STORAGE fill:#c8e6c9
   style NOTIFICATIONS fill:#c8e6c9
+  style ADMIN fill:#c8e6c9
 ```
 
 ### 16.2 Recent Enhancement Timeline
@@ -2092,7 +2274,14 @@ graph LR
 ```mermaid
 timeline
   title Recent Project Enhancements
-  section Current (2026-07)
+  section Current (2026-08)
+    Hackathon certificate engine (achievement/participation)
+    QR ticket system (HKT-/BKG-), verification + member check-in
+    Portal hub redesign (/hackathons/portal)
+    Audit hardening, data-driven category chips, mobile sub-nav
+    Custom branded 404 page
+    Programs dropdown in navbar (1270px breakpoint)
+  section Previous (2026-07)
     Google Sign-In integration
     Google registration + account linking
     DNS IPv4-first fix for SMTP
@@ -2120,9 +2309,13 @@ timeline
 | **MinIO Storage** | ✅ Active | Port 9000 / `/api/storage/*` | File & image hosting |
 | **Analytics (GA4)** | ✅ Active | `@next/third-parties` | Event tracking & engagement |
 | **Scheduler (Cron)** | ✅ Active | `/api/cron/*` | Automated jobs & reminders |
-| **OTP System** | ✅ Active | In-memory (5 min TTL) | Email verification |
+| **OTP System** | ✅ Active | DB-backed (`otps` table), 10 min TTL | Email verification |
 | **File Upload** | ✅ Active | Multipart form data | Resume/PPT handling |
 | **Google OAuth** | ✅ Active | `google-auth-library` / `@react-oauth/google` | Google Sign-In login, registration, and account linking |
+| **QR Tickets** | ✅ Active | `/api/tickets/*` | PDF + QR issuance, verification, check-in |
+| **Certificates** | ✅ Active | `/api/innovation/certificates/*` | Achievement/participation PDFs on MinIO |
+| **Learning Hub** | ✅ Active | `/api/learning-resources` | Admin-managed hackathon resources |
+| **Impersonation** | ✅ Active | `/api/admin/impersonate/*` | Audited admin session takeover |
 
 ---
 
@@ -2151,13 +2344,16 @@ timeline
 - **Bookings**: Section 4.3
 - **Open Problems**: Section 4.7 & 4.8
 - **Hackathon**: Section 4.4, 4.5 & 4.6
+- **Tickets & Certificates**: Sections 5, 7.5a & 7.5b
+- **Learning Hub / Programs**: Section 7.5c & 7.5d
+- **Internships & Workspaces**: Section 7.5e
 - **APIs**: Section 7) API Reference
 - **User Flows**: Section 6) App Routes & UX Flows
 
 ---
 
 **Project Status**: ✅ Production Ready
-**Last Updated**: 2026-07-02
+**Last Updated**: 2026-08-10
 **Version**: 1.0 Stable
 **Maintained by**: TCET Centre of Excellence Team
 **Next Review**: Upon completion of next enhancement cycle

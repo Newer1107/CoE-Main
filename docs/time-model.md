@@ -94,6 +94,19 @@ A fixed point on the global timeline, already correctly represented as a UTC ins
 | `InnovationProgram.startTime` | Local Wall Clock | Created from `type="time"` input, combined with eventDate. Must be parsed via `parseLocalWallClock()`. |
 | `InnovationProgram.endTime` | Local Wall Clock | Same pattern as startTime. |
 
+### HackathonEvent (event window + submission deadline)
+
+| Field | Category | Rationale |
+|-------|----------|-----------|
+| `HackathonEvent.startTime` | Absolute Instant | Created from frontend-pre-converted UTC ISO strings; defines the event window start. |
+| `HackathonEvent.endTime` | Absolute Instant | Defines the event window end; also gates claim submission and ticket check-in. |
+| `HackathonEvent.submissionLockAt` | Absolute Instant (nullable) | Optional hard deadline for claim submissions, enforced server-side in the claim submit route (`PATCH /claims/[id]/submit` rejects after `submissionLockAt`, after `endTime`, or once the event is `CLOSED`). Created from `type="datetime-local"` input pre-converted to UTC ISO. |
+| `HackathonEvent.totalSessions` | Integer (not a time) | Number of check-in sessions for ticket attendance. |
+
+**Window checks that consume these fields:**
+- Ticket check-in (`verifyTicketForCheckIn` in `src/lib/tickets.ts`) rejects outside `startTime`–`endTime` (`OUTSIDE_EVENT_WINDOW`) and rejects sessions outside `1..totalSessions` (`INVALID_SESSION`).
+- Cron auto-activation (`/api/cron/innovation-reminder`) transitions `UPCOMING → ACTIVE` when `startTime` arrives.
+
 ### Internship
 
 | Field | Category | Rationale |

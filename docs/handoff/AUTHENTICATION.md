@@ -57,7 +57,8 @@ All three tokens are **stored in httpOnly cookies**, not in `localStorage` or `s
 | Email/Password + OTP | STUDENT, FACULTY |
 | Google Sign-In (via `@tcetmumbai.in`) | STUDENT (registration), FACULTY/ADMIN (account linking only) |
 | Admin seed (dev only) | ADMIN (created via `POST /api/seed`) |
-| Dev bypass (dev only) | Any role via query param or cookie |
+
+> There is **no dev bypass** (no query-param or cookie role override) — authentication is always enforced.
 
 ### The Three-Application Architecture
 
@@ -235,7 +236,7 @@ const hashedPassword = await bcrypt.hash(password, 12);
 - Uses **bcryptjs** library
 - Salt rounds: **12** (deliberately slow — makes brute-force attacks expensive)
 - Password comparison uses `bcrypt.compare()`
-- Google-registered users get a **60-character random hex string** as password (never used for login)
+- Google-registered users get a **64-character random hex string** as password (never used for login)
 
 ### 2.6 Database Tables Involved
 
@@ -668,7 +669,6 @@ COOKIE_SECURE="true"                   # Set true in production (HTTPS)
 | 2 | `refreshToken` | JWT | Gets a new access token without re-login |
 | 3 | `coe_shared_token` | JWT | Cross-subdomain SSO for the Project Dashboard |
 | 4 | `pending_reg` | JWT | Holds pending Google registration info (15 min TTL) |
-| 5 | `dev_auth_role` | String | Development-only — bypasses auth in dev mode |
 
 ### Cookie 1: `accessToken`
 
@@ -730,20 +730,7 @@ COOKIE_SECURE="true"                   # Set true in production (HTTPS)
 | **When created** | During Google OAuth when user is new (needs to complete form) |
 | **When deleted** | After successful Google registration, or expiry |
 
-### Cookie 5: `dev_auth_role`
-
-| Property | Value |
-|----------|-------|
-| **Purpose** | Development-only — persist selected dev role across requests |
-| **Value** | Plain string: `ADMIN`, `TEACHER`, `STUDENT`, `HOD`, or `PRINCIPAL` |
-| **Lifetime** | 7 days |
-| **httpOnly** | Not set (readable by JS) |
-| **secure** | Not set |
-| **sameSite** | Not set |
-| **domain** | Not set |
-| **path** | `/` |
-| **When created** | Dev mode: middleware reads role param and persists it |
-| **When deleted** | Never (manual dev action) |
+> There is **no** `dev_auth_role` cookie (or any other dev-bypass cookie) in this codebase. Authentication is always enforced; the only dev conveniences are environment variables (e.g. `GOOGLE_SIGNIN_ENABLED`, seed admin credentials).
 
 ---
 
@@ -826,7 +813,7 @@ authenticate(req) in src/lib/api-helpers.ts
     ↓  verifyAccessToken(cookieToken)
 verifyAccessToken() in src/lib/jwt.ts
     ↓  jwt.verify(token, ACCESS_SECRET)
-TokenPayload { id, role, name, email }
+TokenPayload { id, role, name, email, uid?, industryId?, isImpersonating?, impersonation? }
     ↓
 authorize(user, 'ADMIN') in src/lib/api-helpers.ts
     ↓  roles.includes(user.role)

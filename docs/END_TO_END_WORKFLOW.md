@@ -1,7 +1,8 @@
 # Hackathon Portal — Final End-to-End Workflow
 
 The complete hackathon lifecycle implemented in this codebase (verified against
-`HACKATHON_EVENT_FLOW.md`, all API routes present, E2E lifecycle previously tested green).
+the API routes in `src/app/api/innovation/**` and `src/app/api/hackathons/**`,
+the E2E lifecycle was previously tested green — see `IMPLEMENTATION_CHANGES.md`).
 
 ## Actors
 
@@ -109,10 +110,14 @@ snapshot at `GET /api/admin/emails`) except ticket-issued (immediate send with a
 
 ## Deployment state (as of this pass)
 
-- **Running:** port 6356, dev DB `coe_db_dev` (per instruction; prod `coe_dev` migrated &
-  untouched — flip = one `.env` change + restart).
-- **Emails:** SMTP OAuth2 vars (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) live in the prod
-  server env; queue fails gracefully (queued + retried) when unset.
-- **Not pushed:** branch `vertical/hackathons`, working tree only.
+- The `vertical/hackathons` work described here has since been **merged to
+  `main`** (this file is the historical record of that rollout; `IMPLEMENTATION_CHANGES.md`
+  carries the same history).
+- At the time of the pass: running on port 6356 against dev DB `coe_db_dev`
+  (prod `coe_dev` migrated & untouched).
+- Emails: SMTP OAuth2 vars (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) live in the
+  server env; the queue fails gracefully (queued + retried) when unset.
+- Certificates: auto-issued on event close (see §Production hardening above;
+  backfill via `npm run certificates:backfill`).
 - **Future phase (blueprint only):** event-scoped judge/mentor/coordinator assignments —
-  `docs/EVENT_ASSIGNMENTS_PLAN.md`, does not block deployment.
+  `docs/EVENT_ASSIGNMENTS_PLAN.md` (ARCHIVED, never implemented), does not block deployment.

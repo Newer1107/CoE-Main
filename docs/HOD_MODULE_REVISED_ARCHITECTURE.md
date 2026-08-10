@@ -1,3 +1,25 @@
+> ## ⚠️ ARCHIVED — pre-implementation proposal (partially superseded)
+>
+> This document is an **architecture proposal written before implementation**.
+> Parts of it have since shipped differently in CoE-Main; the project-dashboard
+> pieces (HOD dashboard, DepartmentConfiguration, guide invitations) live in a
+> separate repository and are not verifiable here. Do **not** use this file as
+> a work order.
+>
+> **What actually shipped in CoE-Main (source of truth):**
+> - `FacultyProfile.isHod` — implemented, migration
+>   `20260709081652_add_is_hod_to_faculty_profile`
+> - `Department` model with `Department.hodUserId`, `User.departmentId` and
+>   `User.isCoordinator` — implemented in migration `20260807143558_migration`
+>   (note: the plan argued *against* a Department table; reality created one)
+> - HOD assignment API: `PATCH /api/admin/faculty/[id]/hod` (a dedicated
+>   endpoint, where the plan proposed reusing `PATCH /api/faculty/profile`)
+> - `isHod` is propagated in the shared token payload
+>   (`buildSharedTokenPayload` in `src/lib/shared-auth.ts`) and used in
+>   admin/impersonation routes
+> - There is **no `/hod` dashboard in CoE-Main**; faculty surfaces live under
+>   `/faculty` (FacultyPortalClient) and the admin panel
+
 # HOD Module — Revised Architecture & Implementation Plan
 
 > **Status:** Architecture Proposal — Pre-implementation  
@@ -1148,6 +1170,7 @@ Dashboard:    add isHod to User + DepartmentConfiguration model (2 changes)
 - HOD assignment → sync → Dashboard verification
 - Guide invitation → registration → auto-activation
 - Edge cases: concurrent HOD changes, department transfers, vacant department
+```
 
 ---
 

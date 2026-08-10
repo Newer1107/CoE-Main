@@ -1,3 +1,17 @@
+> ## ⚠️ ARCHIVED — superseded by the implemented feature
+>
+> This document is the **pre-implementation architecture review & plan** for
+> Google Sign-In. The feature is **fully implemented and live** in this
+> repository. This file is kept for historical reference only — do **not**
+> follow it as a work order.
+>
+> **Current implementation (source of truth):**
+> - `docs/google-sign-in-implemented.md` — implementation summary
+> - `docs/authentication.md` §9 (Google Sign-In) — complete flow walkthrough
+> - Code: `src/app/api/auth/google/route.ts`, `src/app/api/auth/google/link/route.ts`,
+>   `src/app/api/auth/register/google/route.ts`, `src/lib/google-auth.ts`,
+>   `src/app/register/complete/page.tsx`, `prisma/migrations/20260701125758_google`
+
 # Google Sign-In Integration: Architecture Review & Implementation Plan
 
 ## Architecture Overview

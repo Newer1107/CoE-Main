@@ -22,7 +22,7 @@ Prisma generates TypeScript types from the schema, so:
 
 ## Schema Location
 
-**File: `prisma/schema.prisma`** (831 lines)
+**File: `prisma/schema.prisma`** (985 lines, **42 models**, 21 enums)
 
 ## Key Design Decisions
 
@@ -105,6 +105,8 @@ erDiagram
 
     Claim ||--o{ ClaimMember : includes
     Claim ||--o{ Ticket : has
+    Claim ||--o{ RubricScore : scores
+    Claim ||--o{ SessionDocument : uploads
     Claim {
         ClaimStatus status
         int innovationScore
@@ -112,6 +114,16 @@ erDiagram
         int finalScore
         boolean isAbsent
     }
+
+    User ||--o{ Certificate : receives
+    HackathonEvent ||--o{ Certificate : issues
+    Certificate {
+        string serial   // CERT-<year>-<eventId>-<A|P><userId>
+        string type      // ACHIEVEMENT | PARTICIPATION
+        string nameOverride
+    }
+
+    RubricCategory ||--o{ RubricScore : defines
 
     Application ||--o{ ApplicationAnswer : has
     Application {
@@ -170,6 +182,12 @@ enum TicketStatus          { ACTIVE, USED, CANCELLED }
 enum MemberAttendanceStatus { NOT_PRESENT, PRESENT }
 enum GrantCategory         { GOVT_GRANT, SCHOLARSHIP, RESEARCH_FUND, INDUSTRY_GRANT }
 enum EventMode             { ONLINE, OFFLINE, HYBRID }
+enum InternshipTaskStatus  { PENDING, IN_PROGRESS, COMPLETED }
+enum InternshipDocumentType { FILE, LINK }
+enum MeetingRecurrenceType { NONE, DAILY, WEEKLY, BIWEEKLY, MONTHLY }
+enum NotificationType      { ... }
+enum HostingRequestStatus  { PENDING, APPROVED, REJECTED, CHANGES_REQUESTED, ... }
+enum DatabaseType          { MYSQL, POSTGRESQL }
 ```
 
 ## Core Models
@@ -257,17 +275,63 @@ The most complex model. Represents innovation problems (open problems, hackathon
 
 ```prisma
 model Problem {
-  id          Int             @id @default(autoincrement())
+  id                 Int                   @id @default(autoincrement())
+  title              String
+  description        String                @db.Text
+  tags               String?
+  isIndustryProblem  Boolean               @default(false)
+  industryName       String?
+  problemType        ProblemType           @default(OPEN)
+  approvalStatus     ProblemApprovalStatus @default(APPROVED)
+  mode               ProblemMode           @default(OPEN)
+  status             ProblemStatus         @default(CLOSED)
+  createdById        Int
+  createdBy          User                  @relation("ProblemAuthor")
+  industryId         Int?
+  eventId            Int?                  // Hackathon problem
+  event              HackathonEvent?
+  supportDocumentKey String?
+  difficulty         String?
+  sdgTags            Json?
+  departmentId       Int?
+  notificationSent   Boolean               @default(false)
+  // ... questions, claims, applications, internship relations
+}
+```
+
+### Certificate (`certificates` table)
+
+```prisma
+model Certificate {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  eventId      Int
+  type         String   // ACHIEVEMENT | PARTICIPATION
+  title        String
+  detail       String?
+  fileKey      String?  // MinIO: certificates/{eventId}/{TYPE}/{serial}.pdf
+  serial       String   @unique  // CERT-<year>-<eventId>-<A|P><userId>
+  issuedAt     DateTime @default(now())
+  nameOverride String?  // Admin-corrected name shown on the PDF
+
+  @@unique([userId, eventId, type])
+}
+```
+
+### LearningResource (`learning_resources` table)
+
+```prisma
+model LearningResource {
+  id          Int      @id @default(autoincrement())
   title       String
-  description String          @db.Text
-  mode        ProblemMode     @default(OPEN)
-  status      ProblemStatus   @default(CLOSED)
-  problemType ProblemType     @default(OPEN)
+  category    String
+  type        String   // PDF | LINK | YOUTUBE | GITHUB | TEMPLATE | WINNING_PROJECT
+  url         String?
+  fileKey     String?
+  difficulty  String?
+  tags        Json?
   createdById Int
-  createdBy   User            @relation("ProblemAuthor")
-  eventId     Int?
-  event       HackathonEvent?
-  // ... scores, questions, claims, applications, internship relations
+  createdAt   DateTime @default(now())
 }
 ```
 
@@ -286,9 +350,17 @@ model EmailJob {
   attempts          Int       @default(0)
   maxAttempts       Int       @default(5)
   nextAttemptAt     DateTime?
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  lockedAt          DateTime?
   lastError         String?   @db.Text
+  providerMessageId String?
   dedupeKey         String?   @unique
+  metadata          Json?
   createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("email_jobs")
 }
 ```
 
@@ -331,18 +403,26 @@ Important indexes that affect query performance:
 
 ## Migration Workflow
 
+Migrations are managed with the safe wrapper scripts in `package.json` (never plain `prisma migrate dev`):
+
 ```bash
 # 1. Edit schema.prisma
 
-# 2. Create a migration file
+# 2. Check migration status
+npm run db:migrate:status
+
+# 3. Create a migration file
 npm run db:migrate:create -- --name describe_change
 
-# 3. Apply pending migrations
-npm run db:migrate
+# 4. Apply pending migrations
+npm run db:migrate        # = npm run db:migrate:apply (prisma migrate deploy equivalent)
 
 # NEVER run `npx prisma migrate dev` — it may reset your database!
-# Use npm run db:migrate (which is prisma migrate deploy)
 ```
+
+Other schema-related scripts:
+- `npm run db:generate` — regenerate the Prisma client (`prisma generate`)
+- `npm run certificates:backfill` — re-run certificate issuance (`npx tsx --env-file=.env scripts/backfill-certificates.ts [--reset] [eventId ...]`; `--reset` deletes existing rows + PDFs **scoped to the events being re-run**)
 
 ## Common Queries Reference
 
@@ -387,3 +467,5 @@ await prisma.$transaction(async (tx) => {
 ## Dashboard Database
 
 The Project Dashboard has its **own separate database** with its own Prisma schema. It shares no tables with the CoE Portal. Users are synchronized between the two databases via the internal sync API.
+
+> Note: the dashboard application itself is **external** (`project-dashboard/` is gitignored — it is not part of this repository). The sync contract lives in `src/lib/dashboard-sync.ts` (`DASHBOARD_URL` + `SYNC_SECRET`).

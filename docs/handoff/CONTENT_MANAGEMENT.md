@@ -64,13 +64,18 @@ const news = await prisma.newsPost.findMany({
 
 ## Image Upload
 
-Content items with images (news, events, hero slides) use file upload through MinIO:
+Content items with images (news, events, hero slides) use file upload through MinIO. The client sends the raw file; the route converts it to a Buffer and calls `uploadFile(folder, { buffer, originalname, mimetype, size })`:
 
 ```typescript
 // In the POST handler:
 const formData = await req.formData();
 const file = formData.get('image') as File;
-const objectKey = await uploadFile(file, 'news');
+const objectKey = await uploadFile('news', {
+  buffer: Buffer.from(await file.arrayBuffer()),
+  originalname: file.name,
+  mimetype: file.type,
+  size: file.size,
+});
 
 // Store the key, not the full URL
 await prisma.newsPost.create({
@@ -78,7 +83,7 @@ await prisma.newsPost.create({
 });
 ```
 
-Images are served via `/api/storage/[...path]` proxy.
+Images are served via the `/api/storage/[...path]` proxy (`news/`, `events/`, `grants/`, `hero-slides/` are public path patterns; everything else requires auth).
 
 ## Database Models
 

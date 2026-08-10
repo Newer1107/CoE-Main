@@ -29,10 +29,13 @@ graph TB
     end
 
     subgraph "Innovation"
-        PROBLEM["Open Problems"]
+        PROBLEM["Open Problems (archived)"]
         HACKATHON["Hackathons"]
         SCORE["Scoring Engine"]
-        APP["Applications"]
+        APP["Applications (internships)"]
+        CERT["Certificate Engine"]
+        HACKVERT["Hackathon Vertical (/hackathons/*)"]
+        LEARN["Learning Resources"]
     end
 
     subgraph "Internship"
@@ -55,7 +58,7 @@ graph TB
         ANALYTICS["Analytics (GA4)"]
     end
 
-    subgraph "Project Dashboard"
+    subgraph "Project Dashboard [EXTERNAL — gitignored]"
         DASH_AUTH["Shared Auth"]
         DASH_PROJ["Project Management"]
         DASH_SHOW["Showcase"]
@@ -105,10 +108,17 @@ graph TB
     HACKATHON --> SCORE
     HACKATHON --> EMAIL
     HACKATHON --> TICKET
+    HACKATHON --> CERT
     HACKATHON --> DB
     APP --> APIH
     APP --> DB
     APP --> EMAIL
+    CERT --> STORAGE
+    CERT --> DB
+    HACKVERT --> HACKATHON
+    HACKVERT --> LEARN
+    LEARN --> DB
+    LEARN --> STORAGE
 
     %% Internship depends on
     INTERN --> APIH
@@ -160,11 +170,13 @@ graph TB
 | **File Storage** | MinIO | News, Events, Hero, Tickets, Innovation, Internship |
 | **Booking System** | Auth, Email, Tickets, MinIO | Admin Portal |
 | **Ticket System** | pdf-lib, QRCode, MinIO, Email | Booking, Hackathon |
-| **Innovation** | Auth, Email, Scoring, Tickets, Storage | Admin, Faculty |
+| **Innovation** | Auth, Email, Scoring, Tickets, Certificates, Storage | Admin, Faculty |
 | **Scoring Engine** | None (pure math) | Innovation (Hackathon) |
+| **Certificate Engine** | pdf-lib, MinIO, Prisma | Innovation (Hackathon) |
+| **Hackathon Vertical** | Innovation, Learning Resources | Public |
 | **Cron Jobs** | Email, Booking, Innovation, Prisma | External Scheduler |
 | **Admin Portal** | All modules | — |
 | **Dashboard Sync** | HTTP (fetch) | Auth, Admin (faculty approve) |
-| **Project Dashboard** | Shared Auth, Storage, Email | CoE Portal (cookie) |
+| **Project Dashboard** | External app (gitignored) — shared cookie only | CoE Portal (cookie) |
 | **Activity Log** | console.log | All modules |
 | **Analytics** | Google Analytics | Frontend pages |

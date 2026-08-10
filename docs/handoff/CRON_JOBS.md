@@ -114,19 +114,32 @@ graph LR
 
 **Purpose**: Send notifications for new or updated problem statements.
 
+**Logic**:
+```typescript
+// 1. Find APPROVED problems where notificationSent=false
+// 2. Send sendNewProblemStatementEmail() to interested users
+// 3. Mark problem.notificationSent = true
+```
+
 ## Security
 
-Cron endpoints are protected by `CRON_SECRET`:
+Cron endpoints are protected by **`CRON_SECRET` — which is OPTIONAL**. If `CRON_SECRET` is set, the caller must present it; if it is **not** set, the endpoint falls back to **standard ADMIN authentication** (`authenticate()` + `authorize(user, 'ADMIN')`). The secret is accepted via the `x-cron-secret` header **or** the `?secret=` query parameter:
 
 ```typescript
-const cronSecret = process.env.CRON_SECRET;
-const headerSecret = req.headers.get('x-cron-secret');
-const querySecret = req.nextUrl.searchParams.get('secret');
+function isAuthorizedCron(req: NextRequest) {
+  const expectedSecret = process.env.CRON_SECRET?.trim();
+  const providedSecret = (req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret') || '').trim();
 
-if (!cronSecret || (headerSecret !== cronSecret && querySecret !== cronSecret)) {
-  return errorRes('Unauthorized', [], 401);
+  if (expectedSecret) {
+    return providedSecret === expectedSecret;
+  }
+
+  const user = authenticate(req);
+  return Boolean(user && authorize(user, 'ADMIN'));
 }
 ```
+
+Failed checks return **403** (`Forbidden`). This means local/dev triggering works with an admin cookie even when `CRON_SECRET` is unset.
 
 ## Deployment
 
@@ -152,7 +165,7 @@ These endpoints must be called by an external scheduler:
 
 **Problem**: Hundreds of emails in PENDING status overwhelm the cron worker.
 
-**Fix**: The worker processes batches of 50. If you have thousands, it will take multiple cycles. Check `maxAttempts` and `priority` fields.
+**Fix**: The worker processes batches of 50 (via `processEmailQueue(50)`). If you have thousands, it will take multiple cycles. Check `maxAttempts` and `priority` fields.
 
 ### 3. Booking Reminder Off by Hours
 
