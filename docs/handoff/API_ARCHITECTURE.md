@@ -213,39 +213,51 @@ if (!parsed.success) {
 src/app/api/
 ├── admin/           # Admin-only operations
 │   ├── bookings/    # Booking moderation
-│   ├── faculty/     # Faculty approval
-│   ├── emails/      # Email broadcasts
+│   ├── faculty/     # Faculty approval (+ HOD toggle)
+│   ├── emails/      # Email broadcasts + queue
 │   ├── stats/       # Platform statistics
 │   ├── users/       # User management
-│   ├── impersonate/ # Admin impersonation
+│   ├── impersonate/ # Impersonation (start/stop/search/sessions/session-info)
 │   ├── industry-partners/
-│   └── hosting-requests/
+│   ├── hosting-requests/
+│   ├── hackathons-config/
+│   └── opportunities/
 ├── auth/            # Authentication (no auth required)
 │   ├── login/
-│   ├── logout/
+│   ├── logout/      # POST + GET
 │   ├── refresh/
-│   ├── register/
+│   ├── register/    # student/ , faculty/ , google/
 │   ├── verify-otp/
 │   ├── resend-otp/
 │   ├── forgot-password/
 │   ├── reset-password/
-│   └── google/
+│   └── google/      # google/ , google/link/
 ├── bookings/        # Student booking operations
-├── cron/            # Background job triggers
+├── cron/            # Background job triggers (4 jobs)
 ├── innovation/      # Innovation platform
-│   ├── admin/
+│   ├── admin/       # events/[id]/status, certificates, analytics/*, submissions, interests
 │   ├── applications/
-│   ├── claims/
-│   ├── events/
-│   ├── faculty/
+│   ├── claims/      # claims, claims/my, claims/[id]/submit, claims/[id]/session-documents
+│   ├── certificates/  # certificates/my
+│   ├── events/      # events, events/[id], register, leaderboard, session-upload-locks
+│   ├── faculty/     # applications, claims/sync, claims/[id]/review, claims/[id]/attendance, submissions
 │   ├── interest/
 │   ├── problems/
 │   ├── programs/
 │   └── users/
-├── internal/        # Internal cross-app APIs
-├── profile/         # User profile
-├── storage/         # File serving proxy
-├── tickets/         # PDF ticket management
+├── hackathons/      # dashboard
+├── learning-resources/
+├── opportunities/
+├── internal/        # Internal cross-app APIs (users/lookup)
+├── profile/         # User profile (+ check-completion, innovation-portfolio)
+├── faculty/         # faculty profile
+├── storage/         # File serving proxy (auth + ownership enforced)
+├── tickets/         # my, [ticketId]/download, [ticketId]/cancel (PATCH), verify (POST, admin)
+├── applications/    # Internship applications (list, accept-bulk, export)
+├── internships/     # internships, add-participant
+├── tasks/ messages/ meetings/ documents/ attendance/   # Internship workspace
+├── project-hosting/ # Hosting requests
+├── seed/ health/    # Dev utilities
 └── ...content groups (news, events, grants, announcements, hero-slides)
 ```
 

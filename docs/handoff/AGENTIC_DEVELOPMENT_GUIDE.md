@@ -14,7 +14,7 @@ AI agents are powerful but lack context about your specific codebase. Without gu
 
 This project has specific patterns that differ from what most AI training data expects:
 
-1. **Two applications in one repo**: The CoE Portal (in `src/`) and the Project Dashboard (in `project-dashboard/`) are separate Next.js apps with different databases. The agent must know which one it's modifying.
+1. **The CoE Portal is the only app in this repo**: The Project Dashboard (`project-dashboard/`) is **gitignored and external** — it is NOT part of this repository. Agents must never assume dashboard files exist here; only the integration contract lives in this repo (`src/lib/dashboard-sync.ts`, shared cookie).
 
 2. **Shared auth via cookie**: Authentication is shared between apps via `coe_shared_token` cookie. The agent should not suggest OAuth redirect flows or JWT-in-localStorage patterns.
 
@@ -41,14 +41,13 @@ This project has specific patterns that differ from what most AI training data e
 | `src/lib/shared-auth.ts` | Shared cookie config |
 | `src/app/api/auth/login/route.ts` | Login pattern (reference for auth flows) |
 
-### When working on the Project Dashboard (`project-dashboard/`):
+### When working on the Project Dashboard (EXTERNAL — not in this repo):
 
-| File | Why the Agent Must Read It |
+> The dashboard source is gitignored here. Only the sync contract is visible: `src/lib/dashboard-sync.ts`, `src/lib/shared-auth.ts`, and the `coe_shared_token` cookie. Work on the dashboard in its own repository.
+
+| File | Why It Matters |
 |------|---------------------------|
-| `project-dashboard/src/middleware.ts` | Shared auth verification, role mapping |
-| `project-dashboard/src/lib/coe-auth.ts` | Token verification with `jose` |
-| `project-dashboard/src/lib/resolve-user.ts` | User provisioning and pending assignment resolution |
-| `project-dashboard/src/lib/coe-guard.ts` | Server-side role guards |
+| `src/lib/dashboard-sync.ts` | CoE-side fire-and-forget sync to the dashboard's internal API (`DASHBOARD_URL` + `SYNC_SECRET`) |
 
 ## Prompt Templates for AI Agents
 
@@ -107,7 +106,9 @@ Task: Add an email template for...
 | **Writes raw SQL** | Training data includes SQL | Tell agent: "Uses Prisma ORM for all queries" |
 | **Ignores response envelope** | Training APIs don't use envelopes | Tell agent: "Use successRes()/errorRes() helpers" |
 | **Suggests new dependencies** | Training assumes npm ecosystem | Tell agent: "No new npm packages without approval" |
-| **Mixes up the two apps** | Both are in the same repo | Tell agent: "src/ is CoE Portal, project-dashboard/ is separate" |
+| **References project-dashboard files** | Old docs described two apps in one repo | Tell agent: "project-dashboard/ is gitignored/external — only sync via src/lib/dashboard-sync.ts" |
+| **Uses toProxyUrl() from minio.ts** | Outdated examples | Tell agent: "toProxyUrl() is private; use /api/storage/<key> or uploadFile's returned key" |
+| **Mixes up the two apps** | Both were historically in the same repo | Tell agent: "src/ is the CoE Portal; the dashboard is external" |
 
 ## Development Workflow with AI
 

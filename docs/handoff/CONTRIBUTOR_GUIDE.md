@@ -21,11 +21,11 @@ cd coe-main
 npm install
 
 # 3. Copy environment file
-cp .env.example .env.local
+cp .env.docker.example .env.local
 
 # 4. Edit .env.local with your database credentials
 #    Minimum required:
-#    DATABASE_URL="mysql://user:password@localhost:3306/coe_main"
+#    DATABASE_URL="mysql://user:***@localhost:3306/coe_main"
 #    JWT_ACCESS_SECRET="any-random-string"
 #    JWT_REFRESH_SECRET="any-different-random-string"
 #    ADMIN_EMAIL="admin@tcetmumbai.in"
@@ -45,6 +45,8 @@ npm run dev
 The app will be available at `http://localhost:3000`.
 
 ### Project Dashboard Setup
+
+> The Project Dashboard is an **external application** (`project-dashboard/` is gitignored — it lives in its own repository). If you have a checkout, the setup is:
 
 ```bash
 cd project-dashboard
@@ -221,12 +223,19 @@ await dispatchEmail({
 ### Pattern 4: File Upload
 
 ```typescript
-import { uploadFile, toProxyUrl } from '@/lib/minio';
+import { uploadFile } from '@/lib/minio';
 
 const formData = await req.formData();
 const file = formData.get('image') as File;
-const objectKey = await uploadFile(file, 'news');
-const url = toProxyUrl(objectKey);
+const objectKey = await uploadFile('news', {
+  buffer: Buffer.from(await file.arrayBuffer()),
+  originalname: file.name,
+  mimetype: file.type,
+  size: file.size,
+});
+// Serve: `/api/storage/${objectKey}` (public folders) — private folders
+// (certificates/, tickets/, innovation submissions) require auth + ownership.
+// NOTE: toProxyUrl() is private in minio.ts — do not import it.
 ```
 
 ## Testing

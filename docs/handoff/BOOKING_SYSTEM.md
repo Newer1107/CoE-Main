@@ -81,8 +81,8 @@ graph TB
 | `src/app/api/cron/reminder/route.ts` | 30-min reminder + OTP cleanup |
 | `src/app/api/tickets/[ticketId]/download/route.ts` | Download ticket PDF |
 | `src/app/api/tickets/verify/route.ts` | Verify + consume ticket |
-| `src/app/facility-booking/page.tsx` | Student booking UI (871 lines) |
-| `src/lib/tickets.ts` | PDF generation + ticket logic (863 lines) |
+| `src/app/facility-booking/page.tsx` | Student booking UI (870 lines) |
+| `src/lib/tickets.ts` | PDF generation + ticket logic (873 lines) |
 | `src/lib/time.ts` | `bookingDateTimeFromIST()` utility |
 | `src/lib/mailer.ts` | Booking/ticket email templates |
 
@@ -247,9 +247,9 @@ if (dateObj > oneMonthFromNow) {
 ```typescript
 const prefix = 'BKG';  // 'HKT' for hackathon tickets
 const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-const randomHex = crypto.randomBytes(10).toString('hex');
+const randomHex = crypto.randomBytes(10).toString('hex').toUpperCase();
 const ticketId = `${prefix}-${datePart}-${randomHex}`;
-// Example: "BKG-20260727-a1b2c3d4e5f6a7b8c9d0"
+// Example: "BKG-20260727-A1B2C3D4E5F6A7B8C9D0"
 ```
 
 ### PDF Generation with QR Code

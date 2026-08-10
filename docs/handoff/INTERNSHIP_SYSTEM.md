@@ -105,20 +105,27 @@ model InternshipDocument {
 
 | Endpoint | Purpose |
 |----------|---------|
-| `/api/internships/add-participant` | Add participant to internship |
-| `/api/tasks` | Task CRUD |
-| `/api/messages` | Message CRUD |
-| `/api/meetings` | Meeting CRUD |
-| `/api/documents` | Document CRUD |
+| `GET /api/internships` | List internships |
+| `POST /api/internships/add-participant` | Add participant to internship |
+| `GET/POST /api/tasks` | Task CRUD |
+| `GET/POST /api/messages` | Message CRUD |
+| `GET/POST /api/meetings` | Meeting CRUD |
+| `GET/POST /api/documents` | Document CRUD |
+| `GET /api/applications` | List internship applications |
+| `POST /api/applications/accept-bulk` | Bulk selection (auto-rejects non-selected) |
+| `GET /api/applications/export` | Export applications |
+| `POST /api/attendance` | Record attendance |
+| `GET /api/innovation/faculty/applications` | Faculty application review list |
+| `PATCH /api/innovation/faculty/applications/[id]/review` | Review application (SELECTED/REJECTED) |
 
 ## Selection Flow
 
 ```
-1. Admin or Industry creates problem with problemType=INTERNSHIP
-2. Students apply via innovation application system
+1. Admin or Industry creates problem with problemType=INTERNSHIP (requires industryId/industryName)
+2. Students apply via the innovation application system (/api/innovation/applications)
 3. Admin/Industry reviews applications
-4. Bulk selection endpoint marks SELECTED/REJECTED
-5. Non-selected applicants get auto-rejection
+4. POST /api/applications/accept-bulk marks SELECTED + auto-rejects non-selected
+5. Non-selected applicants get auto-rejection emails (sendApplicationRejectionEmail)
 6. Selected participants gain workspace access
 7. Workspace features (tasks, chat, meetings, documents) become available
 ```
@@ -127,9 +134,9 @@ model InternshipDocument {
 
 ### 1. Missing Industry Name
 
-**Problem**: Creating an INTERNSHIP problem requires `isIndustryProblem: true` and `industryName` to be set.
+**Problem**: Creating an INTERNSHIP problem requires `isIndustryProblem: true` and an industry identity.
 
-**Fix**: Zod validation enforces this: `innovationProblemCreateSchema` checks that if `isIndustryProblem`, then `industryName` is required.
+**Fix**: Zod validation enforces this: `innovationProblemCreateSchema` requires `industryId` **or** `industryName` when `isIndustryProblem` is set.
 
 ### 2. Workspace Not Visible
 

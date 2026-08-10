@@ -48,7 +48,7 @@ graph TB
         GA["Google Analytics 4"]
     end
 
-    subgraph "Project Dashboard"
+    subgraph "Project Dashboard [EXTERNAL — gitignored, separate repo]"
         DASH_NEXT["Next.js App Server"]
         DASH_MW["Middleware<br/>(shared auth)"]
         DASH_DB[(MySQL Database)]
@@ -144,13 +144,18 @@ graph LR
     AUTH --> ADMIN["Admin Portal"]
     AUTH --> FACULTY["Faculty Portal"]
     AUTH --> INTERN["Internship System"]
-    AUTH --> DASH["Project Dashboard"]
+    AUTH --> DASH["Project Dashboard (external)"]
 
     CONTENT --> STORAGE["File Storage (MinIO)"]
     BOOK --> STORAGE
     INNOV --> STORAGE
     INNOV --> SCORE["Scoring Engine"]
     INNOV --> MAIL["Email System"]
+    INNOV --> CERT["Certificate Engine<br/>certificate-issuance.ts"]
+    HACKVERT["Hackathon Vertical (/hackathons/*)"] --> INNOV
+    HACKVERT --> LEARN["Learning Resources<br/>/api/learning-resources"]
+    CERT --> STORAGE
+    CERT --> TICKET
     
     BOOK --> TICKET["Ticket System"]
     INNOV --> TICKET
@@ -185,14 +190,17 @@ graph LR
 | **User Management** | Registration (Student/Faculty), Profile, Faculty Approval |
 | **Content Management** | News, Events, Grants, Announcements, Hero Slides |
 | **Facility Booking** | Booking CRUD, Admin Moderation, Ticket Generation, Reminders |
-| **Innovation Platform** | Open Problems, Hackathons, Applications, Scoring, Leaderboard |
+| **Innovation Platform** | Open Problems (archived), Hackathons, Screening/Judging, Scoring, Leaderboard, Certificates |
+| **Hackathon Vertical** | Public pages: `/hackathons/browse`, `/external`, `/learn`, `/my`, `/portfolio`, `/dashboard`, `/portal` |
 | **Internship System** | Industry Internships, Faculty Internships, Workspaces |
 | **Admin Portal** | Stats, User Directory, Email Broadcast, Impersonation |
 | **Faculty Portal** | Content Publishing, Application Review, Hackathon Judging |
 | **Email System** | Queue-based Delivery, Templates, Cron Worker, Retry Logic |
-| **File Storage** | MinIO Client, Upload, Proxy Serving |
-| **Background Jobs** | Booking Reminders, Innovation Reminders, Email Queue Processing |
-| **Project Dashboard** | Shared Auth, Project Management, Showcase, Email Outbox |
+| **File Storage** | MinIO Client, Upload, Auth-gated Proxy Serving |
+| **Certificate Engine** | Achievement/Participation PDF certificates, serials, backfill script |
+| **Learning Resources** | `/api/learning-resources` + `/hackathons/learn` + admin management in `/admin/hackathons-content` |
+| **Background Jobs** | Booking Reminders, Innovation Reminders, Email Queue Processing, Problem-Statement Notifications |
+| **Project Dashboard** | External app (gitignored): Shared Auth, Project Management, Showcase, Email Outbox |
 | **Notifications** | In-App Notifications, Email Notifications |
 | **Analytics** | Google Analytics 4 Event Tracking |
 
@@ -222,11 +230,12 @@ graph LR
 ### Pattern 3: File Upload
 ```
 1. Client sends multipart/form-data with file
-2. Route handler receives file
-3. minio.uploadFile() uploads to MinIO bucket
+2. Route handler reads file, converts to Buffer
+3. minio.uploadFile(folder, { buffer, originalname, mimetype, size }) uploads to MinIO bucket
 4. Returns object key (path in bucket)
 5. Object key stored in database
 6. File served via /api/storage/[...path] proxy
+   (public folders stream directly; private folders require auth + ownership)
 ```
 
 ### Pattern 4: Cross-App Sync
@@ -246,14 +255,15 @@ The application requires these environment variable groups:
 | Group | Variables | Purpose |
 |-------|-----------|---------|
 | **Database** | `DATABASE_URL` | MySQL connection string |
-| **JWT Auth** | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | Token signing |
-| **Google Auth** | `GOOGLE_CLIENT_ID`, `GOOGLE_REGISTRATION_SECRET`, `GOOGLE_SIGNIN_ENABLED` | OAuth |
-| **Email** | `SMTP_USER`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | SMTP + OAuth2 |
-| **Storage** | `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` | MinIO |
+| **JWT Auth** | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_REFRESH_TTL_SECONDS` | Token signing + TTLs |
+| **Google Auth** | `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `GOOGLE_REGISTRATION_SECRET`, `GOOGLE_SIGNIN_ENABLED`, `ALLOWED_EMAIL_DOMAIN` | OAuth |
+| **Email** | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | SMTP + OAuth2 |
+| **Storage** | `MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_USE_SSL`, `MINIO_BUCKET` | MinIO |
 | **Analytics** | `NEXT_PUBLIC_GA_ID` | Google Analytics |
-| **Cron** | `CRON_SECRET` | Cron job protection |
-| **Dashboard Sync** | `DASHBOARD_URL`, `SYNC_SECRET` | Cross-app sync |
-| **Admin** | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Seed admin account |
+| **Cron** | `CRON_SECRET` (optional — falls back to ADMIN auth) | Cron job protection |
+| **Dashboard Sync** | `DASHBOARD_URL`, `SYNC_SECRET` | Cross-app sync (external dashboard) |
+| **Admin** | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Seed admin account |
+| **Cookies/Other** | `COOKIE_SECURE`, `FRONTEND_URL`, `NEXT_PUBLIC_APP_URL`, `PRINCIPAL_EMAILS` | Cookie flags, app URLs, principal badge |
 
 ## Deployment Architecture
 

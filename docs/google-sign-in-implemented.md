@@ -33,8 +33,9 @@ User clicks Google button
 | `src/lib/validators.ts` | `+googleAuthSchema` (credential string), `+googleRegistrationSchema` (name, uid, phone) |
 | `src/app/api/auth/login/route.ts` | +4 lines: after `bcrypt.compare` fails, check `user.googleId` → return `GOOGLE_ACCOUNT_ONLY` |
 | `src/app/login/page.tsx` | Google Sign-In button (inside login form), `GoogleOAuthProvider` wrapper, credential handler switching on `data.action`, link prompt modal |
-| `.env.example` | +5 Google env vars |
-| `.env.docker.example` | +5 Google env vars |
+| `.env.docker.example` | +5 Google env vars (lines 47–51: `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `GOOGLE_REGISTRATION_SECRET`, `GOOGLE_SIGNIN_ENABLED`, `ALLOWED_EMAIL_DOMAIN`) |
+
+> Note: a standalone `.env.example` is not present in the repo — `.env.docker.example` is the reference env template.
 
 ## Dependencies Added (2)
 
@@ -45,7 +46,7 @@ User clicks Google button
 
 - `User.googleId` (`String? @unique`) — maps Google account to user. Nullable (local users don't have one)
 - `password` field unchanged (`String`, required) — Google users get `crypto.randomBytes(32)` → `bcrypt.hash(12)` random password (Option B from spec)
-- Migration: run `npx prisma migrate dev --name add-google-id` locally, `npx prisma migrate deploy` on production
+- Migration: `prisma/migrations/20260701125758_google` (already created and applied; deployed via `npm run db:migrate` on production)
 
 ## Environment Variables (5)
 
@@ -114,14 +115,14 @@ User clicks Google button
 # 1. Generate Prisma client
 npx prisma generate
 
-# 2. Create migration
-npx prisma migrate dev --name add-google-id
+# 2. Apply the migration (20260701125758_google is already in the repo)
+npm run db:migrate        # runs scripts/prisma-safe-migrate.mjs apply
 
-# 3. On production
-npx prisma migrate deploy
+# 3. Build & restart
 npm run build
 pm2 restart coe-main   # or equivalent
 
 # 4. Set env vars and restart
 # GOOGLE_CLIENT_ID, NEXT_PUBLIC_GOOGLE_CLIENT_ID, GOOGLE_REGISTRATION_SECRET, GOOGLE_SIGNIN_ENABLED=true
+# (ALLOWED_EMAIL_DOMAIN defaults to tcetmumbai.in)
 ```

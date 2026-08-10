@@ -42,10 +42,10 @@ graph TB
     end
 
     subgraph "MinIO Client (src/lib/minio.ts)"
-        UPLOAD["uploadFile()"]
+        UPLOAD["uploadFile(folder, file)"]
         UPLOAD_KEY["uploadFileWithObjectKey()"]
         DELETE["deleteFile()"]
-        PROXY["toProxyUrl()"]
+        SIGNED["getSignedUrl() (uses private toProxyUrl)"]
     end
 
     subgraph "Storage"
@@ -102,26 +102,31 @@ The endpoint can be provided as a hostname (`minio.example.com`) or full URL (`h
 ### Key Functions
 
 ```typescript
-// Upload a file with auto-generated key
+// Upload a file with auto-generated key.
+// NOTE: folder comes FIRST, and the file is a { buffer, originalname, mimetype, size } object.
 export async function uploadFile(
-  file: File | Buffer,
-  folder: string      // e.g., "news", "hero-slides", "resumes"
-): Promise<string>     // Returns object key e.g., "news/1712345678-filename.jpg"
+  folder: string,  // e.g., "news", "hero-slides", "resumes"
+  file: { buffer: Buffer; originalname: string; mimetype: string; size: number }
+): Promise<string>  // Returns object key e.g., "news/1712345678-filename.jpg"
 
 // Upload with a specific object key
 export async function uploadFileWithObjectKey(
-  buffer: Buffer,
-  objectKey: string   // e.g., "tickets/2026/07/BKG-20260727-abc123.pdf"
-): Promise<void>
+  objectKey: string,  // e.g., "tickets/2026/07/BKG-20260727-ABC123.pdf"
+  file: { buffer: Buffer; originalname: string; mimetype: string; size: number }
+): Promise<string>
 
 // Delete a file
 export async function deleteFile(objectKey: string): Promise<void>
 
-// Get proxy URL
-export const toProxyUrl = (objectKey: string): string => {
-  return `/api/storage/${encodeURIComponent(objectKey)}`;
-};
+// Get a pre-signed URL (expiry in seconds, default 3600)
+export async function getSignedUrl(objectKey: string, expiry = 3600): Promise<string>
+
+// Stream / stat an object (used by the storage proxy)
+export async function getObjectStream(objectKey: string)
+export async function getObjectStat(objectKey: string)
 ```
+
+> `toProxyUrl()` exists in `src/lib/minio.ts` but is a **private helper** (not exported) — it is only used internally by `getSignedUrl()`. Frontends never call it; they either use the storage-proxy path directly or a URL returned by the API.
 
 ### Upload Flow
 
@@ -129,36 +134,52 @@ export const toProxyUrl = (objectKey: string): string => {
 // 1. Receive file from multipart form
 const formData = await req.formData();
 const file = formData.get('image') as File;
+const buffer = Buffer.from(await file.arrayBuffer());
 
-// 2. Upload to MinIO
-const objectKey = await uploadFile(file, 'news');
+// 2. Upload to MinIO (folder first, then file metadata)
+const objectKey = await uploadFile('news', {
+  buffer,
+  originalname: file.name,
+  mimetype: file.type,
+  size: file.size,
+});
 
 // 3. Store key in database
 await prisma.newsPost.create({
   data: { imageKey: objectKey, title, caption }
 });
 
-// 4. Return proxy URL to frontend
-return successRes({ imageUrl: toProxyUrl(objectKey) });
+// 4. Return the storage-proxy path (or a signed URL) to the frontend
+return successRes({ imageUrl: `/api/storage/${objectKey}` });
 ```
 
 ### Storage Proxy
 
 **File: `src/app/api/storage/[...path]/route.ts`**
 
-Files are NOT served directly from MinIO. Instead, they go through a proxy:
+Files are NOT served directly from MinIO. Instead, they go through a proxy that **enforces authentication and ownership**:
 
 ```typescript
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params;
-  const objectKey = decodeURIComponent(path.join('/'));
+const PUBLIC_PATH_PATTERNS = [
+  /^hero-slides\//, /^news\//, /^events\//, /^grants\//,
+  /^innovation\/events\/\d+\/[^/]+$/,          // public event notice PDFs
+  /^innovation\/events\/\d+\/notice\//,
+  /^innovation\/open-problems\/\d+\/support\//,
+  /^innovation\/events\/\d+\/problems\/\d+\/support\//,
+  /^innovation\/programs\//,                    // program notices (public by requirement)
+];
 
-  // Stream from MinIO to response
-  const stream = await minioClient.getObject(BUCKET, objectKey);
-  return new Response(stream as unknown as ReadableStream);
+export async function GET(req, { params }) {
+  const objectKey = path.map(decodeURIComponent).join('/');
+
+  // Public paths → stream directly
+  // Everything else → authenticate(req) + canAccessObject(user, objectKey)
+  //   - certificates/*        → only the certificate's owner (serial embeds userId)
+  //   - tickets/{y}/{m}/{id}.pdf → only the ticket's owner
+  //   - innovation/submissions|session-docs/{claimId}/* → only claim members
+  //   - innovation/events/{eventId}/registration/* → claim members of that event
+  //   - ADMIN/FACULTY bypass ownership checks
+  //   - Unmapped paths → any authenticated user (legacy rule)
 }
 ```
 
@@ -166,7 +187,7 @@ export async function GET(
 - The MinIO server might be on a private network (localhost)
 - Browser security prevents fetching from unknown hosts
 - The proxy keeps MinIO endpoint hidden from users
-- The app domain is the single source for everything
+- Object keys are **deterministic** (they embed userIds, claimIds, ticketIds) — without ownership checks any authenticated user could harvest every team's decks, submissions, session documents and tickets. The proxy is **not open**: private objects return 401 (unauthenticated) / 403 (not the owner), and are served with `Cache-Control: private, no-store`.
 
 ### Folder Organization
 
@@ -177,12 +198,15 @@ coe-assets bucket/
 ├── events/            # Event posters
 ├── grants/            # Grant attachments
 ├── hero-slides/       # Homepage carousel images
-├── resumes/           # Student resumes
+├── resumes/           # Student/faculty resumes
 ├── tickets/           # Generated PDF tickets
 │   └── {year}/{month}/{ticketId}.pdf
-├── hackathon/         # Hackathon PPT submissions
+├── certificates/      # Certificate PDFs
+│   └── {eventId}/{ACHIEVEMENT|PARTICIPATION}/{serial}.pdf
+├── innovation/        # Hackathon PPT submissions, session docs,
+│                      # event notices, open-problem support files, program files
 ├── hosting/           # Hosting request files
-└── internship/        # Internship workspace files
+└── internship-documents/  # Internship workspace files
 ```
 
 ## Common Bugs
@@ -191,7 +215,7 @@ coe-assets bucket/
 
 **Problem**: Page loaded over HTTPS but MinIO URLs are HTTP → browser blocks loading.
 
-**Fix**: Use the proxy endpoint (`/api/storage/...`) which runs on the app's domain. Set `MINIO_USE_PROXY=true`.
+**Fix**: Always use the proxy endpoint (`/api/storage/...`) which runs on the app's domain. There is no `MINIO_USE_PROXY` switch — the proxy is the only serving path, and `MINIO_USE_SSL` controls whether the MinIO client itself talks TLS to the MinIO server.
 
 ### 2. Files Not Found After Upload
 
@@ -203,7 +227,7 @@ coe-assets bucket/
 
 **Problem**: Browser displays raw bytes instead of rendering the image.
 
-**Fix**: The proxy needs to pass content-type headers from MinIO. Check that MinIO correctly detects MIME types.
+**Fix**: The proxy passes the content-type stored in MinIO object metadata (`stat.metaData['content-type']`), falling back to `application/octet-stream`. If MinIO detected the wrong MIME at upload time, the response type follows; re-upload the file with a correct MIME type.
 
 ## Exercises
 

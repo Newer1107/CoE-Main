@@ -1,8 +1,9 @@
 # Innovation & Competitions Platform — Implementation Changes
 
-> Status: IMPLEMENTED + E2E-VERIFIED on the local dev server (port 6356), branch
-> `vertical/hackathons`. Nothing has been committed or pushed; main is untouched.
-> Date: 2026-08-07 · Hardening pass: 2026-08-08 (see §11)
+> Status: **IMPLEMENTED + E2E-VERIFIED** on the local dev server (port 6356),
+> branch `vertical/hackathons`, **since merged to `main`** (this file is the
+> historical change record of that rollout; current state: `main`).
+> Date: 2026-08-07 · Hardening pass: 2026-08-08 (see §11) · Certificates shipped 2026-08-08
 
 ## 11. Production hardening (audit pass, 2026-08-08)
 Security/robustness fixes applied after a full workflow audit (details in
@@ -265,10 +266,19 @@ Production notes:
   emails fail gracefully (logged, queued with retries). Add them before going
   live.
 - Ticket PDFs upload to MinIO (verified working with the configured endpoint).
-- `submissionLockAt` is now enforced server-side on registration.
+- `submissionLockAt` is now enforced server-side on registration and claim submission.
 - The 2 pre-existing TCET events (Hackathon Academy I/II) remain legacy-style
   and still work (judging falls back to the 7 fixed rubrics).
 - Full-repo lint still reports ~99 pre-existing `no-explicit-any` errors in
   legacy files; the repo's canonical gate (`next build`) is green.
-- Next steps (not in this scope): departments seeding + coordinator scoping,
-  certificate PDF generation, mentor portal, hackathon team workspaces.
+- **Since this pass:** certificate engine shipped (migration
+  `20260808190604_add_certificates`, `src/lib/certificates.ts`,
+  `src/lib/certificate-issuance.ts` — ACHIEVEMENT for top-3 teams, PARTICIPATION
+  for members with ≥1 PRESENT attendance; `nameOverride` + MinIO storage;
+  backfill: `npm run certificates:backfill`); learning-resources API is live
+  (create/list/delete, no file-upload endpoint yet); custom 404 page added
+  (`src/app/not-found.tsx`); impersonation + Google Sign-In shipped (see
+  `CROSS_PORTAL_ADMIN_IMPERSONATION_IMPLEMENTATION_PLAN.md` /
+  `google-sign-in-implemented.md`).
+- Next steps (not in this scope): department seeding + coordinator scoping,
+  learning-resource uploads, mentor portal, hackathon team workspaces.

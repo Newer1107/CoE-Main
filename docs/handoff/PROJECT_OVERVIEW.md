@@ -14,7 +14,9 @@ The portal serves as a central hub for:
 
 ## Two Applications, One Login
 
-This repository contains **two separate Next.js applications** that share authentication:
+This repository contains the **CoE Portal** — a Next.js application. It shares authentication with a **second, separate application** — the **Project Dashboard**:
+
+> **Important**: the Project Dashboard lives in `project-dashboard/`, which is **gitignored and not part of this repository's source tree** (it is maintained as its own project/repository). The diagram below describes the integration contract for context; dashboard internals are documented here for historical reference only.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -25,11 +27,12 @@ This repository contains **two separate Next.js applications** that share authen
 │                                                        │
 │  Features:                                              │
 │  - Authentication (email/password + Google Sign-In)     │
-│  - Facility Booking                                     │
+│  - Facility Booking + PDF Tickets                       │
 │  - Content Management (news, events, grants)            │
-│  - Innovation Platform (open problems + hackathons)     │
+│  - Innovation Platform (hackathons + certificates)      │
+│  - Public Hackathon Vertical (/hackathons/*)            │
 │  - Internship Management                                │
-│  - Admin Panel                                         │
+│  - Admin Panel (incl. hackathon content/config)         │
 │  - Project Hosting Requests                             │
 └─────────────────────────────────────────────────────────┘
                         │
@@ -38,7 +41,7 @@ This repository contains **two separate Next.js applications** that share authen
                         │
 ┌─────────────────────────────────────────────────────────┐
 │              Project Dashboard (Supporting App)          │
-│  Location: ./project-dashboard/                          │
+│  Location: ./project-dashboard/  [EXTERNAL — gitignored] │
 │  Domain: project-dashboard.tcetcercd.in                  │
 │  Database: Separate MySQL (separate Prisma schema)       │
 │                                                        │
@@ -60,6 +63,8 @@ The CoE portal handles **authentication, content, bookings, and innovation**. Th
 2. They have independent databases and deployment cycles
 3. They are maintained by different teams
 4. They share authentication via a cross-domain JWT cookie so users don't log in twice
+
+The dashboard's code is **not in this repository** (`project-dashboard/` is gitignored) — the CoE portal only talks to it over HTTP (`DASHBOARD_URL` + `SYNC_SECRET`) and issues the shared cookie.
 
 ## Technology Stack
 
@@ -127,13 +132,16 @@ coe-main/
 │       ├── minio.ts              # File storage
 │       ├── hackathon-scoring.ts  # Scoring engine
 │       └── ...                   # Other utilities
-├── project-dashboard/            # Separate Project Dashboard app
-│   └── src/                      # Dashboard's own source
-├── prisma/                       # Database schema
-│   └── schema.prisma             # All models, enums, relations
-├── public/                       # Static assets
+├── project-dashboard/            # EXTERNAL Project Dashboard app (gitignored — not in this repo)
 └── docs/                         # Documentation
 ```
+
+## Navigation
+
+The site navbar (`src/components/Navbar.tsx`) is a single responsive component:
+
+- Desktop links render above the **`1270px` breakpoint** (`min-[1270px]:flex`); below it the hamburger menu takes over (`min-[1270px]:hidden`).
+- The **Programs** dropdown groups the hackathon vertical + innovation-program links (`/hackathons/browse`, `/hackathons/external`, `/hackathons/learn`, `/hackathons/my`, `/hackathons/portfolio`, `/hackathons/dashboard`, `/hackathons/portal`, plus innovation programs).
 
 ## Next Steps
 

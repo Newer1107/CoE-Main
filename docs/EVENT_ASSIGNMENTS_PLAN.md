@@ -1,3 +1,15 @@
+> ## ⚠️ ARCHIVED — planning only, never implemented
+>
+> This document is a **blueprint that was never implemented** (as of this
+> writing there is no event-assignment / faculty-responsibility feature in
+> `src/app/api/**` or `src/app/**` — the document itself states "PLANNING ONLY —
+> no implementation, no schema changes, no code"). It is kept for historical
+> reference. `docs/END_TO_END_WORKFLOW.md` lists it as a "future phase
+> (blueprint only)".
+>
+> If event-scoped judge/mentor/coordinator assignments are ever built, this
+> document is the starting point — verify every claim against the code first.
+
 # Event Assignments & Faculty Responsibilities — Implementation Blueprint
 
 Status: PLANNING ONLY — no implementation, no schema changes, no code.

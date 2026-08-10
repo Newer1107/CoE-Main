@@ -133,14 +133,16 @@ Read:
 
 This is the largest module. Read:
 
-1. `prisma/schema.prisma` — All innovation models (Problem, Claim, HackathonEvent, Application, etc.)
+1. `prisma/schema.prisma` — All innovation models (Problem, Claim, HackathonEvent, Certificate, Application, etc.)
 2. `src/lib/hackathon-scoring.ts` — The scoring system
 3. `src/app/api/innovation/events/route.ts` — Hackathon events
-4. `src/app/api/innovation/applications/route.ts` — Open problem applications
+4. `src/app/api/innovation/applications/route.ts` — Applications (used for internship selection)
 
 **Tip**: Don't try to understand everything. Focus on one workflow:
-- Either: Open Problems (create → apply → review)
-- Or: Hackathons (create → register → screening → judging → results)
+- Either: Internships (create → apply → bulk-select → workspace)
+- Or: Hackathons (create → register → screening → judging → results → certificates)
+
+> Note: the old "open problems" registration flow is archived — `POST /api/innovation/claims` returns a pointer to `/api/innovation/open-submissions`.
 
 ---
 
@@ -157,11 +159,11 @@ This is the largest module. Read:
 1. `src/lib/minio.ts` — File storage client
 2. `src/app/api/storage/[...path]/route.ts` — Storage proxy
 
-### Day 19: Project Dashboard
+### Day 19: Hackathon Vertical + External Apps
 
-1. `project-dashboard/src/middleware.ts` — Shared auth middleware
-2. `project-dashboard/src/lib/coe-auth.ts` — Token verification
-3. `project-dashboard/src/lib/resolve-user.ts` — User auto-provisioning
+1. `src/app/hackathons/` — Public hackathon vertical (browse, external, learn, my, portfolio, dashboard, portal)
+2. `src/app/api/learning-resources/route.ts` — Learning resources API
+3. `src/lib/dashboard-sync.ts` — CoE → Project Dashboard sync (the dashboard itself is an **external gitignored app**)
 
 ### Day 20: Review
 

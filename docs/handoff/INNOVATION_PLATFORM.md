@@ -2,10 +2,12 @@
 
 ## Overview
 
-The Innovation Platform is the largest and most complex module in the CoE Portal. It manages two distinct tracks:
+The Innovation Platform is the largest and most complex module in the CoE Portal. It manages:
 
-1. **Open Problems** — Faculty create problem statements; students submit applications with profiles and custom answers
-2. **Hackathons** — Faculty create events with timelines; student teams register, submit PPTs, get screened, judged, and scored
+1. **Hackathons** — Faculty create events with timelines; student teams register, submit PPTs, get screened, judged, scored, and receive certificates/tickets
+2. **Open Problems** — [ARCHIVED] Faculty problem statements with student applications. Registration through the old flow was moved: `POST /api/innovation/claims` now returns a pointer to `/api/innovation/open-submissions` (the old open-statement registration path is archived; the `Application` flow remains in use for **internship** selections — see INTERNSHIP_SYSTEM.md)
+3. **Innovation Programs** — program listings with student interest (`/api/innovation/programs/*`)
+4. **Public Hackathon Vertical** — marketing/learning site under `/hackathons/*` (browse, external, learn, my, portfolio, dashboard, portal)
 
 ## Why This Module Exists
 
@@ -90,6 +92,8 @@ graph TB
 
 ## Open Problems Workflow
 
+> **ARCHIVED**: The open-statement registration flow below is kept for historical reference. `POST /api/innovation/claims` now rejects with `400` and a pointer to `/api/innovation/open-submissions`. The `Application`-based flow survives for **internship** problems (see INTERNSHIP_SYSTEM.md).
+
 ```mermaid
 sequenceDiagram
     participant F as Faculty
@@ -116,6 +120,8 @@ sequenceDiagram
 ```
 
 ### Key Models
+
+> Archived-track models. `Problem` also carries `approvalStatus`, `isIndustryProblem`/`industryName`, `industryId`, `difficulty`, `sdgTags`, `departmentId`, `supportDocumentKey`, `notificationSent`.
 
 ```prisma
 model Problem {
@@ -212,16 +218,24 @@ sequenceDiagram
 
 ```prisma
 model HackathonEvent {
-  id          Int
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime
-  status      EventStatus  // UPCOMING, ACTIVE, JUDGING, CLOSED
+  id               Int
+  title            String
+  description      String?
+  startTime        DateTime
+  endTime          DateTime
+  submissionLockAt DateTime?
+  totalSessions    Int      @default(1)
+  status           EventStatus  // UPCOMING, ACTIVE, JUDGING, CLOSED
   registrationOpen Boolean @default(true)
-  createdById Int
-  createdBy   User
-  problems    Problem[]
+  createdById      Int
+  createdBy        User
+  pptFileKey       String?  // Event-level PPT template
+  eventType        String   @default("hackathon")
+  config           Json?    // { certificates: { issueOnAccept: boolean } }
+  featured         Boolean  @default(false)
+  problems         Problem[]
+  rubrics          RubricCategory[]  // Config-driven rubric categories
+  certificates     Certificate[]
 }
 
 model Claim {
@@ -242,10 +256,15 @@ model Claim {
   presentationScore Int?
   feasibilityScore  Int?
   finalScore        Int?
-  score             Int?
+  score             Int
   feedback          String?
+  badges            String?
   isAbsent          Boolean @default(false)
+  reminderSent      Boolean @default(false)
   tickets           Ticket[]
+  attendanceRecords TicketAttendance[]
+  rubricScores      RubricScore[]
+  sessionDocuments  SessionDocument[]
 }
 
 model ClaimMember {
@@ -254,8 +273,43 @@ model ClaimMember {
   userId  Int
   user    User
   role    String @default("MEMBER")
+  attendanceRecords TicketAttendance[]
+
+  @@unique([claimId, userId])
+}
+
+model Certificate {
+  id           Int
+  userId       Int
+  eventId      Int
+  type         String  // ACHIEVEMENT | PARTICIPATION
+  title        String
+  detail       String?
+  fileKey      String? // MinIO: certificates/{eventId}/{TYPE}/{serial}.pdf
+  serial       String  @unique  // CERT-<year>-<eventId>-<A|P><userId>
+  issuedAt     DateTime @default(now())
+  nameOverride String? // admin-corrected name on the PDF
+
+  @@unique([userId, eventId, type])
 }
 ```
+
+## Certificate Engine
+
+**Files: `src/lib/certificate-issuance.ts`, `src/lib/certificates.ts` (PDF rendering), `scripts/backfill-certificates.ts`**
+
+Certificates are issued automatically when a hackathon event **closes** (and can be re-run/backfilled manually):
+
+| Aspect | Behavior |
+|--------|----------|
+| **Serial** | `CERT-<year>-<eventId>-<A\|P><userId>` — deterministic, so re-runs are idempotent |
+| **ACHIEVEMENT** | Top-3 teams by `finalScore` (config-respectable via `event.config.certificates.issueOnAccept`, **default true**) |
+| **PARTICIPATION** | Every other member with **≥ 1 PRESENT** attendance row |
+| **nameOverride** | Admin-corrected name shown on the PDF instead of `user.name` |
+| **Storage** | MinIO keys `certificates/{eventId}/{TYPE}/{serial}.pdf` (served via the auth-gated storage proxy) |
+| **Admin UI** | Innovation tab → **Certificates** tab in the admin panel (`/api/innovation/admin/certificates`) |
+| **Student view** | `GET /api/innovation/certificates/my` |
+| **Backfill** | `npm run certificates:backfill` — `npx tsx --env-file=.env scripts/backfill-certificates.ts [--reset] [eventId ...]`; no args = all CLOSED events; `--reset` deletes existing rows + PDFs **scoped to the events being re-run** |
 
 ## Scoring Engine
 
@@ -280,6 +334,8 @@ export const calculateWeightedHackathonScore = (scores: HackathonRubricScores): 
 };
 // Maximum possible: 100 points
 ```
+
+Events can also define **config-driven rubric categories** (`RubricCategory`/`RubricScore` models) alongside the fixed seven-dimension rubric. Helpers in `src/lib/hackathon-scoring.ts` validate that rubric values stay within each category's max weight.
 
 ## Event Status State Machine
 
@@ -326,17 +382,54 @@ stateDiagram-v2
 | `/api/innovation/problems` | GET | List problems | Public/Student |
 | `/api/innovation/problems` | POST | Create problem | Faculty/Admin |
 | `/api/innovation/problems/[id]` | PATCH | Update problem | Faculty/Admin |
-| `/api/innovation/problems/[id]/questions` | GET | Get questions | Authenticated |
-| `/api/innovation/applications` | POST | Submit application | Student |
-| `/api/innovation/applications/my` | GET | My applications | Student |
-| `/api/innovation/events` | GET | List events | Public |
-| `/api/innovation/events` | POST | Create event | Faculty/Admin |
+| `/api/innovation/problems/[id]` | DELETE | Delete problem | Faculty/Admin |
+| `/api/innovation/problems/[id]/questions` | GET/POST | Get / add problem questions | Authenticated |
+| `/api/innovation/claims` | POST | Create claim — **returns pointer to `/api/innovation/open-submissions`** (open-statement registration archived) | Student |
+| `/api/innovation/claims/my` | GET | My claims | Student |
+| `/api/innovation/claims/[id]/submit` | PATCH | Submit claim (PPT upload) | Student |
+| `/api/innovation/claims/[id]/session-documents` | GET/POST | Session documents | Student |
+| `/api/innovation/events` | GET/POST | List / create events | Public / Faculty |
+| `/api/innovation/events/[id]` | GET/PATCH | Event details / update | Public / Faculty |
 | `/api/innovation/events/[id]/register` | POST | Register team | Student |
 | `/api/innovation/events/[id]/leaderboard` | GET | Get leaderboard | Public (CLOSED only) |
+| `/api/innovation/events/[id]/session-upload-locks` | GET/PATCH | Session upload locks | Faculty/Admin |
+| `/api/innovation/interest` | POST/PATCH | Hackathon interest | Student |
+| `/api/innovation/certificates/my` | GET | My certificates | Student |
 | `/api/innovation/faculty/applications` | GET | List applications | Faculty/Admin |
 | `/api/innovation/faculty/applications/[id]/review` | PATCH | Review application | Faculty/Admin |
-| `/api/innovation/faculty/claims/sync` | PATCH | Screening/Judging sync | Faculty/Admin |
+| `/api/innovation/faculty/claims/sync` | PATCH | Screening/Judging sync — issues `HKT-` tickets on SHORTLISTED | Faculty/Admin |
+| `/api/innovation/faculty/claims/[id]/review` | PATCH | Review claim — issues `HKT-` tickets on ACCEPTED | Faculty/Admin |
+| `/api/innovation/faculty/claims/[id]/attendance` | PATCH | Mark claim attendance | Faculty/Admin |
+| `/api/innovation/faculty/submissions` | GET | Faculty submissions | Faculty/Admin |
 | `/api/innovation/admin/events/[id]/status` | PATCH | Change event status | Admin |
+| `/api/innovation/admin/certificates` | GET/POST | List / issue certificates | Admin |
+| `/api/innovation/admin/analytics/participants` | GET | Participants analytics | Admin |
+| `/api/innovation/admin/analytics/teams` | GET | Teams analytics | Admin |
+| `/api/innovation/admin/analytics/attendance` | GET | Attendance analytics | Admin |
+| `/api/innovation/admin/analytics/insights` | GET | Insights analytics | Admin |
+| `/api/innovation/admin/submissions` | GET | Admin submissions | Admin |
+| `/api/innovation/admin/interests` | GET | Event interests | Admin |
+| `/api/innovation/programs` | GET/POST | Innovation programs | Public / Faculty |
+| `/api/innovation/programs/[id]` | GET/PATCH/DELETE | Program details/update/delete | Public / Faculty |
+| `/api/innovation/programs/[id]/interest` | GET/POST/DELETE | Program interest | Student |
+| `/api/innovation/users/lookup` | GET | User lookup by UID | Student |
+
+## Hackathon Vertical (Public Pages)
+
+The public hackathon site lives under `/hackathons` (`src/app/hackathons/`):
+
+| Page | Purpose |
+|------|---------|
+| `/hackathons/browse` | Browse hackathon events |
+| `/hackathons/external` | External hackathon opportunities |
+| `/hackathons/learn` | Learning resources (backed by `LearningResource` model + `/api/learning-resources`) |
+| `/hackathons/my` | My hackathons |
+| `/hackathons/portfolio` | Innovation portfolio (`/api/profile/innovation-portfolio`) |
+| `/hackathons/dashboard` | Student hackathon dashboard (`/api/hackathons/dashboard`) |
+| `/hackathons/portal` | Portal view (route group `(portal)/hackathons/portal`) |
+| `/hackathons/[id]` | Event detail |
+
+Admin content management for this vertical lives at `/admin/hackathons-content` (learning resources + featured content) and `/admin/hackathons-config` (global hackathon configuration, `GET/PATCH /api/admin/hackathons-config`). The navbar **Programs** dropdown links to these vertical pages (desktop nav renders at `min-[1270px]`).
 
 ## Common Bugs
 

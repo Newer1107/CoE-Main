@@ -45,6 +45,8 @@ graph TB
         ER["/api/admin/emails/retry"]
         IS["/api/admin/impersonate/start"]
         IST["/api/admin/impersonate/stop"]
+        HC["/api/admin/hackathons-config"]
+        HR["/api/admin/hosting-requests/*"]
     end
 
     subgraph "Auth Layer"
@@ -66,6 +68,8 @@ graph TB
     IMPERSONATE --> IS
     IMPERSONATE --> IST
     HOSTING --> H["/api/admin/hosting-requests/*"]
+    HOSTING --> HR
+    HOSTING --> HC
 
     S --> AUTH --> AUTHZ
     U --> AUTH --> AUTHZ
@@ -115,12 +119,12 @@ await syncFaculty(facultyId);
 
 ### 4. Email Broadcast
 
-**File: `src/app/api/admin/emails/send/route.ts`**
+**File: `src/app/api/admin/emails/send/route.ts`** (POST + GET)
 
 - Send to: specific users, all students, all faculty, all users
 - Optional file attachments
-- Queued as bulk for cron processing
-- Retry failed emails via `POST /api/admin/emails/retry`
+- Queued as bulk for cron processing (`processEmailQueue` via `GET /api/cron/email-queue`)
+- Queue listing: `GET /api/admin/emails`; retry failed emails via `POST /api/admin/emails/retry`
 
 ### 5. Impersonation
 
@@ -169,6 +173,10 @@ Manage all facility bookings: list, filter by status, confirm with ticket, rejec
 
 Manage student project hosting requests: review, approve (assign subdomain), reject.
 
+### 8. Hackathon Control
+
+The **Innovation** view group manages the full hackathon lifecycle: event creation/status transitions (UPCOMING → ACTIVE → JUDGING → CLOSED), claim screening/judging sync (which issues `HKT-` tickets), leaderboard, analytics (participants/teams/attendance/insights), and certificate issuance. Global configuration lives at `/admin/hackathons-config`, and vertical content (learning resources) at `/admin/hackathons-content`.
+
 ## Authorization Pattern
 
 Every admin endpoint follows this pattern:
@@ -192,21 +200,31 @@ export async function GET(req: NextRequest) {
 
 ## Admin Panel UI
 
-**File: `src/app/admin/AdminPanelClient.tsx`**
+**File: `src/app/admin/AdminPanelClient.tsx`** (single-page client component with two view groups)
 
-The admin UI is a single-page client component with tabs:
-
-| Tab | Content |
+| View / Tab | Content |
 |-----|---------|
-| **Dashboard** | Platform statistics |
-| **Bookings** | Booking moderation (confirm/reject) |
-| **Faculty Approval** | Approve or reject pending faculty |
-| **Email** | Send broadcast emails, view queue |
-| **User Directory** | Search, filter, export users |
-| **Impersonation** | Search and impersonate users |
-| **Hosting Requests** | Review project hosting requests |
-| **Innovation** | Hackathon control center |
-| **Industry Partners** | Manage industry partners |
+| **Operations → Overview** | Platform statistics |
+| **Operations → Bookings** | Booking moderation (confirm/reject) |
+| **Operations → Faculty** | Approve/reject pending faculty (+ HOD toggle) |
+| **Operations → Tickets** | Ticket verification UI (QR target: `/admin?tab=operations&ops=tickets&ticketId=...`) |
+| **Operations → Content** | News/events/grants/announcements/hero-slides management |
+| **Operations → Emails** | Send broadcast emails, view queue |
+| **Operations → Industry** | Manage industry partners |
+| **Innovation → Events** | Hackathon event control center |
+| **Innovation → Review** | Claim screening/judging review |
+| **Innovation → Leaderboard** | Leaderboard view |
+| **Innovation → Analytics** | Sub-tabs: **participants**, **teams**, **attendance**, **insights** |
+| **Innovation → Certificates** | Certificate issuance/reissue, nameOverride corrections |
+| **User Directory / Impersonation / Hosting Requests** | Dedicated views (search, export, impersonate, hosting review) |
+
+Separate admin pages:
+
+| Page | Purpose |
+|------|---------|
+| `/admin/hackathons-content` | Manage hackathon vertical content (learning resources, featured content) |
+| `/admin/hackathons-config` | Global hackathon configuration (`GET/PATCH /api/admin/hackathons-config`) |
+| `/admin/hosting-requests` | Project hosting request review |
 
 ## Impersonation Flow (Detailed)
 
