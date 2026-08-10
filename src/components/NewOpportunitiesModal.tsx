@@ -84,7 +84,7 @@ export default function NewOpportunitiesModal({
                 </div>
 
                 {/* Content */}
-                <div className="p-4 sm:p-5 max-h-[70vh] overflow-y-auto space-y-6">
+                <div className="p-4 sm:p-5 max-h-[70vh] overflow-y-auto overscroll-contain space-y-6">
 
                     {/* Hackathons */}
                     {hackathons.length > 0 && (

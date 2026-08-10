@@ -2442,7 +2442,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
     if (count === 0) return;
     try {
       setErrorMessage("");
-      setStatusMessage(`Marking attendance for ${count} booking(s)...`);
+      setStatusMessage(`Marking attendance for ${count} booking(s)…`);
       setBusyAllAttendance(true);
       for (const booking of unattendedCompletedBookings) {
         if (!booking.ticket?.ticketId) continue;
@@ -3558,7 +3558,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
             <form className="mt-4 space-y-3" onSubmit={handleCreateIndustryPartner}>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[#434651]">Select Industry</label>
-              <select
+              <select aria-label="Select Industry" name="select-industry" autoComplete="off"
                 value={selectedIndustryOption}
                 onChange={(e) => setSelectedIndustryOption(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -3572,7 +3572,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               </select>
 
               {selectedIndustryOption === "NEW" ? (
-                <input
+                <input aria-label="New industry/company name" name="new-industry-company-name" autoComplete="off"
                   required
                   value={industryNameInput}
                   onChange={(e) => setIndustryNameInput(e.target.value)}
@@ -3581,13 +3581,13 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 />
               ) : null}
 
-              <input
+              <input aria-label="Contact person name (required for new account)" name="contact-person-name-required-for-new-account" autoComplete="off"
                 value={industryPartnerName}
                 onChange={(e) => setIndustryPartnerName(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                 placeholder="Contact person name (required for new account)"
               />
-              <input
+              <input aria-label="Member email" name="member-email" autoComplete="off"
                 required
                 type="email"
                 value={industryPartnerEmail}
@@ -3595,13 +3595,13 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                 placeholder="Member email"
               />
-              <input
+              <input aria-label="Phone (optional)" name="phone-optional" autoComplete="off"
                 value={industryPartnerPhone}
                 onChange={(e) => setIndustryPartnerPhone(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                 placeholder="Phone (optional)"
               />
-              <input
+              <input aria-label="Temporary password (required for new account)" name="temporary-password-required-for-new-account" autoComplete="new-password"
                 type="password"
                 minLength={8}
                 value={industryPartnerPassword}
@@ -3615,7 +3615,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 disabled={creatingIndustryPartner}
                 className="bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
               >
-                {creatingIndustryPartner ? "Saving..." : "Assign To Industry"}
+                {creatingIndustryPartner ? "Saving…" : "Assign To Industry"}
               </button>
             </form>
           </article>
@@ -3644,7 +3644,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               disabled={loadingIndustryDirectory}
               className="mt-3 border border-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#002155] disabled:opacity-60"
             >
-              {loadingIndustryDirectory ? "Refreshing..." : "Refresh Industry Directory"}
+              {loadingIndustryDirectory ? "Refreshing…" : "Refresh Industry Directory"}
             </button>
           </article>
         </div>
@@ -3676,7 +3676,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
           <p className="mt-2 text-sm text-[#434651]">Platform-wide internship projects. Click to open a workspace and monitor participants.</p>
 
           {loadingInternshipsList ? (
-            <p className="mt-4 text-sm text-[#747782]">Loading internships...</p>
+            <p className="mt-4 text-sm text-[#747782]">Loading internships…</p>
           ) : internshipsList.length === 0 ? (
             <p className="mt-4 border border-dashed border-[#c4c6d3] p-4 text-sm text-[#434651]">No internships found.</p>
           ) : (
@@ -3815,7 +3815,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               ? `${customEmailRecipientList.length} recipient(s)`
               : customEmailScope === "STUDENTS_BY_BRANCH" && customEmailBranch
               ? loadingRecipientCount
-                ? `Estimating...`
+                ? `Estimating…`
                 : `${estimatedRecipientCount ?? '?'} recipient(s)`
               : "Recipient list resolved on send"}
           </span>
@@ -3823,7 +3823,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
         <form className="space-y-3" onSubmit={handleSendCustomEmail}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select
+            <select aria-label="Recipients" name="recipients" autoComplete="off"
               value={customEmailScope}
               onChange={(e) => setCustomEmailScope(e.target.value as "CUSTOM" | "STUDENTS" | "FACULTY" | "ALL_USERS" | "STUDENTS_BY_BRANCH")}
               className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -3834,7 +3834,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               <option value="ALL_USERS">All users</option>
               <option value="STUDENTS_BY_BRANCH">Students by branch</option>
             </select>
-            <select
+            <select aria-label="Email Mode" name="email-mode" autoComplete="off"
               value={customEmailMode}
               onChange={(e) => setCustomEmailMode(e.target.value as "IMMEDIATE" | "BULK")}
               className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -3842,7 +3842,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               <option value="IMMEDIATE">Immediate send</option>
               <option value="BULK">Bulk queue</option>
             </select>
-            <input
+            <input aria-label="Email subject" name="email-subject" autoComplete="off"
               value={customEmailSubject}
               onChange={(e) => setCustomEmailSubject(e.target.value)}
               className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -3854,7 +3854,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
           {customEmailScope === "STUDENTS_BY_BRANCH" ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <select
+                <select aria-label="Branch" name="branch" autoComplete="off"
                   value={customEmailBranch}
                   onChange={(e) => setCustomEmailBranch(e.target.value)}
                   className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -3865,7 +3865,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                     <option key={code} value={code}>{code}</option>
                   ))}
                 </select>
-                <select
+                <select aria-label="Year" name="year" autoComplete="off"
                   value={customEmailYear}
                   onChange={(e) => setCustomEmailYear(e.target.value)}
                   className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -3879,14 +3879,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               </div>
               {customEmailBranch ? (
                 <p className="text-xs text-[#747782]">
-                  {loadingRecipientCount ? "Estimating recipient count..." : `~${estimatedRecipientCount ?? '?'} matching student(s)`}
+                  {loadingRecipientCount ? "Estimating recipient count…" : `~${estimatedRecipientCount ?? '?'} matching student(s)`}
                 </p>
               ) : null}
             </>
           ) : null}
 
           {customEmailScope === "CUSTOM" ? (
-            <textarea
+            <textarea aria-label="Enter email addresses separated by commas or new lines" name="enter-email-addresses-separated-by-commas-or-new-lines" autoComplete="off"
               value={customEmailRecipients}
               onChange={(e) => setCustomEmailRecipients(e.target.value)}
               className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[80px]"
@@ -3898,7 +3898,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[#434651] mb-2">
               Attachments (optional)
             </label>
-            <input
+            <input aria-label="Attachments (optional)" name="attachments-optional" autoComplete="off"
               type="file"
               multiple
               onChange={(e) => setCustomEmailAttachments(Array.from(e.target.files ?? []))}
@@ -3912,7 +3912,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             ) : null}
           </div>
 
-          <textarea
+          <textarea aria-label="Write the message body" name="write-the-message-body" autoComplete="off"
             value={customEmailMessage}
             onChange={(e) => setCustomEmailMessage(e.target.value)}
             className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[140px]"
@@ -3926,7 +3926,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               disabled={sendingCustomEmail}
               className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
             >
-              {sendingCustomEmail ? "Sending..." : "Send Email"}
+              {sendingCustomEmail ? "Sending…" : "Send Email"}
             </button>
             <button
               type="button"
@@ -3961,14 +3961,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               disabled={loadingEmailSnapshot || retryingEmailQueue}
               className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
             >
-              {retryingEmailQueue ? "Retrying..." : "Retry Filtered"}
+              {retryingEmailQueue ? "Retrying…" : "Retry Filtered"}
             </button>
             <button
               onClick={() => void handleRefreshEmailSnapshot()}
               disabled={loadingEmailSnapshot || retryingEmailQueue}
               className="border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
             >
-              {loadingEmailSnapshot ? "Refreshing..." : "Refresh"}
+              {loadingEmailSnapshot ? "Refreshing…" : "Refresh"}
             </button>
           </div>
         </div>
@@ -3997,7 +3997,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-          <select
+          <select aria-label="Email Status" name="email-status" autoComplete="off"
             value={emailStatusFilter}
             onChange={(e) => {
               setEmailPage(1);
@@ -4013,7 +4013,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             <option value="FAILED">FAILED</option>
           </select>
 
-          <select
+          <select aria-label="Email Mode" name="email-mode" autoComplete="off"
             value={emailModeFilter}
             onChange={(e) => {
               setEmailPage(1);
@@ -4026,7 +4026,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             <option value="BULK">BULK</option>
           </select>
 
-          <input
+          <input aria-label="Category filter (e.g. AUTH_OTP)" name="category-filter-e-g-auth-otp" autoComplete="off"
             value={emailCategoryFilter}
             onChange={(e) => {
               setEmailPage(1);
@@ -4036,7 +4036,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             placeholder="Category filter (e.g. AUTH_OTP)"
           />
 
-          <select
+          <select aria-label="Entries Per Page" name="entries-per-page" autoComplete="off"
             value={emailPageSize}
             onChange={(e) => {
               setEmailPage(1);
@@ -4051,7 +4051,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
         </div>
 
         {loadingEmailSnapshot ? (
-          <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading email queue...</p>
+          <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading email queue…</p>
         ) : !emailSnapshot || emailSnapshot.items.length === 0 ? (
           <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No email activity found for the selected filters.</p>
         ) : (
@@ -4124,13 +4124,13 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto_auto] gap-3 mb-4">
-          <input
+          <input aria-label="Enter ticket ID or paste QR URL" name="enter-ticket-id-or-paste-qr-url" autoComplete="off"
             value={ticketIdInput}
             onChange={(e) => setTicketIdInput(e.target.value)}
             className="border border-[#c4c6d3] px-3 py-2 text-sm"
             placeholder="Enter ticket ID or paste QR URL"
           />
-          <input
+          <input aria-label="Session" name="session" autoComplete="off"
             type="number"
             min={1}
             max={ticketVerifyResult?.mode === "HACKATHON" ? Math.max(1, ticketVerifyResult.totalSessions ?? 1) : 30}
@@ -4155,14 +4155,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             disabled={ticketVerifying}
             className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
           >
-            {ticketVerifying ? "Verifying..." : "Verify Ticket"}
+            {ticketVerifying ? "Verifying…" : "Verify Ticket"}
           </button>
           <button
             onClick={() => void handleToggleTicketScanner()}
             disabled={ticketVerifying || ticketScannerStarting}
             className="border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
           >
-            {ticketScannerOpen ? "Stop Camera" : ticketScannerStarting ? "Starting..." : "Scan from Camera"}
+            {ticketScannerOpen ? "Stop Camera" : ticketScannerStarting ? "Starting…" : "Scan from Camera"}
           </button>
         </div>
 
@@ -4215,7 +4215,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                     const alreadyPresent = member.attendanceStatus === "PRESENT";
                     return (
                       <label key={`member-attendance-${member.claimMemberId}`} className={`flex items-start gap-3 border px-3 py-2 ${alreadyPresent ? "border-green-200 bg-green-50" : "border-[#e3e2df] bg-[#faf9f5]"}`}>
-                        <input
+                        <input name="member-attendance" autoComplete="off"
                           type="checkbox"
                           disabled={alreadyPresent || ticketVerifying}
                           checked={alreadyPresent || selectedPresentMemberIds.includes(member.claimMemberId)}
@@ -4242,7 +4242,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                     disabled={ticketVerifying || selectedPresentMemberIds.length === 0}
                     className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                   >
-                    {ticketVerifying ? "Saving..." : "Mark Selected Present"}
+                    {ticketVerifying ? "Saving…" : "Mark Selected Present"}
                   </button>
                   <button
                     onClick={() => setSelectedPresentMemberIds([])}
@@ -4270,7 +4270,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
           <form className="space-y-4" onSubmit={handleHeroUpload}>
             <div>
               <label className="block text-xs uppercase tracking-widest text-[#434651] font-label mb-2">Title</label>
-              <input
+              <input aria-label="Title" name="title" autoComplete="off"
                 value={heroTitle}
                 onChange={(e) => setHeroTitle(e.target.value)}
                 required
@@ -4281,7 +4281,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
             <div>
               <label className="block text-xs uppercase tracking-widest text-[#434651] font-label mb-2">Caption</label>
-              <textarea
+              <textarea aria-label="Caption" name="caption" autoComplete="off"
                 value={heroCaption}
                 onChange={(e) => setHeroCaption(e.target.value)}
                 required
@@ -4292,7 +4292,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
             <div>
               <label className="block text-xs uppercase tracking-widest text-[#434651] font-label mb-2">Image</label>
-              <input
+              <input aria-label="Image" name="image" autoComplete="off"
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 required
@@ -4306,7 +4306,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               disabled={heroUploading}
               className="bg-[#002155] text-white px-5 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
             >
-              {heroUploading ? "Uploading..." : "Upload Hero Slide"}
+              {heroUploading ? "Uploading…" : "Upload Hero Slide"}
             </button>
           </form>
         </div>
@@ -4451,7 +4451,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                         disabled={busyAllAttendance}
                         className="border border-[#0b6b2e] text-[#0b6b2e] px-3 py-1 text-xs font-bold uppercase tracking-wider hover:bg-[#0b6b2e] hover:text-white transition-colors disabled:opacity-50"
                       >
-                        {busyAllAttendance ? "Marking..." : `Mark All Present (${unattendedCompletedBookings.length})`}
+                        {busyAllAttendance ? "Marking…" : `Mark All Present (${unattendedCompletedBookings.length})`}
                       </button>
                     ) : null}
                     <span className="text-xs uppercase tracking-widest text-[#ba1a1a] font-label">{unattendedCompletedBookings.length}</span>
@@ -4484,7 +4484,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                               disabled={busyBookingId === booking.id}
                               className="shrink-0 border border-[#0b6b2e] text-[#0b6b2e] px-3 py-1 text-xs font-bold uppercase tracking-wider hover:bg-[#0b6b2e] hover:text-white transition-colors disabled:opacity-50"
                             >
-                              {busyBookingId === booking.id ? "..." : "Mark Present"}
+                              {busyBookingId === booking.id ? "…" : "Mark Present"}
                             </button>
                           ) : null}
                         </div>
@@ -4560,7 +4560,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                   disabled={busyBookingId === booking.id}
                   className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:bg-opacity-50"
                 >
-                  {busyBookingId === booking.id ? "Working..." : "Confirm"}
+                  {busyBookingId === booking.id ? "Working…" : "Confirm"}
                 </button>
 
                 <button
@@ -4617,7 +4617,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       disabled={busyFacultyId === faculty.id}
                       className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:bg-opacity-50"
                     >
-                      {busyFacultyId === faculty.id ? "Working..." : "Approve"}
+                      {busyFacultyId === faculty.id ? "Working…" : "Approve"}
                     </button>
                     <button
                       onClick={() => handleRejectFaculty(faculty.id)}
@@ -4643,13 +4643,13 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_200px_auto] gap-3">
-          <input
+          <input aria-label="Search by name, email, or UID" name="search-by-name-email-or-uid" autoComplete="off"
             value={userSearch}
             onChange={(e) => setUserSearch(e.target.value)}
             className="border border-[#c4c6d3] px-3 py-2 text-sm"
             placeholder="Search by name, email, or UID"
           />
-          <select
+          <select aria-label="Role" name="role" autoComplete="off"
             value={userRoleFilter}
             onChange={(e) => setUserRoleFilter(e.target.value as "ALL" | "FACULTY" | "STUDENT")}
             className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -4713,7 +4713,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                 disabled={busyHodUserId === user.id}
                                 className="text-xs text-[#ba1a1a] underline disabled:opacity-50"
                               >
-                                {busyHodUserId === user.id ? "..." : "Remove"}
+                                {busyHodUserId === user.id ? "…" : "Remove"}
                               </button>
                             ) : (
                               <button
@@ -4762,7 +4762,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
           </div>
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3">
-            <select
+            <select aria-label="Export Year" name="export-year" autoComplete="off"
               value={userExportYear}
               onChange={(e) => setUserExportYear(e.target.value as "ALL" | "FIRST" | "SECOND" | "THIRD" | "FOURTH")}
               className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -4773,7 +4773,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               <option value="THIRD">Third year (23-27)</option>
               <option value="FOURTH">Fourth year (22-26)</option>
             </select>
-            <select
+            <select aria-label="Export Branch" name="export-branch" autoComplete="off"
               value={userExportBranch}
               onChange={(e) => setUserExportBranch(e.target.value)}
               className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -4804,12 +4804,12 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             <div className="p-5 space-y-4">
               <div>
                 <label className="block text-xs uppercase tracking-widest text-[#434651] font-label mb-2">Department</label>
-                <select
+                <select aria-label="Department" name="department" autoComplete="off"
                   value={hodModalDepartment}
                   onChange={(e) => setHodModalDepartment(e.target.value)}
                   className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                 >
-                  <option value="">Select department...</option>
+                  <option value="">Select department…</option>
                   {[
                     "B.E. Computer Engineering",
                     "B.E. Information Technology",
@@ -4840,7 +4840,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                   disabled={busyHodUserId !== null || !hodModalDepartment.trim()}
                   className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:bg-opacity-50"
                 >
-                  {busyHodUserId !== null ? "Assigning..." : "Assign HOD"}
+                  {busyHodUserId !== null ? "Assigning…" : "Assign HOD"}
                 </button>
               </div>
             </div>
@@ -4867,7 +4867,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             <div className="p-5 space-y-6">
-              {loadingUserDetail ? <p className="text-sm text-[#434651]">Loading full user details...</p> : null}
+              {loadingUserDetail ? <p className="text-sm text-[#434651]">Loading full user details…</p> : null}
 
               {!loadingUserDetail && selectedUserDetail ? (
                 <>
@@ -5017,10 +5017,10 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       <div className="mb-8 border border-gray-200 bg-white p-4 md:p-6">
         <h2 className="text-lg font-bold text-[#002155] mb-4">Impersonate a User</h2>
         <div className="relative mb-4">
-          <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setSearchPage(1); }} placeholder="Search by name, email, or UID..." className="w-full border border-gray-300 px-3 py-2 pr-10 text-sm" />
+          <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setSearchPage(1); }} placeholder="Search by name, email, or UID…" className="w-full border border-gray-300 px-3 py-2 pr-10 text-sm" aria-label="Search by name, email, or UID…" name="search-by-name-email-or-uid" autoComplete="off" />
           <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
         </div>
-        {isSearching ? <p className="text-sm text-gray-500">Searching...</p> : null}
+        {isSearching ? <p className="text-sm text-gray-500">Searching…</p> : null}
         {searchResults.length > 0 ? (
           <>
             <div className="overflow-x-auto">
@@ -5133,14 +5133,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
             <form className="space-y-4" onSubmit={handleCreateHackathonEvent}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
+                <input aria-label="Hackathon title" name="hackathon-title" autoComplete="off"
                   required
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   className="border border-[#c4c6d3] px-3 py-2 text-sm"
                   placeholder="Hackathon title"
                 />
-                <input
+                <input aria-label="Event PPT" name="event-ppt" autoComplete="off"
                   type="file"
                   accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
                   onChange={(e) => setEventPptFile(e.target.files?.[0] ?? null)}
@@ -5151,7 +5151,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Event Type</label>
-                  <select
+                  <select aria-label="Event Type" name="event-type" autoComplete="off"
                     value={eventType}
                     onChange={(e) => {
                       const next = e.target.value;
@@ -5169,7 +5169,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 </div>
                 <div className="flex items-end">
                   <label className="flex items-center gap-2 text-sm text-[#434651]">
-                    <input
+                    <input name="featured-on-portal" autoComplete="off"
                       type="checkbox"
                       checked={eventFeatured}
                       onChange={(e) => setEventFeatured(e.target.checked)}
@@ -5179,7 +5179,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 </div>
               </div>
 
-              <textarea
+              <textarea aria-label="Event description (optional)" name="event-description-optional" autoComplete="off"
                 value={eventDescription}
                 onChange={(e) => setEventDescription(e.target.value)}
                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[90px]"
@@ -5189,7 +5189,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Start Time</label>
-                  <input
+                  <input aria-label="Start Time" name="start-time" autoComplete="off"
                     type="datetime-local"
                     required
                     value={eventStartTime}
@@ -5199,7 +5199,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 </div>
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">End Time</label>
-                  <input
+                  <input aria-label="End Time" name="end-time" autoComplete="off"
                     type="datetime-local"
                     required
                     value={eventEndTime}
@@ -5209,7 +5209,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 </div>
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Total Sessions</label>
-                  <input
+                  <input aria-label="Total Sessions" name="total-sessions" autoComplete="off"
                     type="number"
                     min={1}
                     max={30}
@@ -5258,14 +5258,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       </button>
                     </div>
 
-                    <input
+                    <input aria-label="Problem title" name="problem-title" autoComplete="off"
                       required
                       value={problem.title}
                       onChange={(e) => updateEventProblem(idx, { title: e.target.value })}
                       className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                       placeholder="Problem title"
                     />
-                    <textarea
+                    <textarea aria-label="Problem description" name="problem-description" autoComplete="off"
                       required
                       value={problem.description}
                       onChange={(e) => updateEventProblem(idx, { description: e.target.value })}
@@ -5275,7 +5275,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
                     <div>
                       <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Problem PDF (optional)</label>
-                      <input
+                      <input aria-label="Problem PDF (optional)" name="problem-pdf-optional" autoComplete="off"
                         type="file"
                         accept=".pdf,application/pdf"
                         onChange={(e) => updateEventProblem(idx, { supportDocumentFile: e.target.files?.[0] ?? null })}
@@ -5285,7 +5285,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <label className="flex items-center gap-2 text-sm text-[#434651]">
-                        <input
+                        <input name="industry-problem" autoComplete="off"
                           type="checkbox"
                           checked={problem.isIndustryProblem}
                           onChange={(e) => updateEventProblem(idx, { isIndustryProblem: e.target.checked, industryName: e.target.checked ? problem.industryName : "" })}
@@ -5293,7 +5293,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                         Industry Problem
                       </label>
                       {problem.isIndustryProblem ? (
-                        <input
+                        <input aria-label="Industry Name" name="industry-name" autoComplete="off"
                           required
                           value={problem.industryName}
                           onChange={(e) => updateEventProblem(idx, { industryName: e.target.value })}
@@ -5311,7 +5311,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Rubric Template</label>
-                    <select
+                    <select aria-label="Rubric Template" name="rubric-template" autoComplete="off"
                       value={eventConfig.rubrics.template}
                       onChange={(e) => setEventConfig((prev) => ({ ...prev, rubrics: { template: e.target.value } }))}
                       className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -5343,7 +5343,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <label className="flex items-center gap-2 text-sm text-[#434651]">
-                      <input
+                      <input name="require-ppt" autoComplete="off"
                         type="checkbox"
                         checked={eventConfig.registration.requiresPpt}
                         onChange={(e) =>
@@ -5356,7 +5356,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       Require PPT
                     </label>
                     <label className="flex items-center gap-2 text-sm text-[#434651]">
-                      <input
+                      <input name="require-problem-selection" autoComplete="off"
                         type="checkbox"
                         checked={eventConfig.registration.requiresProblemSelection}
                         onChange={(e) =>
@@ -5369,7 +5369,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       Require problem selection
                     </label>
                     <label className="flex items-center gap-2 text-sm text-[#434651]">
-                      <input
+                      <input name="allow-solo-participation" autoComplete="off"
                         type="checkbox"
                         checked={eventConfig.registration.allowSolo}
                         onChange={(e) =>
@@ -5382,7 +5382,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       Allow solo participation
                     </label>
                     <label className="flex items-center gap-2 text-sm text-[#434651]">
-                      <input
+                      <input name="ticketing-enabled" autoComplete="off"
                         type="checkbox"
                         checked={eventConfig.ticketing.enabled}
                         onChange={(e) =>
@@ -5395,7 +5395,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       Ticketing enabled
                     </label>
                     <label className="flex items-center gap-2 text-sm text-[#434651]">
-                      <input
+                      <input name="issue-certificate-on-accept" autoComplete="off"
                         type="checkbox"
                         checked={eventConfig.certificates.issueOnAccept}
                         onChange={(e) =>
@@ -5412,7 +5412,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Min Team Size</label>
-                      <input
+                      <input aria-label="Min Team Size" name="min-team-size" autoComplete="off"
                         type="number"
                         min={1}
                         max={10}
@@ -5430,7 +5430,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                     </div>
                     <div>
                       <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Max Team Size</label>
-                      <input
+                      <input aria-label="Max Team Size" name="max-team-size" autoComplete="off"
                         type="number"
                         min={1}
                         max={10}
@@ -5448,7 +5448,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                     </div>
                     <div>
                       <label className="block text-xs uppercase tracking-widest text-[#434651] mb-2">Leaderboard Visibility</label>
-                      <select
+                      <select aria-label="Leaderboard Visibility" name="leaderboard-visibility" autoComplete="off"
                         value={eventConfig.leaderboard.visibleAfter}
                         onChange={(e) =>
                           setEventConfig((prev) => ({
@@ -5471,7 +5471,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 disabled={eventCreating}
                 className="bg-[#002155] text-white px-5 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
               >
-                {eventCreating ? "Creating..." : "Create Hackathon Event"}
+                {eventCreating ? "Creating…" : "Create Hackathon Event"}
               </button>
             </form>
           </section>
@@ -5667,7 +5667,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                     : "bg-white text-[#ba1a1a] border-[#ba1a1a]"
                                 }`}
                               >
-                                S{session}: {sessionLockMutationKey === mutationKey ? "Saving..." : isOpen ? "OPEN" : "CLOSED"}
+                                S{session}: {sessionLockMutationKey === mutationKey ? "Saving…" : isOpen ? "OPEN" : "CLOSED"}
                               </button>
                             );
                           })}
@@ -5677,19 +5677,19 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       {eventEditDraft?.eventId === event.id ? (
                         <div className="mt-4 border border-[#d8d6cf] bg-[#faf9f5] p-4 space-y-4">
                           {eventEditLoading ? (
-                            <p className="text-sm text-[#434651]">Loading event editor...</p>
+                            <p className="text-sm text-[#434651]">Loading event editor…</p>
                           ) : (
                             <>
                               <p className="text-sm font-bold uppercase tracking-wider text-[#002155]">Edit Hackathon Event</p>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <input
+                                <input aria-label="Event title" name="event-title" autoComplete="off"
                                   value={eventEditDraft.title}
                                   onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))}
                                   className="border border-[#c4c6d3] px-3 py-2 text-sm"
                                   placeholder="Event title"
                                 />
-                                <input
+                                <input aria-label="Total sessions" name="total-sessions" autoComplete="off"
                                   type="number"
                                   min={1}
                                   max={30}
@@ -5704,7 +5704,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                 />
                               </div>
 
-                              <textarea
+                              <textarea aria-label="Event description" name="event-description" autoComplete="off"
                                 value={eventEditDraft.description}
                                 onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
                                 className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[80px]"
@@ -5714,7 +5714,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
                                   <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">Start Time</label>
-                                  <input
+                                  <input aria-label="Start Time" name="start-time" autoComplete="off"
                                     type="datetime-local"
                                     value={eventEditDraft.startTime}
                                     onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, startTime: e.target.value } : prev))}
@@ -5723,7 +5723,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                 </div>
                                 <div>
                                   <label className="block text-[11px] uppercase tracking-wider text-[#434651] mb-1">End Time</label>
-                                  <input
+                                  <input aria-label="End Time" name="end-time" autoComplete="off"
                                     type="datetime-local"
                                     value={eventEditDraft.endTime}
                                     onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, endTime: e.target.value } : prev))}
@@ -5738,7 +5738,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <label className="flex items-center gap-2 text-sm text-[#434651]">
-                                  <input
+                                  <input name="submissions-open" autoComplete="off"
                                     type="checkbox"
                                     checked={eventEditDraft.registrationOpen}
                                     onChange={(e) => setEventEditDraft((prev) => (prev ? { ...prev, registrationOpen: e.target.checked } : prev))}
@@ -5746,7 +5746,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                   Submissions Open
                                 </label>
 
-                                <select
+                                <select aria-label="Event Status" name="event-status" autoComplete="off"
                                   value={eventEditDraft.status}
                                   onChange={(e) =>
                                     setEventEditDraft((prev) =>
@@ -5761,7 +5761,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                   <option value="CLOSED">CLOSED</option>
                                 </select>
 
-                                <input
+                                <input aria-label="Event PPT" name="event-ppt" autoComplete="off"
                                   type="file"
                                   accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
                                   onChange={(e) =>
@@ -5774,7 +5774,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                               </div>
 
                               <label className="flex items-center gap-2 text-xs text-[#434651]">
-                                <input
+                                <input name="remove-existing-ppt" autoComplete="off"
                                   type="checkbox"
                                   checked={eventEditDraft.removePptFile}
                                   onChange={(e) =>
@@ -5811,13 +5811,13 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                       </button>
                                     </div>
 
-                                    <input
+                                    <input aria-label="Problem title" name="problem-title" autoComplete="off"
                                       value={problem.title}
                                       onChange={(e) => updateEventEditorProblem(idx, { title: e.target.value })}
                                       className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
                                       placeholder="Problem title"
                                     />
-                                    <textarea
+                                    <textarea aria-label="Problem description" name="problem-description" autoComplete="off"
                                       value={problem.description}
                                       onChange={(e) => updateEventEditorProblem(idx, { description: e.target.value })}
                                       className="w-full border border-[#c4c6d3] px-3 py-2 text-sm min-h-[70px]"
@@ -5835,7 +5835,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                           View Existing Problem PDF
                                         </a>
                                       ) : null}
-                                      <input
+                                      <input aria-label="Problem PDF" name="problem-pdf" autoComplete="off"
                                         type="file"
                                         accept=".pdf,application/pdf"
                                         onChange={(e) =>
@@ -5848,7 +5848,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                       />
                                       {problem.supportDocumentUrl ? (
                                         <label className="flex items-center gap-2 text-xs text-[#434651]">
-                                          <input
+                                          <input name="remove-existing-problem-pdf" autoComplete="off"
                                             type="checkbox"
                                             checked={problem.removeSupportDocument}
                                             onChange={(e) =>
@@ -5865,7 +5865,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                       <label className="flex items-center gap-2 text-sm text-[#434651]">
-                                        <input
+                                        <input name="industry-problem" autoComplete="off"
                                           type="checkbox"
                                           checked={problem.isIndustryProblem}
                                           onChange={(e) =>
@@ -5879,7 +5879,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                       </label>
 
                                       {problem.isIndustryProblem ? (
-                                        <input
+                                        <input aria-label="Industry Name" name="industry-name" autoComplete="off"
                                           value={problem.industryName}
                                           onChange={(e) => updateEventEditorProblem(idx, { industryName: e.target.value })}
                                           className="w-full border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -5898,7 +5898,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                   disabled={eventEditSaving}
                                   className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                                 >
-                                  {eventEditSaving ? "Saving..." : "Save Event Changes"}
+                                  {eventEditSaving ? "Saving…" : "Save Event Changes"}
                                 </button>
                                 <button
                                   type="button"
@@ -5927,7 +5927,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Hackathon Submissions Control Center</h2>
               <div className="flex flex-wrap items-center gap-2">
-                <select
+                <select aria-label="Event" name="event" autoComplete="off"
                   value={managedSubmissionEventFilter}
                   onChange={(e) => setManagedSubmissionEventFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
                   className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -5950,14 +5950,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                   disabled={syncingStage !== null || stagedScreeningCount === 0 || managedSubmissionEventFilter === "ALL"}
                   className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                 >
-                  {syncingStage === "SCREENING" ? "Syncing..." : "Sync Screening"}
+                  {syncingStage === "SCREENING" ? "Syncing…" : "Sync Screening"}
                 </button>
                 <button
                   onClick={() => void syncJudgingDecisions()}
                   disabled={syncingStage !== null || stagedJudgingCount === 0 || managedSubmissionEventFilter === "ALL"}
                   className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                 >
-                  {syncingStage === "JUDGING" ? "Syncing..." : "Sync Final Judging"}
+                  {syncingStage === "JUDGING" ? "Syncing…" : "Sync Final Judging"}
                 </button>
               </div>
             </div>
@@ -5966,7 +5966,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </p>
 
             {loadingManagedSubmissions ? (
-              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading hackathon submissions...</p>
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading hackathon submissions…</p>
             ) : filteredManagedSubmissions.length === 0 ? (
               <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No hackathon submissions found for this filter.</p>
             ) : (
@@ -6079,7 +6079,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                     {judgingRubricCategories.map((field) => (
                                       <label key={`rubric-${claim.id}-${field.key}`} className="text-xs text-[#434651]">
                                         {field.label} ({field.weight} pts)
-                                        <input
+                                        <input name="rubric-score" autoComplete="off"
                                           type="number"
                                           min={0}
                                           max={field.weight}
@@ -6187,7 +6187,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <h2 className="font-headline text-2xl text-[#002155]">Leaderboard Overview</h2>
               <div className="flex items-center gap-3">
-                <select
+                <select aria-label="Event" name="event" autoComplete="off"
                   value={selectedInnovationEventId ?? ""}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -6209,7 +6209,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             {loadingInnovationLeaderboard ? (
-              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading leaderboard...</p>
+              <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">Loading leaderboard…</p>
             ) : innovationLeaderboard.length === 0 ? (
               <p className="border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">No leaderboard rows loaded yet.</p>
             ) : (
@@ -6256,7 +6256,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
-              <select
+              <select aria-label="Event" name="event" autoComplete="off"
                 value={analyticsEventFilter}
                 onChange={(e) => {
                   setAnalyticsEventFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
@@ -6271,7 +6271,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 ))}
               </select>
 
-              <select
+              <select aria-label="Problem" name="problem" autoComplete="off"
                 value={analyticsProblemFilter}
                 onChange={(e) => {
                   setAnalyticsProblemFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
@@ -6286,7 +6286,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 ))}
               </select>
 
-              <select
+              <select aria-label="Team" name="team" autoComplete="off"
                 value={analyticsTeamFilter}
                 onChange={(e) => {
                   setAnalyticsTeamFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
@@ -6301,7 +6301,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 ))}
               </select>
 
-              <select
+              <select aria-label="Session" name="session" autoComplete="off"
                 value={analyticsSessionFilter}
                 onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
                 className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -6316,7 +6316,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 })}
               </select>
 
-              <select
+              <select aria-label="Stage" name="stage" autoComplete="off"
                 value={analyticsStageFilter}
                 onChange={(e) => setAnalyticsStageFilter(e.target.value as AnalyticsStageFilter)}
                 className="border border-[#c4c6d3] px-3 py-2 text-sm"
@@ -6327,14 +6327,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 <option value="CLOSED">CLOSED</option>
               </select>
 
-              <input
+              <input aria-label="Start Date" name="start-date" autoComplete="off"
                 type="date"
                 value={analyticsStartDate}
                 onChange={(e) => setAnalyticsStartDate(e.target.value)}
                 className="border border-[#c4c6d3] px-3 py-2 text-sm"
               />
 
-              <input
+              <input aria-label="End Date" name="end-date" autoComplete="off"
                 type="date"
                 value={analyticsEndDate}
                 onChange={(e) => setAnalyticsEndDate(e.target.value)}
@@ -6404,7 +6404,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-              <input
+              <input aria-label="Search by member, team, email" name="search-by-member-team-email" autoComplete="off"
                 value={participantSearch}
                 onChange={(e) => {
                   setParticipantPage(1);
@@ -6413,7 +6413,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 placeholder="Search by member, team, email"
                 className="border border-[#c4c6d3] px-3 py-2 text-sm"
               />
-              <select
+              <select aria-label="Status" name="status" autoComplete="off"
                 value={participantStatusFilter}
                 onChange={(e) => {
                   setParticipantPage(1);
@@ -6429,7 +6429,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 <option value="ACCEPTED">ACCEPTED</option>
                 <option value="REJECTED">REJECTED</option>
               </select>
-              <select
+              <select aria-label="Entries Per Page" name="entries-per-page" autoComplete="off"
                 value={participantPageSize}
                 onChange={(e) => {
                   setParticipantPage(1);
@@ -6466,7 +6466,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             {loadingParticipantData ? (
-              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading participant analytics...</p>
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading participant analytics…</p>
             ) : !participantData || participantData.items.length === 0 ? (
               <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No participant records for the selected filters.</p>
             ) : (
@@ -6541,7 +6541,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 <h2 className="font-headline text-2xl text-[#002155]">Team-Level Analytics</h2>
                 <p className="text-sm text-[#434651]">Team distribution, acceptance ratio, score quality, and leaderboard snapshot for session {teamData?.selectedSession ?? analyticsSessionFilter}.</p>
               </div>
-              <select
+              <select aria-label="Session" name="session" autoComplete="off"
                 value={analyticsSessionFilter}
                 onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
                 className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[220px]"
@@ -6558,7 +6558,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             {loadingTeamData ? (
-              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading team analytics...</p>
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading team analytics…</p>
             ) : !teamData ? (
               <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No team analytics available.</p>
             ) : (
@@ -6738,7 +6738,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                     <div className="border border-[#d8d6cf] bg-white p-3">
                                       <p className="text-xs font-bold uppercase tracking-wider text-[#002155] mb-2">Add Member</p>
                                       <div className="flex flex-col md:flex-row gap-2">
-                                        <input
+                                        <input aria-label="Enter UID or student email" name="enter-uid-or-student-email" autoComplete="off"
                                           type="text"
                                           value={teamMemberIdentifierInput}
                                           onChange={(e) => setTeamMemberIdentifierInput(e.target.value)}
@@ -6768,7 +6768,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 </div>
 
                 <div className="flex items-center justify-between mt-3">
-                  <select
+                  <select aria-label="Entries Per Page" name="entries-per-page" autoComplete="off"
                     value={teamAnalyticsPageSize}
                     onChange={(e) => {
                       setTeamAnalyticsPage(1);
@@ -6818,7 +6818,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 <p className="text-sm text-[#434651]">Member-level attendance with manual and bulk team marking for session {attendanceData?.selectedSession ?? analyticsSessionFilter}.</p>
               </div>
               <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                <select
+                <select aria-label="Session" name="session" autoComplete="off"
                   value={analyticsSessionFilter}
                   onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
                   className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[180px]"
@@ -6832,7 +6832,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                     );
                   })}
                 </select>
-                <input
+                <input aria-label="Search team/member/email" name="search-team-member-email" autoComplete="off"
                   value={attendanceSearch}
                   onChange={(e) => {
                     setAttendancePage(1);
@@ -6851,7 +6851,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             {loadingAttendanceData ? (
-              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading attendance dashboard...</p>
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading attendance dashboard…</p>
             ) : !attendanceData || attendanceData.items.length === 0 ? (
               <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No attendance records found for selected filters.</p>
             ) : (
@@ -6887,14 +6887,14 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                             disabled={analyticsSessionFilter > team.totalSessions || attendanceUpdateKey === `team-${team.teamId}-PRESENT-${analyticsSessionFilter}`}
                             className="bg-[#0b6b2e] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                           >
-                            {attendanceUpdateKey === `team-${team.teamId}-PRESENT-${analyticsSessionFilter}` ? "Saving..." : "Mark Team Present"}
+                            {attendanceUpdateKey === `team-${team.teamId}-PRESENT-${analyticsSessionFilter}` ? "Saving…" : "Mark Team Present"}
                           </button>
                           <button
                             onClick={() => void handleMarkTeamAttendance(team, "NOT_PRESENT")}
                             disabled={analyticsSessionFilter > team.totalSessions || attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT-${analyticsSessionFilter}`}
                             className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                           >
-                            {attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT-${analyticsSessionFilter}` ? "Saving..." : "Mark Team Not Present"}
+                            {attendanceUpdateKey === `team-${team.teamId}-NOT_PRESENT-${analyticsSessionFilter}` ? "Saving…" : "Mark Team Not Present"}
                           </button>
                         </div>
                       </div>
@@ -6940,7 +6940,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                                       className="border border-[#002155] text-[#002155] px-2 py-1 text-[10px] font-bold uppercase tracking-wider disabled:opacity-50"
                                     >
                                       {attendanceUpdateKey === actionKey
-                                        ? "Saving..."
+                                        ? "Saving…"
                                         : member.attendanceStatus === "PRESENT"
                                           ? "Mark Not Present"
                                           : "Mark Present"}
@@ -6957,7 +6957,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 </div>
 
                 <div className="flex items-center justify-between mt-3">
-                  <select
+                  <select aria-label="Entries Per Page" name="entries-per-page" autoComplete="off"
                     value={attendancePageSize}
                     onChange={(e) => {
                       setAttendancePage(1);
@@ -7002,7 +7002,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                 <h2 className="font-headline text-2xl text-[#002155]">Advanced Analytics Insights</h2>
                 <span className="text-xs uppercase tracking-widest text-[#434651] font-label">Trends, drop-off, scoring, correlation</span>
               </div>
-              <select
+              <select aria-label="Session" name="session" autoComplete="off"
                 value={analyticsSessionFilter}
                 onChange={(e) => setAnalyticsSessionFilter(Math.max(1, Number(e.target.value) || 1))}
                 className="border border-[#c4c6d3] px-3 py-2 text-sm w-full md:w-[180px]"
@@ -7019,7 +7019,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
             </div>
 
             {loadingInsightsData ? (
-              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading advanced insights...</p>
+              <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">Loading advanced insights…</p>
             ) : !insightsData ? (
               <p className="border border-dashed border-[#c4c6d3] bg-[#faf9f5] p-4 text-sm text-[#434651]">No insight data available for the selected filters.</p>
             ) : (

@@ -242,7 +242,7 @@ export default function InnovationProgramsAdminClient({ initialPrograms }: { ini
             disabled={busy}
             className="md:col-span-2 bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
           >
-            {busy ? 'Saving...' : 'Create Program'}
+            {busy ? 'Saving…' : 'Create Program'}
           </button>
         </form>
       </section>
@@ -370,7 +370,7 @@ export default function InnovationProgramsAdminClient({ initialPrograms }: { ini
                         onClick={() => saveEdit(program.id)}
                         className="bg-[#002155] text-white px-3 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
                       >
-                        {busy ? 'Saving...' : 'Save'}
+                        {busy ? 'Saving…' : 'Save'}
                       </button>
                       <button
                         type="button"

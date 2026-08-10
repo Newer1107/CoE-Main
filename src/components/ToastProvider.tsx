@@ -59,7 +59,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto border rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-out animate-[slideIn_0.25s_ease] ${variantStyles[toast.variant]}`}
+            className={`pointer-events-auto border rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 transition-transform duration-300 ease-out animate-[slideIn_0.25s_ease] ${variantStyles[toast.variant]}`}
             role="status"
             aria-live="polite"
           >
@@ -71,6 +71,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
             <button
               onClick={() => dismissToast(toast.id)}
+              aria-label="Dismiss notification"
               className="text-xs font-bold opacity-60 hover:opacity-100 transition"
             >
               ✕

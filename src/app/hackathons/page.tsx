@@ -101,7 +101,7 @@ export default async function HackathonsLandingPage() {
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-secondary-container">
             TCET Centre of Excellence
           </p>
-          <h1 className="mt-3 max-w-2xl font-headline text-4xl font-bold leading-[1.05] tracking-tight md:text-5xl">
+          <h1 className="mt-3 max-w-2xl font-headline text-4xl font-bold leading-[1.05] tracking-tight text-balance md:text-5xl">
             Innovation &amp; Competitions
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 md:text-base">

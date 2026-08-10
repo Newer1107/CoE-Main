@@ -111,7 +111,7 @@ export default function ProfileEditor() {
   };
 
   if (loading) {
-    return <div className="text-center text-on-surface-variant py-8">Loading profile...</div>;
+    return <div className="text-center text-on-surface-variant py-8">Loading profile…</div>;
   }
 
   const daysAgoUpdated = profile?.updatedAt ? Math.floor((Date.now() - new Date(profile.updatedAt).getTime()) / (1000 * 60 * 60 * 24)) : null;
@@ -130,14 +130,14 @@ export default function ProfileEditor() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-error-container border-l-4 border-error text-on-error-container text-sm rounded">
+        <div role="alert" className="p-4 bg-error-container border-l-4 border-error text-on-error-container text-sm rounded">
           <p className="font-medium">{error}</p>
         </div>
       )}
 
       {/* Success Message */}
       {success && (
-        <div className="p-4 bg-success-container border-l-4 border-success text-success text-sm rounded">
+        <div aria-live="polite" className="p-4 bg-success-container border-l-4 border-success text-success text-sm rounded">
           <p className="font-medium">✓ Profile saved successfully!</p>
         </div>
       )}
@@ -235,7 +235,7 @@ export default function ProfileEditor() {
             disabled={saving}
             className="px-6 py-2.5 bg-primary text-white rounded font-medium hover:bg-tertiary disabled:opacity-50 transition-colors text-sm"
           >
-            {saving ? 'Saving...' : 'Save Profile'}
+            {saving ? 'Saving…' : 'Save Profile'}
           </button>
         </div>
       </form>

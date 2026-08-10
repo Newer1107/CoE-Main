@@ -419,7 +419,7 @@ export default function FacultyPortalClient() {
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Title" value={newsTitle} onChange={(e) => setNewsTitle(e.target.value)} required />
               <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Caption" value={newsCaption} onChange={(e) => setNewsCaption(e.target.value)} required />
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setNewsImage(e.target.files?.[0] ?? null)} required />
-              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting..." : "POST /api/news"}</button>
+              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting…" : "POST /api/news"}</button>
             </form>
           ) : null}
 
@@ -433,7 +433,7 @@ export default function FacultyPortalClient() {
               </select>
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Registration Link (optional)" value={eventRegistrationLink} onChange={(e) => setEventRegistrationLink(e.target.value)} />
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setEventPoster(e.target.files?.[0] ?? null)} />
-              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting..." : "POST /api/events"}</button>
+              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting…" : "POST /api/events"}</button>
             </form>
           ) : null}
 
@@ -448,7 +448,7 @@ export default function FacultyPortalClient() {
               <input type="date" className="w-full border border-[#747782] p-3 text-sm" value={grantDeadline} onChange={(e) => setGrantDeadline(e.target.value)} required />
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Reference Link (optional)" value={grantReferenceLink} onChange={(e) => setGrantReferenceLink(e.target.value)} />
               <input type="file" accept="application/pdf" onChange={(e) => setGrantAttachment(e.target.files?.[0] ?? null)} />
-              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting..." : "POST /api/grants"}</button>
+              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting…" : "POST /api/grants"}</button>
             </form>
           ) : null}
 
@@ -457,7 +457,7 @@ export default function FacultyPortalClient() {
               <textarea className="w-full border border-[#747782] p-3 text-sm min-h-[110px]" placeholder="Announcement text" value={announcementText} onChange={(e) => setAnnouncementText(e.target.value)} required />
               <input className="w-full border border-[#747782] p-3 text-sm" placeholder="Link (optional)" value={announcementLink} onChange={(e) => setAnnouncementLink(e.target.value)} />
               <input type="datetime-local" className="w-full border border-[#747782] p-3 text-sm" value={announcementExpiresAt} onChange={(e) => setAnnouncementExpiresAt(e.target.value)} required />
-              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting..." : "POST /api/announcements"}</button>
+              <button type="submit" disabled={busy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-70">{busy ? "Submitting…" : "POST /api/announcements"}</button>
             </form>
           ) : null}
         </div>

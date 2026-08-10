@@ -249,7 +249,7 @@ export default function RegistrationForm({
       ) : null}
 
       {errorMessage ? (
-        <div className="border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
           <p className="font-bold">{errorMessage}</p>
           {fieldErrors.length > 0 ? (
             <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -264,9 +264,9 @@ export default function RegistrationForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full md:w-auto bg-[#002155] text-white px-6 py-3 text-xs font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full md:w-auto bg-[#002155] text-white px-6 py-3 text-xs font-bold uppercase tracking-wider hover:bg-[#1a438e] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? "Submitting..." : "Register Team"}
+        {loading ? "Submitting…" : "Register Team"}
       </button>
     </form>
   );

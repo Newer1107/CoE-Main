@@ -46,14 +46,24 @@ export default function NewsCard({ item }: { item: NewsItem }) {
       {/* Clickable Card */}
       <article
         onClick={handleOpen}
-        className="border border-[#c4c6d3] bg-white group cursor-pointer hover:shadow-lg transition-all duration-300"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleOpen();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        className="border border-[#c4c6d3] bg-white group cursor-pointer hover:shadow-lg transition-shadow duration-300"
       >
         <div className="w-full h-44 bg-[#efeeea] overflow-hidden relative border-b border-[#c4c6d3]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className="w-full h-full object-cover  transition-all duration-500"
+            className="w-full h-full object-cover  transition-transform duration-500"
             alt={item.title}
             src={item.imageUrl || "/vercel.svg"}
+            width={640}
+            height={360}
           />
           <div className="absolute top-3 left-3 bg-[#002155] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">
             {formatDate(item.publishedAt)}
@@ -71,12 +81,13 @@ export default function NewsCard({ item }: { item: NewsItem }) {
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#002155]/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div
-            className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto border-t-8 border-[#fd9923] shadow-2xl relative"
+            className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain border-t-8 border-[#fd9923] shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
               onClick={() => setIsOpen(false)}
+              aria-label="Close dialog"
               className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white p-2 rounded-full transition-colors"
             >
               <span className="material-symbols-outlined text-[#002155]">
@@ -105,6 +116,8 @@ export default function NewsCard({ item }: { item: NewsItem }) {
                   src={item.imageUrl || "/vercel.svg"}
                   alt={item.title}
                   className="w-full h-full object-cover"
+                  width={640}
+                  height={360}
                 />
               </div>
 

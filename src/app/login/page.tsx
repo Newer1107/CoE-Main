@@ -776,7 +776,7 @@ export default function LoginPage() {
           <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
             Email or UID
           </label>
-          <input
+          <input aria-label="Email or UID"
             type="text"
             required
             value={identifier}
@@ -792,7 +792,7 @@ export default function LoginPage() {
           <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
             Password
           </label>
-          <input
+          <input aria-label="Password"
             type="password"
             required
             value={password}
@@ -885,7 +885,7 @@ export default function LoginPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
                 Full Name
               </label>
-              <input
+              <input aria-label="Full Name"
                 type="text"
                 required
                 value={registerName}
@@ -897,7 +897,7 @@ export default function LoginPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
                 Institutional Email
               </label>
-              <input
+              <input aria-label="Institutional Email"
                 type="email"
                 required
                 value={registerEmail}
@@ -910,7 +910,7 @@ export default function LoginPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
                 Phone
               </label>
-              <input
+              <input aria-label="Phone"
                 type="text"
                 required
                 value={registerPhone}
@@ -922,7 +922,7 @@ export default function LoginPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
                 Student UID
               </label>
-              <input
+              <input aria-label="Student UID"
                 type="text"
                 required
                 value={registerUid}
@@ -938,7 +938,7 @@ export default function LoginPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
                 Password
               </label>
-              <input
+              <input aria-label="Password"
                 type="password"
                 required
                 value={registerPassword}
@@ -952,7 +952,7 @@ export default function LoginPage() {
             disabled={registerLoading}
             className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70 transition-colors duration-200"
           >
-            {registerLoading ? "Submitting..." : "Register Student"}
+            {registerLoading ? "Submitting…" : "Register Student"}
           </button>
         </form>
       </div>
@@ -980,7 +980,7 @@ export default function LoginPage() {
             <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
               Full Name
             </label>
-            <input
+            <input aria-label="Full Name"
               type="text"
               required
               value={registerName}
@@ -992,7 +992,7 @@ export default function LoginPage() {
             <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
               Institutional Email
             </label>
-            <input
+            <input aria-label="Institutional Email"
               type="email"
               required
               value={registerEmail}
@@ -1005,7 +1005,7 @@ export default function LoginPage() {
             <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
               Phone
             </label>
-            <input
+            <input aria-label="Phone"
               type="text"
               required
               value={registerPhone}
@@ -1017,7 +1017,7 @@ export default function LoginPage() {
             <label className="text-xs font-bold uppercase tracking-widest text-[#434651]">
               Password
             </label>
-            <input
+            <input aria-label="Password"
               type="password"
               required
               value={registerPassword}
@@ -1031,7 +1031,7 @@ export default function LoginPage() {
           disabled={registerLoading}
           className="w-full bg-[#002155] text-white py-3 text-xs font-bold uppercase tracking-[0.3em] hover:bg-[#1a438e] disabled:opacity-70 transition-colors duration-200"
         >
-          {registerLoading ? "Submitting..." : "Register Faculty"}
+          {registerLoading ? "Submitting…" : "Register Faculty"}
         </button>
       </form>
     </div>

@@ -104,7 +104,7 @@ export default function HackathonsBrowsePage() {
           >
             ← Innovation &amp; Competitions
           </Link>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-tight text-primary md:text-[40px] md:leading-none">
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-tight text-balance text-primary md:text-[40px] md:leading-none">
             Browse events
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-on-surface-variant md:text-base">
@@ -144,6 +144,7 @@ export default function HackathonsBrowsePage() {
         <div className="mt-8">
           {loading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+              <span className="sr-only">Loading events…</span>
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}

@@ -170,7 +170,7 @@ export default function RegisterCompletePage() {
       <main className="min-h-screen pt-[120px] pb-16 px-4 md:px-8">
         <section className="max-w-lg mx-auto">
           <div className="border border-[#c4c6d3] bg-white p-8">
-            <p className="text-sm text-[#434651]">Loading...</p>
+            <p className="text-sm text-[#434651]">Loading…</p>
           </div>
         </section>
       </main>

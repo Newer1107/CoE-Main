@@ -476,7 +476,7 @@ export default function FacultyInternshipClient({ problemId }: { problemId: numb
                 disabled={actionLoading}
                 className="w-full px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
               >
-                {actionLoading ? 'Saving...' : 'Create Task'}
+                {actionLoading ? 'Saving…' : 'Create Task'}
               </button>
             </div>
           </div>
@@ -578,7 +578,7 @@ export default function FacultyInternshipClient({ problemId }: { problemId: numb
                 disabled={actionLoading}
                 className="w-full px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
               >
-                {actionLoading ? 'Saving...' : 'Create Meeting'}
+                {actionLoading ? 'Saving…' : 'Create Meeting'}
               </button>
             </div>
           </div>
@@ -636,7 +636,7 @@ export default function FacultyInternshipClient({ problemId }: { problemId: numb
                 disabled={actionLoading}
                 className="w-full px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
               >
-                {actionLoading ? 'Saving...' : 'Upload Document'}
+                {actionLoading ? 'Saving…' : 'Upload Document'}
               </button>
             </div>
           </div>
