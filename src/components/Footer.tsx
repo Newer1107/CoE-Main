@@ -49,7 +49,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="flex flex-col items-center justify-between gap-4 border-t border-hairline bg-primary px-6 py-4 text-center font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70 md:flex-row md:px-12 md:text-left md:text-[10px]">
-        <span>© 2026 TCET Centre of Excellence. All Rights Reserved. Designed for Academic Integrity.</span>
+        <span>© {new Date().getFullYear()} TCET Centre of Excellence. All Rights Reserved. Designed for Academic Integrity.</span>
         <div className="flex gap-4 md:gap-8">
           <a className="transition-colors hover:text-white" href="#">Accessibility</a>
           <a className="transition-colors hover:text-white" href="#">Legal Archives</a>

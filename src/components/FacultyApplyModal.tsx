@@ -155,11 +155,11 @@ export default function FacultyApplyModal({
       ref={dialogRef}
       onClick={handleDialogClick}
       onClose={handleClose}
-      className="max-w-2xl m-auto rounded-lg shadow-lg backdrop:bg-black/50 p-6 max-h-[90vh] overflow-y-auto"
+      className="max-w-2xl m-auto rounded-lg shadow-lg backdrop:bg-black/50 p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
     >
       {loading ? (
         <div className="text-center py-8">
-          <p className="text-[#434651]">Loading application form...</p>
+          <p className="text-[#434651]">Loading application form…</p>
         </div>
       ) : (
         <>
@@ -169,7 +169,7 @@ export default function FacultyApplyModal({
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
+            <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
               <p>{error}</p>
             </div>
           )}
@@ -216,16 +216,16 @@ export default function FacultyApplyModal({
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 text-sm font-semibold border border-[#c4c6d3] text-[#434651] rounded"
+                className="px-4 py-2 text-sm font-semibold border border-[#c4c6d3] text-[#434651] rounded hover:bg-[#f5f4f0] transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded"
+                className="px-4 py-2 text-sm font-semibold bg-[#002155] text-white rounded hover:bg-[#1a438e] transition-colors"
               >
-                {submitting ? 'Submitting...' : 'Submit Application'}
+                {submitting ? 'Submitting…' : 'Submit Application'}
               </button>
             </div>
           </form>

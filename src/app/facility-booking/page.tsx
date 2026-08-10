@@ -751,7 +751,7 @@ export default function FacilityBookingPage() {
 
                 <div className="pt-8 flex justify-end items-center border-t border-[#c4c6d3]">
                   <button type="submit" disabled={!lab || !date || !time || !purpose || loading} className="bg-[#002155] disabled:bg-[#c4c6d3] disabled:cursor-not-allowed text-white px-8 py-4 font-['Inter'] text-sm font-bold uppercase tracking-widest hover:bg-[#1a438e] transition-colors inline-flex items-center gap-2">
-                    {loading ? "Submitting..." : "Submit Booking"}
+                    {loading ? "Submitting…" : "Submit Booking"}
                     <span className="material-symbols-outlined text-sm">send</span>
                   </button>
                 </div>

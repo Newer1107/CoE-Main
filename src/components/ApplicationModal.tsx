@@ -50,7 +50,7 @@ export function ApplicationModal({ problemId, problemTitle, questions, onClose }
   if (profileStatus === null) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
-        <div className="bg-white rounded-lg p-6">Loading...</div>
+        <div className="bg-white rounded-lg p-6">Loading…</div>
       </div>
     );
   }
@@ -132,12 +132,12 @@ export function ApplicationModal({ problemId, problemTitle, questions, onClose }
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto overscroll-contain">
         <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8 p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{problemTitle}</h2>
           <p className="text-gray-600 mb-6">Please answer the following questions:</p>
 
-          {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+          {error && <div role="alert" className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {questions.map((q) => (
@@ -150,7 +150,7 @@ export function ApplicationModal({ problemId, problemTitle, questions, onClose }
                   <textarea
                     value={answers[q.id] || ''}
                     onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    placeholder="Your answer..."
+                    placeholder="Your answer…"
                     rows={4}
                     className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
@@ -160,7 +160,7 @@ export function ApplicationModal({ problemId, problemTitle, questions, onClose }
                     type="text"
                     value={answers[q.id] || ''}
                     onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    placeholder="Your answer..."
+                    placeholder="Your answer…"
                     className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -181,7 +181,7 @@ export function ApplicationModal({ problemId, problemTitle, questions, onClose }
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
               >
-                {loading ? 'Submitting...' : 'Submit Application'}
+                {loading ? 'Submitting…' : 'Submit Application'}
               </button>
             </div>
           </form>

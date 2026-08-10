@@ -442,7 +442,7 @@ export default function ProjectHostingClient({ initialData }: { initialData: Das
                   disabled={saving}
                   className="bg-[#002155] px-5 py-3 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
                 >
-                  {saving ? 'Saving...' : editingRequestId ? 'Update Request' : 'Submit Request'}
+                  {saving ? 'Saving…' : editingRequestId ? 'Update Request' : 'Submit Request'}
                 </button>
                 <button
                   type="button"

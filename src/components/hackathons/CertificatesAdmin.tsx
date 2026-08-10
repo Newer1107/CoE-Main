@@ -157,7 +157,7 @@ export default function CertificatesAdmin() {
       </div>
 
       {message ? (
-        <p className={`mt-3 px-3 py-2 text-xs font-semibold ${message.ok ? "bg-green-50 text-[#0b6b2e]" : "bg-red-50 text-[#b3261e]"}`}>
+        <p role={message.ok ? "status" : "alert"} className={`mt-3 px-3 py-2 text-xs font-semibold ${message.ok ? "bg-green-50 text-[#0b6b2e]" : "bg-red-50 text-[#b3261e]"}`}>
           {message.text}
         </p>
       ) : null}
@@ -193,7 +193,7 @@ export default function CertificatesAdmin() {
           <button
             onClick={issueLater}
             disabled={loading}
-            className="border border-[#002155] bg-[#002155] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-50"
+            className="border border-[#002155] bg-[#002155] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1a438e] disabled:opacity-50"
           >
             Issue
           </button>
@@ -244,14 +244,14 @@ export default function CertificatesAdmin() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="border border-[#c4c6d3] px-3 py-1 text-[10px] font-bold uppercase text-[#002155] disabled:opacity-40"
+              className="border border-[#c4c6d3] px-3 py-1 text-[10px] font-bold uppercase text-[#002155] hover:bg-[#002155] hover:text-white disabled:opacity-40"
             >
               Prev
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page >= Math.ceil(total / 100) || loading}
-              className="border border-[#c4c6d3] px-3 py-1 text-[10px] font-bold uppercase text-[#002155] disabled:opacity-40"
+              className="border border-[#c4c6d3] px-3 py-1 text-[10px] font-bold uppercase text-[#002155] hover:bg-[#002155] hover:text-white disabled:opacity-40"
             >
               Next
             </button>
@@ -275,7 +275,7 @@ export default function CertificatesAdmin() {
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-6 text-center text-[#747782]">
-                  {loading ? "Loading..." : "No certificates match."}
+                  {loading ? "Loading…" : "No certificates match."}
                 </td>
               </tr>
             ) : (
@@ -297,13 +297,13 @@ export default function CertificatesAdmin() {
                         <button
                           onClick={() => reissue(row)}
                           disabled={loading}
-                          className="border border-[#002155] bg-[#002155] px-2 py-1 text-[10px] font-bold uppercase text-white disabled:opacity-50"
+                          className="border border-[#002155] bg-[#002155] px-2 py-1 text-[10px] font-bold uppercase text-white hover:bg-[#1a438e] disabled:opacity-50"
                         >
                           Save + reissue
                         </button>
                         <button
                           onClick={() => setEditingId(null)}
-                          className="px-1 text-[10px] font-bold uppercase text-[#747782]"
+                          className="px-1 text-[10px] font-bold uppercase text-[#747782] hover:text-[#002155]"
                         >
                           Cancel
                         </button>

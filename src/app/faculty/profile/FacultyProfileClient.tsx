@@ -174,7 +174,7 @@ export default function FacultyProfileClient() {
   if (loading) {
     return (
       <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
-        <div className="text-center text-[#434651]">Loading profile...</div>
+        <div className="text-center text-[#434651]">Loading profile…</div>
       </main>
     );
   }
@@ -308,7 +308,7 @@ export default function FacultyProfileClient() {
               disabled={saving}
               className="px-6 py-2.5 bg-[#fd9923] text-white rounded font-medium hover:bg-[#e68a00] disabled:opacity-50 transition-colors text-sm"
             >
-              {saving ? "Saving..." : "Save Profile"}
+              {saving ? "Saving…" : "Save Profile"}
             </button>
             <Link
               href="/faculty"

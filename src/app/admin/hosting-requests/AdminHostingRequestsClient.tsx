@@ -260,7 +260,7 @@ export default function AdminHostingRequestsClient({ initialData }: { initialDat
                 disabled={loading}
                 className="bg-[#002155] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
               >
-                {loading ? 'Loading...' : 'Apply'}
+                {loading ? 'Loading…' : 'Apply'}
               </button>
             </div>
 
@@ -420,7 +420,7 @@ export default function AdminHostingRequestsClient({ initialData }: { initialDat
                     disabled={saving}
                     className="bg-[#002155] px-5 py-3 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-60"
                   >
-                    {saving ? 'Saving...' : 'Save Decision'}
+                    {saving ? 'Saving…' : 'Save Decision'}
                   </button>
                   <button
                     type="button"

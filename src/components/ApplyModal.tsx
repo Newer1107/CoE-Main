@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useToast } from "@/components/ToastProvider";
+import Link from "next/link";
 
 type ProblemQuestion = {
   id: number;
@@ -174,11 +175,11 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
       ref={dialogRef}
       onClick={handleDialogClick}
       onClose={handleClose}
-      className="max-w-2xl m-auto rounded-lg shadow-lg backdrop:bg-black/50 p-6 max-h-[90vh] overflow-y-auto"
+      className="max-w-2xl m-auto rounded-lg shadow-lg backdrop:bg-black/50 p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
     >
       {loading ? (
         <div className="text-center py-8">
-          <p className="text-[#434651]">Loading application form...</p>
+          <p className="text-[#434651]">Loading application form…</p>
         </div>
       ) : (
         <>
@@ -188,7 +189,7 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
+            <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
               <p>{error}</p>
             </div>
           )}
@@ -221,16 +222,13 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  handleClose();
-                  window.location.href = '/profile';
-                }}
+              <Link
+                href="/profile"
+                onClick={handleClose}
                 className="mt-3 text-xs text-[#002155] underline font-medium hover:text-[#003380]"
               >
                 Update Profile
-              </button>
+              </Link>
             </div>
 
             {/* Custom Questions Section */}
@@ -283,7 +281,7 @@ export default function ApplyModal({ problemId, problemTitle, isOpen, onClose, o
                 disabled={submitting}
                 className="px-6 py-2 bg-[#fd9923] text-white rounded font-medium hover:bg-[#e68a00] disabled:opacity-50 transition-colors text-sm"
               >
-                {submitting ? 'Submitting...' : 'Confirm & Apply'}
+                {submitting ? 'Submitting…' : 'Confirm & Apply'}
               </button>
             </div>
           </form>

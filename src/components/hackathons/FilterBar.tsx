@@ -53,6 +53,8 @@ export default function FilterBar({
           </svg>
           <input
             type="search"
+            name="search"
+            autoComplete="off"
             value={value.search}
             onChange={(e) => onChange({ ...value, search: e.target.value })}
             placeholder="Search events or problem statements…"

@@ -124,6 +124,8 @@ export default function HeroCarousel({ slides, intervalMs = 4000 }: HeroCarousel
             src={activeSlide.image}
             alt={activeSlide.title}
             className="w-full h-full object-cover"
+            width={640}
+            height={360}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#00142f]/45 via-transparent to-transparent" />
         </div>

@@ -57,6 +57,7 @@ export function FacultyProfileCompletionModal() {
       >
         <button
           onClick={() => setIsOpen(false)}
+          aria-label="Close dialog"
           className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white p-2 rounded-full transition-colors"
         >
           <span className="material-symbols-outlined text-[#002155]">close</span>

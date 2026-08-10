@@ -454,7 +454,7 @@ export default function InnovationProblemsClient({ role, listingType = 'open' }:
                 ? 'Faculty Internship Board'
                 : 'Problem Board'}
           </h2>
-          {loading && <span className="text-xs text-[#747782]">Loading...</span>}
+          {loading && <span className="text-xs text-[#747782]">Loading…</span>}
         </div>
 
         {problems.length === 0 ? (

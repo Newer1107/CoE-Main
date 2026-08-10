@@ -853,7 +853,7 @@ export default function InnovationEventClient({
               disabled={interestBusy || isInterested}
               className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider disabled:opacity-60"
             >
-              {interestBusy ? 'Saving...' : isInterested ? "You're Interested" : "I'm Interested"}
+              {interestBusy ? 'Saving…' : isInterested ? "You're Interested" : "I'm Interested"}
             </button>
           ) : viewerRole === null ? (
             <Link
@@ -903,7 +903,7 @@ export default function InnovationEventClient({
                 className="bg-[#0b6b2e] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-60"
               >
                 {interestDetailsBusy
-                  ? 'Saving...'
+                  ? 'Saving…'
                   : interestRecord?.hasDetails
                     ? 'Update Optional Details'
                     : 'Save Optional Details'}
@@ -1226,7 +1226,7 @@ export default function InnovationEventClient({
               <p className="mt-2 text-[11px] text-[#434651]">{pptFile ? `Selected: ${pptFile.name}` : 'No file selected yet.'}</p>
             </div>
             <button type="submit" disabled={busy || uidLookupBusy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-70">
-              {busy ? 'Submitting...' : 'Register Team'}
+              {busy ? 'Submitting…' : 'Register Team'}
             </button>
           </form>
         </section>
