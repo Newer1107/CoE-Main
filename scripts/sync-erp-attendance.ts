@@ -56,7 +56,7 @@ export async function claimJobs(
   return rows.map((r) => r.id);
 }
 
-type FetchResult = { ok: true; stdout: string } | { ok: false; code: string };
+type FetchResult = { ok: true; stdout: string } | { ok: false; code: string; erpLevel?: boolean };
 
 function runFetcher(jobId: number, uid: string): Promise<FetchResult> {
   const workdir = `/tmp/erp/${jobId}`;
@@ -68,20 +68,29 @@ function runFetcher(jobId: number, uid: string): Promise<FetchResult> {
     let stderr = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      resolve({ ok: false, code: 'TIMEOUT' });
+      resolve({ ok: false, code: 'TIMEOUT', erpLevel: true });
     }, FETCH_TIMEOUT_MS);
     child.stdout.on('data', (d) => (stdout += d));
     child.stderr.on('data', (d) => (stderr += d));
     child.on('error', (err) => {
       clearTimeout(timer);
-      resolve({ ok: false, code: `SPAWN_ERROR:${(err as NodeJS.ErrnoException).code ?? 'unknown'}` });
+      resolve({ ok: false, code: `SPAWN_ERROR:${(err as NodeJS.ErrnoException).code ?? 'unknown'}`, erpLevel: true });
     });
     child.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0 && /\nOK\s*$/.test(stdout)) return resolve({ ok: true, stdout });
-      if (code === 2) return resolve({ ok: false, code: 'EXIT_2' });
-      if (code !== 0) return resolve({ ok: false, code: `EXIT_${code}` });
-      resolve({ ok: false, code: 'NO_OK_MARKER' });
+      if (code === 2) {
+        // Last self-retry reason distinguishes per-account failures (captcha/
+        // login/empty report — ERP is fine, other accounts work) from
+        // ERP-level outages (HTTP/timeout/connection). Only the latter trips
+        // the global breaker — one bad account must not freeze the feature.
+        const reasons = [...stdout.matchAll(/attempt \d\/4 failed: (.+)$/gm)].map((m) => m[1]);
+        const last = (reasons[reasons.length - 1] || 'ALL_ATTEMPTS_FAILED').slice(0, 60);
+        const erpLevel = /HTTP Error|timeout|timed out|URLError|Connection|socket|refused|resolve/i.test(last);
+        return resolve({ ok: false, code: `EXIT_2:${last}`, erpLevel });
+      }
+      if (code !== 0) return resolve({ ok: false, code: `EXIT_${code}`, erpLevel: true });
+      resolve({ ok: false, code: 'NO_OK_MARKER', erpLevel: true });
     });
   });
 }
@@ -109,7 +118,10 @@ async function failOrRetry(jobId: number, code: string): Promise<void> {
 export async function processJob(jobId: number, uid: string): Promise<boolean> {
   const res = await runFetcher(jobId, uid);
   if (!res.ok) {
-    breaker.recordFailure();
+    // Per-account failures (OCR/login/empty) never trip the global breaker —
+    // only ERP-level outages (HTTP/timeout/connection) do.
+    if (res.erpLevel) breaker.recordFailure();
+    console.log(`job ${jobId} (${uid}) failed: ${res.code}`);
     await failOrRetry(jobId, res.code);
     return false;
   }

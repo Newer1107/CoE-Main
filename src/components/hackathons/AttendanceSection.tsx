@@ -38,6 +38,7 @@ export default function AttendanceSection() {
   const [hidden, setHidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [queued, setQueued] = useState(false);
+  const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const pollRef = useRef<number | null>(null);
 
@@ -56,15 +57,23 @@ export default function AttendanceSection() {
       try {
         const st = await fetch("/api/attendance/status", { credentials: "include" }).then((r) => r.json());
         const status = st?.data?.job?.status;
-        if (status === "SUCCESS" || status === "FAILED" || ticks >= maxTicks) {
+        if (status === "SUCCESS" || status === "FAILED") {
           stopPolling();
           setQueued(false);
+          setPending(false);
           await load();
+        } else if (ticks >= maxTicks) {
+          // Never poll forever: if the job is still pending after the cap,
+          // show an honest "still syncing in background" state instead.
+          stopPolling();
+          setQueued(false);
+          setPending(true);
         }
       } catch {
         if (ticks >= maxTicks) {
           stopPolling();
           setQueued(false);
+          setPending(true);
         }
       }
     }, POLL_MS);
@@ -79,6 +88,7 @@ export default function AttendanceSection() {
       setData(body.data);
       const running = body.data.job?.status === "QUEUED" || body.data.job?.status === "RUNNING";
       setQueued(running);
+      setPending(false);
       if (running) startPolling(); // job enqueued elsewhere — poll until it settles
     } catch {
       /* keep last rendered state */
@@ -132,6 +142,14 @@ export default function AttendanceSection() {
 
       {loading ? (
         <div className="h-24 animate-pulse border border-outline-variant bg-surface-container" aria-busy="true" />
+      ) : pending ? (
+        <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
+          <p className="text-sm font-semibold text-primary">Still syncing in the background…</p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            The ERP can take a couple of minutes. Refresh this page to check — your last
+            data stays visible until the new sync lands.
+          </p>
+        </div>
       ) : queued ? (
         <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
           <p className="text-sm font-semibold text-primary">Syncing with ERP…</p>
