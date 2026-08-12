@@ -1002,15 +1002,16 @@ model AttendanceSnapshot {
 }
 
 model AttendanceSyncJob {
-  id         Int       @id @default(autoincrement())
-  uid        String
-  status     String    @default("QUEUED") // QUEUED | RUNNING | SUCCESS | FAILED
-  attempts   Int       @default(0)
-  lastError  String?
-  claimantId String? // worker instance that claimed the job (double-claim guard)
-  createdAt  DateTime  @default(now())
-  startedAt  DateTime?
-  finishedAt DateTime?
+  id          Int       @id @default(autoincrement())
+  uid         String
+  status      String    @default("QUEUED") // QUEUED | RUNNING | AWAITING_CAPTCHA | SUCCESS | FAILED
+  attempts    Int       @default(0)
+  lastError   String?
+  claimantId  String? // worker instance that claimed the job (double-claim guard)
+  captchaText String? // human-entered captcha for the two-phase solve
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
 
   @@index([uid, status])
   @@map("attendance_sync_jobs")

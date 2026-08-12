@@ -79,17 +79,27 @@ async function resolvePassword(uid: string): Promise<string | null> {
   }
 }
 
-function runFetcher(jobId: number, uid: string, password: string | null): Promise<FetchResult> {
+function runFetcher(
+  jobId: number,
+  uid: string,
+  password: string | null,
+  mode: 'fast' | 'solve' | 'captcha' = 'fast',
+  extra: string[] = [],
+): Promise<FetchResult> {
   const workdir = `/tmp/erp/${jobId}`;
   return new Promise((resolve) => {
-    const child = spawn(pythonBin(), [fetcherPath(), 'fast', '--workdir', workdir], {
-      env: {
-        ...process.env,
-        ERP_USER: uid,
-        // null → let the fetcher use its built-in default password
-        ...(password ? { ERP_PW: password } : {}),
+    const child = spawn(
+      pythonBin(),
+      [fetcherPath(), mode, ...extra, '--workdir', workdir],
+      {
+        env: {
+          ...process.env,
+          ERP_USER: uid,
+          // null → let the fetcher use its built-in default password
+          ...(password ? { ERP_PW: password } : {}),
+        },
       },
-    });
+    );
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {
@@ -105,6 +115,7 @@ function runFetcher(jobId: number, uid: string, password: string | null): Promis
     child.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0 && /\nOK\s*$/.test(stdout)) return resolve({ ok: true, stdout });
+      if (code === 3) return resolve({ ok: false, code: 'SOLVE_REJECTED' }); // captcha/login rejected
       if (code === 2) {
         // Last self-retry reason distinguishes per-account failures (captcha/
         // login/empty report — ERP is fine, other accounts work) from
@@ -140,15 +151,43 @@ async function failOrRetry(jobId: number, code: string): Promise<void> {
   }
 }
 
-/** One job: fetch → parse → transactional snapshot replace + SUCCESS. */
+/** Fetch a fresh captcha + session for a job and park it for the student. */
+async function requestHumanCaptcha(jobId: number, uid: string): Promise<boolean> {
+  const res = await runFetcher(jobId, uid, null, 'captcha');
+  if (!res.ok) return false;
+  await prisma.attendanceSyncJob.update({
+    where: { id: jobId },
+    data: { status: 'AWAITING_CAPTCHA', lastError: null },
+  });
+  return true;
+}
+
+/** One job: fetch → parse → transactional snapshot replace + SUCCESS.
+ *  When OCR keeps failing, park the job as AWAITING_CAPTCHA (fresh captcha
+ *  image + saved session) so the portal can ask the student to type it. */
 export async function processJob(jobId: number, uid: string): Promise<boolean> {
   const password = await resolvePassword(uid);
-  const res = await runFetcher(jobId, uid, password);
+  const jobRow = await prisma.attendanceSyncJob.findUnique({
+    where: { id: jobId },
+    select: { captchaText: true },
+  });
+  const isSolve = !!jobRow?.captchaText;
+  const res = isSolve
+    ? await runFetcher(jobId, uid, password, 'solve', [jobRow.captchaText as string])
+    : await runFetcher(jobId, uid, password);
   if (!res.ok) {
     // Per-account failures (OCR/login/empty) never trip the global breaker —
     // only ERP-level outages (HTTP/timeout/connection) do.
     if (res.erpLevel) breaker.recordFailure();
     console.log(`job ${jobId} (${uid}) failed: ${res.code}`);
+    // OCR misreads → ask the human instead of failing the job.
+    if (!isSolve && /OCR_FAIL|OCR_UNSURE|LOGIN FAILED/.test(res.code)) {
+      const asked = await requestHumanCaptcha(jobId, uid);
+      if (asked) {
+        console.log(`job ${jobId} (${uid}): awaiting human captcha`);
+        return false;
+      }
+    }
     await failOrRetry(jobId, res.code);
     return false;
   }
@@ -174,14 +213,22 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
   return true;
 }
 
-/** RUNNING >10 min → FAILED (crashed worker reclaim). */
+/** RUNNING >10 min → FAILED (crashed worker reclaim); AWAITING_CAPTCHA
+ *  >60 min → FAILED (student never answered). */
 export async function reclaimStale(): Promise<number> {
-  const res = await prisma.attendanceSyncJob.updateMany({
-    where: { status: 'RUNNING', startedAt: { lt: new Date(Date.now() - RUNNING_STALE_MS) } },
-    data: { status: 'FAILED', finishedAt: new Date(), lastError: 'STALE_RECLAIM' },
-  });
-  if (res.count > 0) console.log(`stale-reclaim: ${res.count} RUNNING → FAILED`);
-  return res.count;
+  const res = await prisma.$transaction([
+    prisma.attendanceSyncJob.updateMany({
+      where: { status: 'RUNNING', startedAt: { lt: new Date(Date.now() - RUNNING_STALE_MS) } },
+      data: { status: 'FAILED', finishedAt: new Date(), lastError: 'STALE_RECLAIM' },
+    }),
+    prisma.attendanceSyncJob.updateMany({
+      where: { status: 'AWAITING_CAPTCHA', startedAt: { lt: new Date(Date.now() - 60 * 60_000) } },
+      data: { status: 'FAILED', finishedAt: new Date(), lastError: 'CAPTCHA_TIMEOUT' },
+    }),
+  ]);
+  const total = res[0].count + res[1].count;
+  if (total > 0) console.log(`stale-reclaim: ${total} → FAILED`);
+  return total;
 }
 
 /** Jobs >7 days old deleted; FAILED jobs deleted after 48h; snapshots of users

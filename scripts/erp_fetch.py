@@ -23,7 +23,7 @@ USER = os.environ.get("ERP_USER", "S1032241230")
 PW = os.environ.get("ERP_PW", "Raunak@12345")
 
 _ap = argparse.ArgumentParser()
-_ap.add_argument("mode", choices=["fetch", "login", "report", "shot", "fast", "probe"])
+_ap.add_argument("mode", choices=["fetch", "login", "report", "shot", "fast", "probe", "captcha", "solve"])
 _ap.add_argument("--workdir", default=os.environ.get("ERP_WORKDIR", "/tmp/erp"))
 _args = _ap.parse_args()
 WD = _args.workdir
@@ -222,5 +222,25 @@ def probe():
         print(f"PROBE_FAIL: {e}")
         sys.exit(4)
 
+def captcha():
+    """Two-phase human-solve: fetch a fresh session + captcha image into the
+    workdir and stop. The session (cookies + viewstate) stays in the workdir so
+    a later `solve <text>` can complete the login with the SAME captcha."""
+    fetch()
+    print("OK")
+
+def solve(cap):
+    """Complete a captcha phase: login with the human-entered text using the
+    saved session, then print the report rows. Exit 3 on rejection (the
+    single-use captcha is burned — the user must start a new sync)."""
+    try:
+        login(cap)
+    except SystemExit:
+        sys.exit(3)
+    rows = _rows()
+    for cells in rows:
+        print(" | ".join(cells))
+    print("OK")
+
 if __name__ == "__main__":
-    {"fetch": fetch, "login": lambda: login(sys.argv[2]), "report": report, "shot": shot, "fast": fast, "probe": probe}[_args.mode]()
+    {"fetch": fetch, "login": lambda: login(sys.argv[2]), "report": report, "shot": shot, "fast": fast, "probe": probe, "captcha": captcha, "solve": lambda: solve(sys.argv[2])}[_args.mode]()

@@ -48,6 +48,9 @@ export default function AttendanceSection() {
   const [pwValue, setPwValue] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState("");
+  const [capValue, setCapValue] = useState("");
+  const [capSaving, setCapSaving] = useState(false);
+  const [capError, setCapError] = useState("");
   const pollRef = useRef<number | null>(null);
 
   const stopPolling = () => {
@@ -61,12 +64,13 @@ export default function AttendanceSection() {
     stopPolling();
     let ticks = 0;
     pollRef.current = window.setInterval(async () => {
-      ticks += 1;
-      setElapsed(ticks * 5);
       try {
         const st = await fetch("/api/attendance/status", { credentials: "include" }).then((r) => r.json());
         const status = st?.data?.job?.status;
         setLiveJob(st?.data?.job ?? null);
+        if (status === "AWAITING_CAPTCHA") return; // student is solving — no cap
+        ticks += 1;
+        setElapsed(ticks * 5);
         if (status === "SUCCESS" || status === "FAILED") {
           stopPolling();
           setQueued(false);
@@ -98,7 +102,10 @@ export default function AttendanceSection() {
       setData(body.data);
       setLiveJob(body.data.job ?? null);
       setHasPassword(!!body.data.hasPassword);
-      const running = body.data.job?.status === "QUEUED" || body.data.job?.status === "RUNNING";
+      const running =
+        body.data.job?.status === "QUEUED" ||
+        body.data.job?.status === "RUNNING" ||
+        body.data.job?.status === "AWAITING_CAPTCHA";
       setQueued(running);
       setPending(false);
       if (running) startPolling(); // job enqueued elsewhere — poll until it settles
@@ -154,10 +161,35 @@ export default function AttendanceSection() {
     }
   };
 
+  const submitCaptcha = async () => {
+    if (!liveJob) return;
+    setCapSaving(true);
+    setCapError("");
+    try {
+      const res = await fetch("/api/attendance/captcha", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: liveJob.id, captcha: capValue }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body?.success) {
+        setCapError(body?.message || "Could not submit — try again.");
+        return;
+      }
+      setCapValue("");
+    } catch {
+      setCapError("Could not reach the server — try again.");
+    } finally {
+      setCapSaving(false);
+    }
+  };
+
   if (hidden) return null;
   const rows = data?.rows ?? [];
   const job = data?.job ?? null;
   const failed = job?.status === "FAILED";
+  const awaitingCaptcha = liveJob?.status === "AWAITING_CAPTCHA";
   const pwRejected = failed && /LOGIN FAILED|PASSWORD|REJECTED/i.test(job?.lastError ?? "");
   const needsPassword = !hasPassword || pwRejected;
   const hasData = rows.length > 0;
@@ -211,6 +243,38 @@ export default function AttendanceSection() {
             </button>
           </div>
           {pwError ? <p className="mt-2 text-xs text-error">{pwError}</p> : null}
+        </div>
+      ) : awaitingCaptcha ? (
+        <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
+          <p className="text-sm font-semibold text-primary">Type the code from the image</p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            The automatic reader couldn't read the ERP captcha — type the characters exactly as shown.
+          </p>
+          <img
+            src={`/api/attendance/captcha?jobId=${liveJob.id}`}
+            alt="ERP captcha"
+            className="mt-3 border border-outline-variant bg-white p-2"
+            style={{ imageRendering: "pixelated", maxHeight: 96 }}
+          />
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="text"
+              value={capValue}
+              onChange={(e) => setCapValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submitCaptcha();
+              }}
+              placeholder="Code from image"
+              aria-label="Captcha code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="w-full min-w-0 flex-1 border border-outline-variant bg-white px-3 py-2 text-sm text-primary outline-none focus:border-primary"
+            />
+            <button type="button" onClick={() => void submitCaptcha()} disabled={capSaving || !capValue} className={buttonCls}>
+              {capSaving ? "Submitting…" : "Submit"}
+            </button>
+          </div>
+          {capError ? <p className="mt-2 text-xs text-error">{capError}</p> : null}
         </div>
       ) : pending ? (
         <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
