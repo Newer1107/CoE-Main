@@ -249,6 +249,15 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
         return false;
       }
     }
+    // Wrong typed captcha → give the student one fresh captcha card instead of
+    // a dead end (the old captcha is burned; attempts cap prevents loops).
+    if (isSolve && res.code === 'SOLVE_REJECTED' && (jobRow?.attempts ?? 1) < 2) {
+      const asked = await requestHumanCaptcha(jobId, uid);
+      if (asked) {
+        console.log(`job ${jobId} (${uid}): wrong captcha — fresh captcha card`);
+        return false;
+      }
+    }
     await failOrRetry(jobId, res.code);
     return false;
   }

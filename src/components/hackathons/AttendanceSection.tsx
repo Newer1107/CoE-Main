@@ -229,7 +229,10 @@ export default function AttendanceSection() {
   const job = data?.job ?? null;
   const failed = job?.status === "FAILED";
   const awaitingCaptcha = liveJob?.status === "AWAITING_CAPTCHA";
-  const pwRejected = failed && /LOGIN FAILED|PASSWORD|REJECTED/i.test(job?.lastError ?? "");
+  const pwRejected =
+    failed &&
+    !job?.lastError?.startsWith("SOLVE_REJECTED") &&
+    /LOGIN FAILED|PASSWORD|REJECTED/i.test(job?.lastError ?? "");
   const needsPassword = !hasPassword || pwRejected;
   const hasData = rows.length > 0;
   const lastSynced = data?.lastSyncedAt ?? null;
@@ -239,6 +242,54 @@ export default function AttendanceSection() {
   const overall = totalAll > 0 ? ((totalPresent / totalAll) * 100).toFixed(1) : null;
   const periodStart = fmtDate(rows[0]?.periodStart ?? null);
   const periodEnd = fmtDate(rows[0]?.periodEnd ?? null);
+
+  const errInfo = (e: string | null | undefined) => {
+    if (!e) return { title: "ERP unreachable", body: "Attendance sync failed. Try again in a few minutes." };
+    if (e === "PARSE_EMPTY")
+      return {
+        title: "ERP attendance is temporarily unavailable",
+        body: "The ERP isn't returning attendance data right now — it usually recovers on its own. Try again in a while. Your last synced data is shown below.",
+      };
+    if (e === "PARSE_NO_RECORD")
+      return {
+        title: "No ERP record for this account",
+        body: "The ERP has no attendance record for this account — contact the office.",
+      };
+    if (e === "SOLVE_REJECTED")
+      return {
+        title: "That code wasn't right",
+        body: "The code you entered didn't match — start a new sync and try again.",
+      };
+    if (e === "CAPTCHA_TIMEOUT")
+      return {
+        title: "The code expired",
+        body: "The code expired before you entered it — start a new sync.",
+      };
+    if (e.startsWith("PARSE_UNKNOWN"))
+      return {
+        title: "We couldn't read the ERP report",
+        body: "The ERP returned an unexpected format — try again in a while.",
+      };
+    return { title: "Can't reach the ERP", body: "We couldn't reach the ERP server. Check again in a few minutes — your sync will retry automatically." };
+  };
+  const err = errInfo(job?.lastError);
+
+  const failedBox = failed ? (
+    <div className="border border-outline-variant bg-surface-container p-5">
+      <p className="text-sm font-semibold text-primary">{err.title}</p>
+      <p className="mt-1 text-xs text-on-surface-variant">{err.body}</p>
+      {!pwRejected ? (
+        <button
+          type="button"
+          onClick={() => void startSync()}
+          disabled={busy || limitUntil > Date.now()}
+          className={`${buttonCls} mt-3`}
+        >
+          {limitUntil > Date.now() ? `Wait ${limitLeft}s` : "Retry ↻"}
+        </button>
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <div>
@@ -374,6 +425,7 @@ export default function AttendanceSection() {
         </div>
       ) : hasData ? (
         <div className="border-y border-hairline">
+          {failedBox}
           {periodStart ? (
             <p className="border-b border-hairline px-1 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
               Period: {periodStart} — {periodEnd ?? "now"}
@@ -421,11 +473,6 @@ export default function AttendanceSection() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {failed ? (
-                <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-error">
-                  ERP unreachable — retry later
-                </span>
-              ) : null}
               {hasPassword ? (
                 <button
                   type="button"
@@ -445,32 +492,7 @@ export default function AttendanceSection() {
           </div>
         </div>
       ) : failed ? (
-        <div className="border border-outline-variant bg-surface-container p-5">
-          <p className="text-sm font-semibold text-primary">
-            {job?.lastError === "PARSE_EMPTY"
-              ? "No attendance recorded"
-              : job?.lastError === "PARSE_NO_RECORD"
-                ? "No ERP record for this account"
-                : "ERP unreachable"}
-          </p>
-          <p className="mt-1 text-xs text-on-surface-variant">
-            {job?.lastError === "PARSE_EMPTY"
-              ? "No subjects found for this period yet — check again after classes start."
-              : job?.lastError === "PARSE_NO_RECORD"
-                ? "The ERP has no attendance record for this account — contact the office."
-                : "Attendance sync failed. Try again in a few minutes."}
-          </p>
-          {!pwRejected ? (
-            <button
-              type="button"
-              onClick={() => void startSync()}
-              disabled={busy || limitUntil > Date.now()}
-              className={`${buttonCls} mt-3`}
-            >
-              {limitUntil > Date.now() ? `Wait ${limitLeft}s` : "Retry ↻"}
-            </button>
-          ) : null}
-        </div>
+        failedBox
       ) : (
         <div className="border border-outline-variant bg-surface-container p-5">
           <p className="text-sm font-semibold text-primary">No attendance synced yet</p>
