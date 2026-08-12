@@ -14,6 +14,7 @@ type AttendanceRow = {
 type JobInfo = { id: number; status: string; attempts: number; lastError: string | null } | null;
 type ApiData = {
   eligible: boolean;
+  hasPassword: boolean;
   rows: AttendanceRow[];
   lastSyncedAt: string | null;
   job: JobInfo;
@@ -42,6 +43,11 @@ export default function AttendanceSection() {
   const [busy, setBusy] = useState(false);
   const [liveJob, setLiveJob] = useState<JobInfo | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [pwForm, setPwForm] = useState(false);
+  const [pwValue, setPwValue] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
   const pollRef = useRef<number | null>(null);
 
   const stopPolling = () => {
@@ -91,6 +97,7 @@ export default function AttendanceSection() {
       if (!body?.data?.eligible) return setHidden(true);
       setData(body.data);
       setLiveJob(body.data.job ?? null);
+      setHasPassword(!!body.data.hasPassword);
       const running = body.data.job?.status === "QUEUED" || body.data.job?.status === "RUNNING";
       setQueued(running);
       setPending(false);
@@ -121,10 +128,38 @@ export default function AttendanceSection() {
     }
   };
 
+  const savePassword = async () => {
+    setPwSaving(true);
+    setPwError("");
+    try {
+      const res = await fetch("/api/attendance/password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwValue }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body?.success) {
+        setPwError(body?.message || "Could not save the password — try again.");
+        return;
+      }
+      setHasPassword(true);
+      setPwForm(false);
+      setPwValue("");
+      await startSync();
+    } catch {
+      setPwError("Could not reach the server — try again.");
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   if (hidden) return null;
   const rows = data?.rows ?? [];
   const job = data?.job ?? null;
   const failed = job?.status === "FAILED";
+  const pwRejected = failed && /LOGIN FAILED|PASSWORD|REJECTED/i.test(job?.lastError ?? "");
+  const needsPassword = !hasPassword || pwRejected;
   const hasData = rows.length > 0;
   const lastSynced = data?.lastSyncedAt ?? null;
   const stale = !!lastSynced && Date.now() - new Date(lastSynced).getTime() > STALE_MS;
@@ -148,6 +183,35 @@ export default function AttendanceSection() {
 
       {loading ? (
         <div className="h-24 animate-pulse border border-outline-variant bg-surface-container" aria-busy="true" />
+      ) : needsPassword ? (
+        <div className="border border-outline-variant bg-surface-container p-5">
+          <p className="text-sm font-semibold text-primary">
+            {pwRejected ? "ERP password rejected" : "Link your ERP account"}
+          </p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            {pwRejected
+              ? "The ERP rejected the saved password. Enter it again to re-enable sync."
+              : "Enter your ERP password once — it's encrypted and used only to fetch your attendance."}
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="password"
+              value={pwValue}
+              onChange={(e) => setPwValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void savePassword();
+              }}
+              placeholder="ERP password"
+              aria-label="ERP password"
+              autoComplete="off"
+              className="w-full min-w-0 flex-1 border border-outline-variant bg-white px-3 py-2 text-sm text-primary outline-none focus:border-primary"
+            />
+            <button type="button" onClick={() => void savePassword()} disabled={pwSaving || !pwValue} className={buttonCls}>
+              {pwSaving ? "Checking…" : "Save & sync"}
+            </button>
+          </div>
+          {pwError ? <p className="mt-2 text-xs text-error">{pwError}</p> : null}
+        </div>
       ) : pending ? (
         <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
           <p className="text-sm font-semibold text-primary">Still syncing in the background…</p>
@@ -224,9 +288,11 @@ export default function AttendanceSection() {
                   ERP unreachable — retry later
                 </span>
               ) : null}
-              <button type="button" onClick={() => void startSync()} disabled={busy} className={buttonCls}>
-                {failed ? "Retry ↻" : "Refresh ↻"}
-              </button>
+              {hasPassword ? (
+                <button type="button" onClick={() => void startSync()} disabled={busy} className={buttonCls}>
+                  {failed ? "Retry ↻" : "Refresh ↻"}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -246,9 +312,11 @@ export default function AttendanceSection() {
                 ? "The ERP has no attendance record for this account — contact the office."
                 : "Attendance sync failed. Try again in a few minutes."}
           </p>
-          <button type="button" onClick={() => void startSync()} disabled={busy} className={`${buttonCls} mt-3`}>
-            Retry ↻
-          </button>
+          {!pwRejected ? (
+            <button type="button" onClick={() => void startSync()} disabled={busy} className={`${buttonCls} mt-3`}>
+              Retry ↻
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="border border-outline-variant bg-surface-container p-5">

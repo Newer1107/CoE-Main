@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { parseErpOutput, CircuitBreaker } from '../src/lib/erp-attendance';
+import { parseErpOutput, CircuitBreaker, reverseErpUid, decryptErpPassword, ERP_EMAIL_DOMAIN } from '../src/lib/erp-attendance';
 
 const prisma = new PrismaClient();
 const CLAIMANT_ID = `${process.pid}-${Date.now().toString(36)}`;
@@ -58,11 +58,37 @@ export async function claimJobs(
 
 type FetchResult = { ok: true; stdout: string } | { ok: false; code: string; erpLevel?: boolean };
 
-function runFetcher(jobId: number, uid: string): Promise<FetchResult> {
+/** Per-user ERP password: stored (encrypted) password wins; otherwise the
+ *  fetcher's built-in default applies (covers the defect account). */
+async function resolvePassword(uid: string): Promise<string | null> {
+  const email = reverseErpUid(uid);
+  if (!email) return null;
+  const [local] = email.split('@');
+  // uid loses the original case — an email local part starting with 's'
+  // maps to the same uid as one without it; try both forms.
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email }, { email: `s${local}@${ERP_EMAIL_DOMAIN}` }] },
+    select: { erpPasswordEnc: true },
+  });
+  if (!user?.erpPasswordEnc) return null;
+  try {
+    return decryptErpPassword(user.erpPasswordEnc);
+  } catch {
+    console.log(`job (${uid}) failed: PASSWORD_DECRYPT_FAIL`);
+    return null;
+  }
+}
+
+function runFetcher(jobId: number, uid: string, password: string | null): Promise<FetchResult> {
   const workdir = `/tmp/erp/${jobId}`;
   return new Promise((resolve) => {
     const child = spawn(pythonBin(), [fetcherPath(), 'fast', '--workdir', workdir], {
-      env: { ...process.env, ERP_USER: uid },
+      env: {
+        ...process.env,
+        ERP_USER: uid,
+        // null → let the fetcher use its built-in default password
+        ...(password ? { ERP_PW: password } : {}),
+      },
     });
     let stdout = '';
     let stderr = '';
@@ -116,7 +142,8 @@ async function failOrRetry(jobId: number, code: string): Promise<void> {
 
 /** One job: fetch → parse → transactional snapshot replace + SUCCESS. */
 export async function processJob(jobId: number, uid: string): Promise<boolean> {
-  const res = await runFetcher(jobId, uid);
+  const password = await resolvePassword(uid);
+  const res = await runFetcher(jobId, uid, password);
   if (!res.ok) {
     // Per-account failures (OCR/login/empty) never trip the global breaker —
     // only ERP-level outages (HTTP/timeout/connection) do.

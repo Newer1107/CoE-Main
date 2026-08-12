@@ -3,6 +3,7 @@
  * circuit breaker). Pure and importable by API routes, the sync worker, and
  * the assert-based checks (scripts/checks/erp-checks.ts).
  */
+import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 
 export const ERP_EMAIL_DOMAIN = 'tcetmumbai.in';
 
@@ -14,6 +15,36 @@ export function deriveErpUid(email: string | null | undefined): string | null {
   if (!email.endsWith(`@${ERP_EMAIL_DOMAIN}`) || !/^[a-zA-Z0-9._-]+$/.test(local)) return null;
   const upper = local.toUpperCase();
   return upper.startsWith('S') ? upper : `S${upper}`;
+}
+
+/** Inverse of deriveErpUid: 'S1032241230' → '1032241230@tcetmumbai.in'. */
+export function reverseErpUid(uid: string): string | null {
+  const local = uid.startsWith('S') ? uid.slice(1) : uid;
+  if (!/^[a-zA-Z0-9._-]+$/.test(local)) return null;
+  return `${local.toLowerCase()}@${ERP_EMAIL_DOMAIN}`;
+}
+
+/** AES-256-GCM envelope for ERP passwords. Key is derived from the JWT secret
+ *  (already secret + stable on every host) — no new env var to manage.
+ *  Format: base64(iv || tag || ciphertext). */
+const erpPassKey = () =>
+  createHash('sha256').update(process.env.JWT_ACCESS_SECRET ?? 'erp-pass-key-change-me').digest();
+
+export function encryptErpPassword(password: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', erpPassKey(), iv);
+  const ct = Buffer.concat([cipher.update(password, 'utf8'), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ct]).toString('base64');
+}
+
+export function decryptErpPassword(enc: string): string {
+  const buf = Buffer.from(enc, 'base64');
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const ct = buf.subarray(28);
+  const decipher = createDecipheriv('aes-256-gcm', erpPassKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
 }
 
 export type AttendanceRow = {

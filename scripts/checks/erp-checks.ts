@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
-import { parseErpOutput, CircuitBreaker, deriveErpUid } from '../../src/lib/erp-attendance';
+import { parseErpOutput, CircuitBreaker, deriveErpUid, reverseErpUid, encryptErpPassword, decryptErpPassword } from '../../src/lib/erp-attendance';
 import { claimJobs, reclaimStale, sweepOldJobs } from '../sync-erp-attendance';
 
 let passed = 0;
@@ -21,7 +21,14 @@ function checkUidDerivation() {
   assert.equal(deriveErpUid('user@gmail.com'), null);
   assert.equal(deriveErpUid(null), null);
   assert.equal(deriveErpUid('tcet.cercd@tcetmumbai.in'), 'STCET.CERCD');
-  ok('S-prefix, dedupe, non-TCET null');
+  assert.equal(reverseErpUid('S1032241230'), '1032241230@tcetmumbai.in');
+  assert.equal(reverseErpUid('STCET.CERCD'), 'tcet.cercd@tcetmumbai.in');
+  assert.equal(reverseErpUid('garbage!'), null);
+  const enc = encryptErpPassword('Raunak@12345');
+  assert.notEqual(enc, 'Raunak@12345');
+  assert.equal(decryptErpPassword(enc), 'Raunak@12345');
+  assert.notEqual(encryptErpPassword('a'), encryptErpPassword('a'), 'random IV');
+  ok('S-prefix, dedupe, non-TCET null, uid reverse, AES-GCM roundtrip');
 }
 
 const GOOD = `OCR: ABC12 conf=0.98

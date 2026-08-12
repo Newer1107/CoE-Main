@@ -192,6 +192,7 @@ model User {
   departmentId                Int?
   department                  Department?                   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   isCoordinator               Boolean                       @default(false)
+  erpPasswordEnc              String?                       @map("erp_password_enc")
   opportunitiesCreated        Opportunity[]
   opportunityInterests        OpportunityInterest[]
   learningResourcesCreated    LearningResource[]

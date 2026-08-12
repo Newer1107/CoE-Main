@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const uid = deriveErpUid(user.email);
     if (!uid) return successRes({ eligible: false, uid: null });
 
-    const [rows, lastSynced, job] = await Promise.all([
+    const [rows, lastSynced, job, userRow] = await Promise.all([
       prisma.attendanceSnapshot.findMany({ where: { uid }, orderBy: { id: 'asc' } }),
       prisma.attendanceSnapshot.findFirst({ where: { uid }, orderBy: { fetchedAt: 'desc' } }),
       prisma.attendanceSyncJob.findFirst({
@@ -25,10 +25,12 @@ export async function GET(req: NextRequest) {
         orderBy: { id: 'desc' },
         select: { id: true, status: true, attempts: true, lastError: true, createdAt: true },
       }),
+      prisma.user.findFirst({ where: { id: user.id }, select: { erpPasswordEnc: true } }),
     ]);
     return successRes({
       eligible: true,
       uid,
+      hasPassword: !!userRow?.erpPasswordEnc,
       rows: rows.map((r) => ({
         subject: r.subject,
         type: r.type,

@@ -23,7 +23,7 @@ USER = os.environ.get("ERP_USER", "S1032241230")
 PW = os.environ.get("ERP_PW", "Raunak@12345")
 
 _ap = argparse.ArgumentParser()
-_ap.add_argument("mode", choices=["fetch", "login", "report", "shot", "fast"])
+_ap.add_argument("mode", choices=["fetch", "login", "report", "shot", "fast", "probe"])
 _ap.add_argument("--workdir", default=os.environ.get("ERP_WORKDIR", "/tmp/erp"))
 _args = _ap.parse_args()
 WD = _args.workdir
@@ -201,5 +201,26 @@ def fast():
     print("ALL_ATTEMPTS_FAILED — ERP flaky; retry later")
     sys.exit(2)
 
+def probe():
+    """Single-attempt credential check (used by the save-password API):
+    fetch → OCR → login → exit 0 on success, 3 on password/captcha rejection,
+    4 on transient ERP failure. The API reads the raw hdnMsg from stdout."""
+    from rapidocr_onnxruntime import RapidOCR
+    eng = RapidOCR()
+    try:
+        fetch()
+        txt, conf = _read_captcha(eng, CAPIMG)
+        print(f"OCR: {txt} conf={conf:.2f}")
+        try:
+            login(txt)
+        except SystemExit:
+            sys.exit(3)  # login() already printed the server message
+        print("OK")
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"PROBE_FAIL: {e}")
+        sys.exit(4)
+
 if __name__ == "__main__":
-    {"fetch": fetch, "login": lambda: login(sys.argv[2]), "report": report, "shot": shot, "fast": fast}[_args.mode]()
+    {"fetch": fetch, "login": lambda: login(sys.argv[2]), "report": report, "shot": shot, "fast": fast, "probe": probe}[_args.mode]()
