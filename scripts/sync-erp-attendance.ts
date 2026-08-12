@@ -20,6 +20,7 @@ const FETCH_TIMEOUT_MS = 90_000;
 const RUNNING_STALE_MS = 10 * 60_000;
 const RETRY_DELAY_MS = 30_000;
 const MIN_START_GAP_MS = 1_000;
+const DAEMON_POLL_MS = 3_000;
 const BREAKER_PAUSE_MS = 10 * 60_000;
 const SWEEP_JOB_AGE_MS = 7 * 86_400_000;
 const SWEEP_FAILED_AGE_MS = 48 * 3_600_000;
@@ -213,7 +214,7 @@ async function main() {
     while (true) {
       const r = await runDrainPass();
       if (r.claimed > 0) console.log('drain:', JSON.stringify(r));
-      await sleep(15_000);
+      await sleep(DAEMON_POLL_MS);
     }
   } else {
     const r = await runDrainPass();
