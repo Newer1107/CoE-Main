@@ -188,7 +188,7 @@ def fast():
                 raise RuntimeError("LOGIN FAILED (mismatch)")
             rows = _rows()
             if not any(r for r in rows if r and re.match(r"^\d+$", r[0])):
-                raise RuntimeError("EMPTY_REPORT (captcha misread)")
+                raise RuntimeError("EMPTY_REPORT (no rows)")
             for cells in rows:
                 print(" | ".join(cells))
             shot()

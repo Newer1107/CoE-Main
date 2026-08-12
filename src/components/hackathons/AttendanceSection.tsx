@@ -281,7 +281,7 @@ export default function AttendanceSection() {
 
   const errInfo = (e: string | null | undefined) => {
     if (!e) return { title: "ERP unreachable", body: "Attendance sync failed. Try again in a few minutes." };
-    if (e === "PARSE_EMPTY")
+    if (e === "PARSE_EMPTY" || e.includes("EMPTY_REPORT"))
       return {
         title: "ERP attendance is temporarily unavailable",
         body: "The ERP isn't returning attendance data right now — it usually recovers on its own. Try again in a while. Your last synced data is shown below.",
