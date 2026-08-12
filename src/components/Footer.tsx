@@ -28,8 +28,8 @@ export default function Footer() {
             Institutional Quick Links
           </h4>
           <ul className="space-y-2 font-body text-xs md:space-y-3 md:text-sm">
-            <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="#">Institute Address &amp; NAAC</a></li>
-            <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="#">Mumbai University</a></li>
+            <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="https://www.tcetmumbai.in/contact.html">Institute Address &amp; NAAC</a></li>
+            <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="https://mu.ac.in/">Mumbai University</a></li>
             <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="#">Quick Links</a></li>
             <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="/privacy-policy">Privacy Policy</a></li>
             <li><a className="text-on-surface-variant underline decoration-hairline underline-offset-4 transition-colors hover:text-primary hover:decoration-primary" href="#">Contact Us</a></li>
