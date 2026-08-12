@@ -413,6 +413,18 @@ export default function Navbar({ user }: NavbarProps) {
                       >
                         My Booking Area
                       </Link>
+                      {userRole === "STUDENT" ? (
+                        <Link
+                          href="/hackathons/portal"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center justify-center gap-2 bg-[#fd9923] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#002155] hover:bg-[#ffb34d] transition-colors"
+                        >
+                          Attendance
+                          <span className="bg-[#002155] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest text-[#fd9923]">
+                            NEW
+                          </span>
+                        </Link>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => void handleLogout()}
@@ -479,6 +491,18 @@ export default function Navbar({ user }: NavbarProps) {
                 ) : null}
               </p>
               {user?.uid ? <p className="mt-1 text-xs text-white/80">UID: {user.uid}</p> : null}
+              {user?.role === "STUDENT" ? (
+                <Link
+                  href="/hackathons/portal"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="mt-3 flex items-center justify-center gap-2 bg-[#fd9923] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#002155] transition-colors hover:bg-[#ffb34d]"
+                >
+                  Attendance
+                  <span className="bg-[#002155] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest text-[#fd9923]">
+                    NEW
+                  </span>
+                </Link>
+              ) : null}
             </div>
           ) : null}
 
