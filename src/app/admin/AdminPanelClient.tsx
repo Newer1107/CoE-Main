@@ -7,6 +7,7 @@ import Link from "next/link";
 import jsQR from "jsqr";
 import CertificatesAdmin from "@/components/hackathons/CertificatesAdmin";
 import ErpStatsCard from "@/components/admin/ErpStatsCard";
+import RegistrationsChart from "@/components/admin/RegistrationsChart";
 import { HACKATHON_RUBRIC_WEIGHTS } from "@/lib/hackathon-scoring";
 
 type BookingStudent = {
@@ -3775,6 +3776,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       ) : null}
 
       {operationsTab === "overview" ? (
+      <>
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <div className="border border-[#c4c6d3] bg-white p-5">
           <p className="text-xs uppercase tracking-widest text-[#434651] font-label">Total Students</p>
@@ -3801,6 +3803,8 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
           <p className="mt-2 text-3xl font-bold text-[#002155]">{stats.newsCount}</p>
         </div>
       </section>
+      <RegistrationsChart />
+      </>
       ) : null}
 
       {operationsTab === "emails" ? (
