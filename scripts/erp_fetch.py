@@ -139,24 +139,45 @@ def shot():
     img.save(SHOTIMG)
     print(SHOTIMG)
 
+def _read_captcha(eng, cap_path):
+    """Try 3 preprocessing variants of the captcha (grayscale-3x, binarized,
+    inverted-binarized) and return the best read. Noisy ERP captchas often
+    lose characters under one threshold but read cleanly under another —
+    the known-good account reads at conf ~0.99, hard draws at 0.6-0.7."""
+    from PIL import Image, ImageOps
+    base = Image.open(cap_path).convert("L")
+    w, h = base.size
+    variants = []
+    g = base.resize((w * 3, h * 3), Image.LANCZOS)
+    variants.append(g)
+    variants.append(g.point(lambda p: 255 if p > 128 else 0))
+    variants.append(ImageOps.invert(g).point(lambda p: 255 if p > 128 else 0))
+    best = None
+    for v in variants:
+        v.save(OCRCAP)
+        res, _ = eng(OCRCAP)
+        if not res:
+            continue
+        txt = "".join(re.findall(r"[0-9A-Za-z]", "".join(r[1] for r in res)))
+        conf = sum(float(r[2]) for r in res) / len(res)
+        if best is None or conf > best[1]:
+            best = (txt, conf)
+        if len(txt) in (5, 6) and conf >= 0.6:
+            return txt, conf
+    if best is None:
+        raise RuntimeError("OCR_FAIL")
+    return best
+
 def fast():
     """One-shot: fetch -> local OCR captcha -> login -> print rows + render PNG.
     Self-retrying: the ERP (IIS) is flaky (M6) — transient 404s, POST timeouts that
     burn the single-use captcha. Every attempt restarts fresh (new session+captcha)."""
-    from PIL import Image
     from rapidocr_onnxruntime import RapidOCR
     eng = RapidOCR()
     for attempt in range(1, 5):
         try:
             fetch()
-            im0 = Image.open(CAPIMG).convert("L")
-            w, h = im0.size
-            im0.resize((w * 3, h * 3), Image.LANCZOS).save(OCRCAP)
-            res, _ = eng(OCRCAP)
-            if not res:
-                raise RuntimeError("OCR_FAIL")
-            txt = "".join(re.findall(r"[0-9A-Za-z]", "".join(r[1] for r in res)))
-            conf = sum(float(r[2]) for r in res) / len(res)
+            txt, conf = _read_captcha(eng, CAPIMG)
             if len(txt) not in (5, 6) or conf < 0.6:
                 raise RuntimeError(f"OCR_UNSURE {txt!r} conf={conf:.2f}")
             print(f"OCR: {txt} conf={conf:.2f}")
