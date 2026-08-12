@@ -40,6 +40,8 @@ export default function AttendanceSection() {
   const [queued, setQueued] = useState(false);
   const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [liveJob, setLiveJob] = useState<JobInfo | null>(null);
+  const [elapsed, setElapsed] = useState(0);
   const pollRef = useRef<number | null>(null);
 
   const stopPolling = () => {
@@ -54,9 +56,11 @@ export default function AttendanceSection() {
     let ticks = 0;
     pollRef.current = window.setInterval(async () => {
       ticks += 1;
+      setElapsed(ticks * 5);
       try {
         const st = await fetch("/api/attendance/status", { credentials: "include" }).then((r) => r.json());
         const status = st?.data?.job?.status;
+        setLiveJob(st?.data?.job ?? null);
         if (status === "SUCCESS" || status === "FAILED") {
           stopPolling();
           setQueued(false);
@@ -86,6 +90,7 @@ export default function AttendanceSection() {
       const body = await res.json();
       if (!body?.data?.eligible) return setHidden(true);
       setData(body.data);
+      setLiveJob(body.data.job ?? null);
       const running = body.data.job?.status === "QUEUED" || body.data.job?.status === "RUNNING";
       setQueued(running);
       setPending(false);
@@ -104,6 +109,7 @@ export default function AttendanceSection() {
 
   const startSync = async () => {
     setBusy(true);
+    setElapsed(0);
     try {
       const res = await fetch("/api/attendance/refresh", { method: "POST", credentials: "include" });
       const body = await res.json();
@@ -154,7 +160,14 @@ export default function AttendanceSection() {
         <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
           <p className="text-sm font-semibold text-primary">Syncing with ERP…</p>
           <p className="mt-1 text-xs text-on-surface-variant">
-            This takes about 15 seconds. The page will update automatically.
+            {liveJob?.status === "RUNNING"
+              ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
+              : liveJob?.status === "QUEUED"
+                ? "Queued — the sync worker picks it up within seconds."
+                : "Connecting to the ERP…"}
+          </p>
+          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
           </p>
         </div>
       ) : hasData ? (
