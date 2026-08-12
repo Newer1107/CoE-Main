@@ -169,7 +169,28 @@ async function requestHumanCaptcha(jobId: number, uid: string): Promise<boolean>
  *  failures, so they must not trip the network breaker. */
 const EMPTY_PAUSE_THRESHOLD = 10;
 const EMPTY_PAUSE_MS = 10 * 60 * 1000;
+const PAUSED_STAT_KEY = 'erp_paused_until'; // value = epoch SECONDS (fits Int32)
 const emptyHealth = { streak: 0, pausedUntil: 0 };
+
+async function publishPause(now = Date.now()): Promise<void> {
+  try {
+    await prisma.attendanceStat.upsert({
+      where: { key: PAUSED_STAT_KEY },
+      create: { key: PAUSED_STAT_KEY, value: Math.floor(now / 1000) },
+      update: { value: Math.floor(now / 1000) },
+    });
+  } catch {
+    /* publish failure is silent — the UI age-fallback still covers stalls */
+  }
+}
+
+async function clearPause(): Promise<void> {
+  try {
+    await prisma.attendanceStat.deleteMany({ where: { key: PAUSED_STAT_KEY } });
+  } catch {
+    /* silent */
+  }
+}
 
 function recordEmptyOutcome(now = Date.now()): void {
   emptyHealth.streak += 1;
@@ -178,11 +199,16 @@ function recordEmptyOutcome(now = Date.now()): void {
     console.log(
       `data-quality: ${emptyHealth.streak} consecutive empty reports — pausing claims ${EMPTY_PAUSE_MS / 60_000} min (auto-probe resumes)`,
     );
+    void publishPause(emptyHealth.pausedUntil);
   }
 }
 
 function recordSyncSuccess(): void {
   emptyHealth.streak = 0;
+  if (emptyHealth.pausedUntil > 0) {
+    emptyHealth.pausedUntil = 0;
+    void clearPause();
+  }
 }
 
 function isEmptyPaused(now = Date.now()): boolean {
@@ -369,6 +395,7 @@ async function runDaemon(): Promise<void> {
   let lastHousekeeping = 0;
   let lastLoopAt = Date.now();
   let breakerWasOpen = false;
+  await clearPause(); // fresh start — a stale pause row must not linger
   const watchdog = setInterval(() => {
     const stalledFor = Date.now() - lastLoopAt;
     if (stalledFor > 90_000) {

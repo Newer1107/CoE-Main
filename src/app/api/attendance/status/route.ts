@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
       orderBy: { id: 'desc' },
       select: { id: true, status: true, attempts: true, lastError: true, createdAt: true },
     });
-    return successRes({ job });
+    const pause = await prisma.attendanceStat.findUnique({ where: { key: 'erp_paused_until' } });
+    const erpPaused = !!pause && pause.value * 1000 > Date.now();
+    return successRes({ job, erpPaused });
   } catch (err) {
     console.error('Attendance status error:', err);
     return errorRes('Internal server error', [], 500);

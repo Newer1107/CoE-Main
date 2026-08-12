@@ -15,6 +15,7 @@ type JobInfo = { id: number; status: string; attempts: number; lastError: string
 type ApiData = {
   eligible: boolean;
   hasPassword: boolean;
+  erpPaused: boolean;
   rows: AttendanceRow[];
   lastSyncedAt: string | null;
   job: JobInfo;
@@ -80,7 +81,8 @@ export default function AttendanceSection() {
           ? Date.now() - new Date(st.data.job.createdAt).getTime()
           : 0;
         setSyncStuck(
-          (status === "QUEUED" || status === "RUNNING") && jobAgeMs > 3 * 60 * 1000,
+          !!st?.data?.erpPaused ||
+            ((status === "QUEUED" || status === "RUNNING") && jobAgeMs > 60_000),
         );
         if (status === "SUCCESS" || status === "FAILED") {
           stopPolling();
@@ -120,10 +122,11 @@ export default function AttendanceSection() {
       if (running && body.data.job?.createdAt) {
         const jobAgeMs = Date.now() - new Date(body.data.job.createdAt).getTime();
         setSyncStuck(
-          body.data.job.status !== "AWAITING_CAPTCHA" && jobAgeMs > 3 * 60 * 1000,
+          !!body.data.erpPaused ||
+            (body.data.job.status !== "AWAITING_CAPTCHA" && jobAgeMs > 60_000),
         );
       } else {
-        setSyncStuck(false);
+        setSyncStuck(!!body.data.erpPaused);
       }
       setQueued(running);
       setPending(false);
@@ -358,7 +361,7 @@ export default function AttendanceSection() {
                     {liveJob?.status === "RUNNING"
                       ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
                       : liveJob?.status === "QUEUED"
-                        ? "Queued — the sync worker picks it up within seconds."
+                        ? "Queued — waiting for the sync worker."
                         : "Connecting to the ERP…"}
                   </p>
                   <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
