@@ -232,6 +232,15 @@ export default function AttendanceSection() {
         <span aria-hidden="true" className="h-px flex-1 bg-hairline" />
       </div>
 
+      <div role="note" className="mb-4 border border-amber-300 bg-amber-50 px-3 py-2">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">
+          Under development — testing phase
+        </p>
+        <p className="mt-0.5 text-xs text-amber-900/80">
+          This feature is still in testing. Data may be incomplete or temporarily unavailable — don't rely on it yet.
+        </p>
+      </div>
+
       {loading ? (
         <div className="h-24 animate-pulse border border-outline-variant bg-surface-container" aria-busy="true" />
       ) : needsPassword ? (

@@ -295,6 +295,17 @@ export async function runDrainPass(): Promise<{ claimed: number; succeeded: numb
   return { claimed, succeeded, failed };
 }
 
+/** Rejects if the underlying promise hangs — a dead MySQL connection must
+ *  never freeze the claim loop (observed: queue frozen for ~10 min until
+ *  manual restart). The daemon catches and continues; pm2 is the backstop. */
+const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([
+    p,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms);
+    }),
+  ]);
+
 /** Daemon: claim loop runs every 3s regardless of in-flight fetches, so a new
  *  job is claimed within seconds of enqueue. Processing is fire-and-forget
  *  (bounded by CLAIM_BATCH in-flight); token bucket keeps ≥1s between spawns. */
@@ -302,32 +313,39 @@ async function runDaemon(): Promise<void> {
   const inflight = new Set<Promise<void>>();
   let lastHousekeeping = 0;
   while (true) {
-    if (enabled() && !breaker.isOpen() && inflight.size < CLAIM_BATCH) {
-      let ids: number[] = [];
-      await prisma.$transaction(async (tx) => {
-        ids = await claimJobs(tx, CLAIM_BATCH - inflight.size);
-      });
-      if (ids.length > 0) {
-        const jobs = await prisma.attendanceSyncJob.findMany({
-          where: { id: { in: ids } },
-          select: { id: true, uid: true },
-        });
-        let nextStart = 0;
-        for (const job of jobs) {
-          const wait = Math.max(0, nextStart - Date.now());
-          nextStart = Math.max(nextStart + MIN_START_GAP_MS, Date.now() + MIN_START_GAP_MS);
-          const p = sleep(wait).then(() => processJob(job.id, job.uid)) as Promise<void>;
-          inflight.add(p);
-          p.then(
-            () => inflight.delete(p),
-            () => inflight.delete(p),
-          );
+    try {
+      if (enabled() && !breaker.isOpen() && inflight.size < CLAIM_BATCH) {
+        let ids: number[] = [];
+        await withTimeout(
+          prisma.$transaction(async (tx) => {
+            ids = await claimJobs(tx, CLAIM_BATCH - inflight.size);
+          }),
+          15_000,
+        );
+        if (ids.length > 0) {
+          const jobs = await prisma.attendanceSyncJob.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, uid: true },
+          });
+          let nextStart = 0;
+          for (const job of jobs) {
+            const wait = Math.max(0, nextStart - Date.now());
+            nextStart = Math.max(nextStart + MIN_START_GAP_MS, Date.now() + MIN_START_GAP_MS);
+            const p = sleep(wait).then(() => withTimeout(processJob(job.id, job.uid), 180_000)) as Promise<void>;
+            inflight.add(p);
+            p.then(
+              () => inflight.delete(p),
+              () => inflight.delete(p),
+            );
+          }
+        } else if (Date.now() - lastHousekeeping > 60_000) {
+          lastHousekeeping = Date.now();
+          await reclaimStale();
+          await sweepOldJobs();
         }
-      } else if (Date.now() - lastHousekeeping > 60_000) {
-        lastHousekeeping = Date.now();
-        await reclaimStale();
-        await sweepOldJobs();
       }
+    } catch (err) {
+      console.log(`daemon loop error: ${(err as Error).message} — continuing`);
     }
     await sleep(DAEMON_POLL_MS);
   }
