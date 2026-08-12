@@ -32,6 +32,20 @@ const fmtDate = (v: string | null | undefined) => {
   return d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
 };
 
+const fmtDateTime = (v: string | null | undefined) => {
+  if (!v) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const buttonCls =
   "inline-flex items-center gap-1.5 border border-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary hover:text-white disabled:opacity-50";
 
@@ -55,6 +69,7 @@ export default function AttendanceSection() {
   const [limitUntil, setLimitUntil] = useState(0); // epoch ms until refresh allowed again
   const [limitLeft, setLimitLeft] = useState(0);
   const [syncStuck, setSyncStuck] = useState(false);
+  const [completedAway, setCompletedAway] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const stopPolling = () => {
@@ -130,6 +145,27 @@ export default function AttendanceSection() {
       }
       setQueued(running);
       setPending(false);
+      // "Completed while you were away": a terminal job newer than the last
+      // one this browser saw, and older than this visit → show a notice once.
+      if (body.data.job?.id && (body.data.job.status === "SUCCESS" || body.data.job.status === "FAILED")) {
+        try {
+          const seenKey = `erp-seen-job-${body.data.uid ?? ""}`;
+          const seen = Number(window.localStorage.getItem(seenKey) ?? 0);
+          if (body.data.job.id > seen) {
+            const ageMs = Date.now() - new Date(body.data.job.createdAt).getTime();
+            if (ageMs > 90_000) {
+              setCompletedAway(
+                body.data.job.status === "SUCCESS" && body.data.lastSyncedAt
+                  ? fmtDateTime(body.data.lastSyncedAt)
+                  : null,
+              );
+            }
+            window.localStorage.setItem(seenKey, String(body.data.job.id));
+          }
+        } catch {
+          /* localStorage unavailable — skip the notice */
+        }
+      }
       if (running) startPolling(); // job enqueued elsewhere — poll until it settles
     } catch {
       /* keep last rendered state */
@@ -293,6 +329,26 @@ export default function AttendanceSection() {
 
   return (
     <div>
+      {completedAway ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-start justify-between gap-3 border border-emerald-300 bg-emerald-50 px-3 py-2"
+        >
+          <p className="text-xs text-emerald-900">
+            <span className="font-bold uppercase tracking-[0.12em]">Sync complete</span> — your attendance was
+            updated at <span className="font-semibold">{completedAway}</span> while you were away.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCompletedAway(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-emerald-700 hover:text-emerald-900"
+          >
+            <span className="material-symbols-outlined text-base">close</span>
+          </button>
+        </div>
+      ) : null}
       <div className="mb-4 flex items-center gap-3 border-b border-hairline pb-3">
         <h2 className="font-headline text-xl font-bold text-primary">Attendance</h2>
         {stale ? (
@@ -466,7 +522,7 @@ export default function AttendanceSection() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline bg-surface-container px-1 py-3">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-                Overall · synced {fmtDate(lastSynced)}
+                Overall · synced {fmtDateTime(lastSynced)}
               </p>
               <p className="font-headline text-2xl font-bold tabular-nums text-primary">
                 {overall !== null ? `${overall}%` : "—"}
