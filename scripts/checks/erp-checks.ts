@@ -190,6 +190,43 @@ async function checkQueue() {
     assert.ok(stat && stat.value >= 3, `counter bumped 3× (got ${stat?.value})`);
     await prisma.attendanceStat.delete({ where: { key: 'check_counter' } });
     ok('stats counter atomic bump');
+
+    // refresh rate limit: 2 presses allowed in a live window, 3rd rejected,
+    // expired window resets. Mirrors the route's predicate logic.
+    const rateUser = await prisma.user.create({
+      data: { name: 'RL Test', email: `rl-${Date.now()}@tcetmumbai.in`, password: 'x', role: 'STUDENT' },
+    });
+    try {
+      const cutoff = (ms: number) => new Date(Date.now() - ms);
+      const allowed = async () => {
+        const reset = await prisma.attendanceRefreshLimit.updateMany({
+          where: { userId: rateUser.id, windowStart: { lt: cutoff(5 * 60 * 1000) } },
+          data: { count: 1, windowStart: new Date() },
+        });
+        if (reset.count > 0) return true;
+        const inc = await prisma.attendanceRefreshLimit.updateMany({
+          where: { userId: rateUser.id, windowStart: { gte: cutoff(5 * 60 * 1000) }, count: { lt: 2 } },
+          data: { count: { increment: 1 } },
+        });
+        if (inc.count > 0) return true;
+        const created = await prisma.attendanceRefreshLimit
+          .create({ data: { userId: rateUser.id, windowStart: new Date(), count: 1 } })
+          .catch(() => null);
+        return created !== null;
+      };
+      assert.equal(await allowed(), true, 'press 1');
+      assert.equal(await allowed(), true, 'press 2');
+      assert.equal(await allowed(), false, 'press 3 blocked');
+      await prisma.attendanceRefreshLimit.update({
+        where: { userId: rateUser.id },
+        data: { windowStart: new Date(Date.now() - 6 * 60 * 1000), count: 2 },
+      });
+      assert.equal(await allowed(), true, 'window expired → reset + allowed');
+      ok('refresh rate limit 2/5min + window reset');
+    } finally {
+      await prisma.attendanceRefreshLimit.deleteMany({ where: { userId: rateUser.id } });
+      await prisma.user.delete({ where: { id: rateUser.id } });
+    }
   } finally {
     await prisma.attendanceSyncJob.deleteMany({ where: { uid } });
     await prisma.$disconnect();

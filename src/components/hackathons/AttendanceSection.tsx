@@ -51,6 +51,8 @@ export default function AttendanceSection() {
   const [capValue, setCapValue] = useState("");
   const [capSaving, setCapSaving] = useState(false);
   const [capError, setCapError] = useState("");
+  const [limitUntil, setLimitUntil] = useState(0); // epoch ms until refresh allowed again
+  const [limitLeft, setLimitLeft] = useState(0);
   const pollRef = useRef<number | null>(null);
 
   const stopPolling = () => {
@@ -126,7 +128,13 @@ export default function AttendanceSection() {
     setElapsed(0);
     try {
       const res = await fetch("/api/attendance/refresh", { method: "POST", credentials: "include" });
-      const body = await res.json();
+      const body = await res.json().catch(() => null);
+      if (res.status === 429) {
+        const wait = Math.max(1, Number(body?.retryAfterSeconds ?? 60));
+        setLimitUntil(Date.now() + wait * 1000);
+        setLimitLeft(wait);
+        return;
+      }
       if (!body?.data?.jobId) return;
       setQueued(true);
       startPolling();
@@ -134,6 +142,17 @@ export default function AttendanceSection() {
       setBusy(false);
     }
   };
+
+  // Live countdown for the refresh limit (server-enforced, 2 presses / 5 min).
+  useEffect(() => {
+    if (limitUntil <= Date.now()) return;
+    const t = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((limitUntil - Date.now()) / 1000));
+      setLimitLeft(left);
+      if (left <= 0) setLimitUntil(0);
+    }, 1000);
+    return () => window.clearInterval(t);
+  }, [limitUntil]);
 
   const savePassword = async () => {
     setPwSaving(true);
@@ -353,9 +372,19 @@ export default function AttendanceSection() {
                 </span>
               ) : null}
               {hasPassword ? (
-                <button type="button" onClick={() => void startSync()} disabled={busy} className={buttonCls}>
-                  {failed ? "Retry ↻" : "Refresh ↻"}
+                <button
+                  type="button"
+                  onClick={() => void startSync()}
+                  disabled={busy || limitUntil > Date.now()}
+                  className={buttonCls}
+                >
+                  {limitUntil > Date.now() ? `Wait ${limitLeft}s` : failed ? "Retry ↻" : "Refresh ↻"}
                 </button>
+              ) : null}
+              {limitUntil > Date.now() ? (
+                <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-error">
+                  Limit reached — 2 refreshes / 5 min
+                </span>
               ) : null}
             </div>
           </div>
@@ -377,8 +406,13 @@ export default function AttendanceSection() {
                 : "Attendance sync failed. Try again in a few minutes."}
           </p>
           {!pwRejected ? (
-            <button type="button" onClick={() => void startSync()} disabled={busy} className={`${buttonCls} mt-3`}>
-              Retry ↻
+            <button
+              type="button"
+              onClick={() => void startSync()}
+              disabled={busy || limitUntil > Date.now()}
+              className={`${buttonCls} mt-3`}
+            >
+              {limitUntil > Date.now() ? `Wait ${limitLeft}s` : "Retry ↻"}
             </button>
           ) : null}
         </div>

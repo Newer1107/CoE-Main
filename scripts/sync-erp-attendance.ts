@@ -180,8 +180,10 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
     // only ERP-level outages (HTTP/timeout/connection) do.
     if (res.erpLevel) breaker.recordFailure();
     console.log(`job ${jobId} (${uid}) failed: ${res.code}`);
-    // OCR misreads → ask the human instead of failing the job.
-    if (!isSolve && /OCR_FAIL|OCR_UNSURE|LOGIN FAILED/.test(res.code)) {
+    // OCR misreads → ask the human instead of failing the job. EMPTY_REPORT
+    // is also a captcha misread (server accepts login but renders no rows) —
+    // the human-solve path then distinguishes a truly empty semester.
+    if (!isSolve && /OCR_FAIL|OCR_UNSURE|LOGIN FAILED|EMPTY_REPORT/.test(res.code)) {
       const asked = await requestHumanCaptcha(jobId, uid);
       if (asked) {
         console.log(`job ${jobId} (${uid}): awaiting human captcha`);

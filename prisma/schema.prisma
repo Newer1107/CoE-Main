@@ -1010,6 +1010,18 @@ model AttendanceStat {
   @@map("attendance_stats")
 }
 
+/// Per-user refresh rate-limit state (2 presses / 5 min). One row per student
+/// who ever pressed refresh — bounded, no cleanup needed (expired windows
+/// reset logically on the next press). Kept OFF the users table on purpose.
+model AttendanceRefreshLimit {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@map("attendance_refresh_limits")
+}
+
 model AttendanceSyncJob {
   id          Int       @id @default(autoincrement())
   uid         String
