@@ -314,17 +314,25 @@ export default function AttendanceSection() {
         </div>
       ) : queued ? (
         <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
-          <p className="text-sm font-semibold text-primary">Syncing with ERP…</p>
-          <p className="mt-1 text-xs text-on-surface-variant">
-            {liveJob?.status === "RUNNING"
-              ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
-              : liveJob?.status === "QUEUED"
-                ? "Queued — the sync worker picks it up within seconds."
-                : "Connecting to the ERP…"}
-          </p>
-          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
-          </p>
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent"
+            />
+            <div>
+              <p className="text-sm font-semibold text-primary">Syncing with ERP…</p>
+              <p className="mt-1 text-xs text-on-surface-variant">
+                {liveJob?.status === "RUNNING"
+                  ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
+                  : liveJob?.status === "QUEUED"
+                    ? "Queued — the sync worker picks it up within seconds."
+                    : "Connecting to the ERP…"}
+              </p>
+              <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+                {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
+              </p>
+            </div>
+          </div>
         </div>
       ) : hasData ? (
         <div className="border-y border-hairline">
