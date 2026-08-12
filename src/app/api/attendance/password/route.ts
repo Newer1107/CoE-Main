@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { deriveErpUid, encryptErpPassword } from '@/lib/erp-attendance';
+import { deriveErpUid, bumpAttendanceStat, encryptErpPassword } from '@/lib/erp-attendance';
 
 const pythonBin = () =>
   process.env.ERP_PYTHON ?? path.join(os.homedir(), '.hermes/venvs/erp/bin/python');
@@ -74,8 +74,9 @@ export async function POST(req: NextRequest) {
     const enc = encryptErpPassword(password);
     await prisma.user.update({
       where: { id: user.id },
-      data: { erpPasswordEnc: enc },
+      data: { erpPasswordEnc: enc, erpPasswordSetAt: new Date() },
     });
+    void bumpAttendanceStat(prisma, 'password_saves');
     return successRes({ saved: true });
   } catch (err) {
     console.error('Attendance password error:', err);

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { syncHackathonTicketUsageStatus } from '@/lib/tickets';
-import { deriveErpUid } from '@/lib/erp-attendance';
+import { deriveErpUid, bumpAttendanceStat } from '@/lib/erp-attendance';
 
 // GET /api/attendance — ERP attendance snapshot for the session user.
 // uid is derived server-side from the session email; never from client input.
@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.user.findFirst({ where: { id: user.id }, select: { erpPasswordEnc: true } }),
     ]);
+    void bumpAttendanceStat(prisma, 'views');
     return successRes({
       eligible: true,
       uid,

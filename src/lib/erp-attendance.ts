@@ -47,6 +47,31 @@ export function decryptErpPassword(enc: string): string {
   return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
 }
 
+/** Atomic usage counter (views/refreshes/captcha_asks/password_saves).
+ *  Never throws — stats must not break the feature they observe. */
+export async function bumpAttendanceStat(
+  prisma: {
+    attendanceStat: {
+      upsert: (args: {
+        where: { key: string };
+        create: { key: string; value: number };
+        update: { value: { increment: number } };
+      }) => Promise<unknown>;
+    };
+  },
+  key: string,
+): Promise<void> {
+  try {
+    await prisma.attendanceStat.upsert({
+      where: { key },
+      create: { key, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+  } catch {
+    /* stats failure is silent by design */
+  }
+}
+
 export type AttendanceRow = {
   subject: string;
   type: string; // TH | PR | TU

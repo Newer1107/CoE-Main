@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import jsQR from "jsqr";
 import CertificatesAdmin from "@/components/hackathons/CertificatesAdmin";
+import ErpStatsCard from "@/components/admin/ErpStatsCard";
 import { HACKATHON_RUBRIC_WEIGHTS } from "@/lib/hackathon-scoring";
 
 type BookingStudent = {
@@ -6241,6 +6242,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
           {innovationTab === "analytics" ? (
             <>
+          <ErpStatsCard />
           <section className="border border-[#c4c6d3] bg-white p-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <div>

@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
-import { parseErpOutput, CircuitBreaker, deriveErpUid, reverseErpUid, encryptErpPassword, decryptErpPassword } from '../../src/lib/erp-attendance';
+import { parseErpOutput, CircuitBreaker, deriveErpUid, reverseErpUid, encryptErpPassword, decryptErpPassword, bumpAttendanceStat } from '../../src/lib/erp-attendance';
 import { claimJobs, reclaimStale, sweepOldJobs } from '../sync-erp-attendance';
 
 let passed = 0;
@@ -181,6 +181,15 @@ async function checkQueue() {
     const gone = await prisma.attendanceSyncJob.findUnique({ where: { id: oldJob.id } });
     assert.equal(gone, null);
     ok('sweep: jobs >7d + FAILED >48h deleted');
+
+    // stats counter: atomic upsert-increment, idempotent across runs
+    await bumpAttendanceStat(prisma, 'check_counter');
+    await bumpAttendanceStat(prisma, 'check_counter');
+    await bumpAttendanceStat(prisma, 'check_counter');
+    const stat = await prisma.attendanceStat.findUnique({ where: { key: 'check_counter' } });
+    assert.ok(stat && stat.value >= 3, `counter bumped 3× (got ${stat?.value})`);
+    await prisma.attendanceStat.delete({ where: { key: 'check_counter' } });
+    ok('stats counter atomic bump');
   } finally {
     await prisma.attendanceSyncJob.deleteMany({ where: { uid } });
     await prisma.$disconnect();

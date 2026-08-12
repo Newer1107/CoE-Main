@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { deriveErpUid } from '@/lib/erp-attendance';
+import { deriveErpUid, bumpAttendanceStat } from '@/lib/erp-attendance';
 
 // POST /api/attendance/refresh — enqueue a sync job (deduped per uid).
 export async function POST(req: NextRequest) {
@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
     if (!user) return errorRes('Unauthorized', [], 401);
     const uid = deriveErpUid(user.email);
     if (!uid) return errorRes('No ERP account linked to this email', [], 400);
+
+    void bumpAttendanceStat(prisma, 'refreshes');
 
     const existing = await prisma.attendanceSyncJob.findFirst({
       where: { uid, status: { in: ['QUEUED', 'RUNNING'] } },

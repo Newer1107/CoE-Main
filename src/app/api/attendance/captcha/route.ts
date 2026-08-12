@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { deriveErpUid } from '@/lib/erp-attendance';
+import { deriveErpUid, bumpAttendanceStat } from '@/lib/erp-attendance';
 
 async function gate(req: NextRequest): Promise<{ uid: string } | NextResponse> {
   if (process.env.ATTENDANCE_ENABLED === 'false') {
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
 
     try {
       const buf = fs.readFileSync(`/tmp/erp/${jobId}/captcha.png`);
+      void bumpAttendanceStat(prisma, 'captcha_asks');
       return new NextResponse(new Uint8Array(buf), {
         headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
       });

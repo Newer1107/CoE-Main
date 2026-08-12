@@ -193,6 +193,7 @@ model User {
   department                  Department?                   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   isCoordinator               Boolean                       @default(false)
   erpPasswordEnc              String?                       @map("erp_password_enc")
+  erpPasswordSetAt            DateTime?                     @map("erp_password_set_at")
   opportunitiesCreated        Opportunity[]
   opportunityInterests        OpportunityInterest[]
   learningResourcesCreated    LearningResource[]
@@ -999,6 +1000,14 @@ model AttendanceSnapshot {
 
   @@index([uid])
   @@map("attendance_snapshots")
+}
+
+model AttendanceStat {
+  id    Int    @id @default(autoincrement())
+  key   String @unique // views | refreshes | captcha_asks | password_saves
+  value Int    @default(0)
+
+  @@map("attendance_stats")
 }
 
 model AttendanceSyncJob {
