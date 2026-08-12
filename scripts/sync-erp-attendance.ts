@@ -312,12 +312,29 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> => {
 
 /** Daemon: claim loop runs every 3s regardless of in-flight fetches, so a new
  *  job is claimed within seconds of enqueue. Processing is fire-and-forget
- *  (bounded by CLAIM_BATCH in-flight); token bucket keeps ≥1s between spawns. */
+ *  (bounded by CLAIM_BATCH in-flight); token bucket keeps ≥1s between spawns.
+ *  Watchdog: if the loop stalls (hung await of any kind), the process exits
+ *  and pm2 restarts it — a frozen queue can never outlive a watchdog tick. */
 async function runDaemon(): Promise<void> {
   const inflight = new Set<Promise<void>>();
   let lastHousekeeping = 0;
+  let lastLoopAt = Date.now();
+  let breakerWasOpen = false;
+  const watchdog = setInterval(() => {
+    const stalledFor = Date.now() - lastLoopAt;
+    if (stalledFor > 90_000) {
+      console.log(`watchdog: claim loop stalled ${Math.round(stalledFor / 1000)}s — exiting (pm2 restarts)`);
+      process.exit(1);
+    }
+    const open = breaker.isOpen();
+    if (open !== breakerWasOpen) {
+      console.log(open ? 'breaker: OPEN — pausing claims (10 min)' : 'breaker: CLOSED — claims resumed');
+      breakerWasOpen = open;
+    }
+  }, 30_000);
   while (true) {
     try {
+      lastLoopAt = Date.now();
       if (enabled() && !breaker.isOpen() && inflight.size < CLAIM_BATCH) {
         let ids: number[] = [];
         await withTimeout(
