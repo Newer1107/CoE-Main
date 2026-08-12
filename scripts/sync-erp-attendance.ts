@@ -162,6 +162,38 @@ async function requestHumanCaptcha(jobId: number, uid: string): Promise<boolean>
   return true;
 }
 
+/** Data-quality pause: the ERP's LB serves empty reports from some nodes
+ *  during rollovers. 10 consecutive empty outcomes → pause claiming 10 min;
+ *  after the pause the next claim is an automatic probe — a data report
+ *  resets the streak, another empty re-pauses. Empties are NOT network
+ *  failures, so they must not trip the network breaker. */
+const EMPTY_PAUSE_THRESHOLD = 10;
+const EMPTY_PAUSE_MS = 10 * 60 * 1000;
+const emptyHealth = { streak: 0, pausedUntil: 0 };
+
+function recordEmptyOutcome(now = Date.now()): void {
+  emptyHealth.streak += 1;
+  if (emptyHealth.streak >= EMPTY_PAUSE_THRESHOLD && now >= emptyHealth.pausedUntil) {
+    emptyHealth.pausedUntil = now + EMPTY_PAUSE_MS;
+    console.log(
+      `data-quality: ${emptyHealth.streak} consecutive empty reports — pausing claims ${EMPTY_PAUSE_MS / 60_000} min (auto-probe resumes)`,
+    );
+  }
+}
+
+function recordSyncSuccess(): void {
+  emptyHealth.streak = 0;
+}
+
+function isEmptyPaused(now = Date.now()): boolean {
+  return now < emptyHealth.pausedUntil;
+}
+
+/** Pure predicate mirror of the streak/pause state machine (checks). */
+export function shouldEmptyPause(streak: number, pausedUntil: number, now: number): boolean {
+  return streak >= EMPTY_PAUSE_THRESHOLD && now >= pausedUntil;
+}
+
 /** One job: fetch → parse → transactional snapshot replace + SUCCESS.
  *  When OCR keeps failing, park the job as AWAITING_CAPTCHA (fresh captcha
  *  image + saved session) so the portal can ask the student to type it. */
@@ -184,6 +216,7 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
     // is also a captcha misread (server accepts login but renders no rows) —
     // the human-solve path then distinguishes a truly empty semester.
     if (!isSolve && /OCR_FAIL|OCR_UNSURE|LOGIN FAILED|EMPTY_REPORT/.test(res.code)) {
+      if (res.code.includes('EMPTY_REPORT')) recordEmptyOutcome();
       const asked = await requestHumanCaptcha(jobId, uid);
       if (asked) {
         console.log(`job ${jobId} (${uid}): awaiting human captcha`);
@@ -195,9 +228,13 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
   }
   const parsed = parseErpOutput(res.stdout);
   if (parsed.kind !== 'OK') {
-    breaker.recordFailure();
     const code = `PARSE_${parsed.kind}`;
     console.log(`job ${jobId} (${uid}) failed: ${code}`);
+    if (parsed.kind === 'EMPTY' || parsed.kind === 'NO_RECORD') {
+      recordEmptyOutcome(); // data-state, not an outage — no breaker trip
+    } else {
+      breaker.recordFailure();
+    }
     // Node lottery: a good solve on an empty ERP node → one fresh-session retry.
     if (shouldRetryEmptySolve(isSolve, parsed.kind, jobRow?.attempts ?? 1)) {
       await prisma.attendanceSyncJob.update({
@@ -223,6 +260,7 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
     }),
   ]);
   breaker.recordSuccess();
+  recordSyncSuccess();
   return true;
 }
 
@@ -346,7 +384,7 @@ async function runDaemon(): Promise<void> {
   while (true) {
     try {
       lastLoopAt = Date.now();
-      if (enabled() && !breaker.isOpen() && inflight.size < CLAIM_BATCH) {
+      if (enabled() && !breaker.isOpen() && !isEmptyPaused() && inflight.size < CLAIM_BATCH) {
         let ids: number[] = [];
         await withTimeout(
           prisma.$transaction(async (tx) => {

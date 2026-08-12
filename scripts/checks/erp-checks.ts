@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
 import { parseErpOutput, CircuitBreaker, deriveErpUid, reverseErpUid, encryptErpPassword, decryptErpPassword, bumpAttendanceStat, shouldRetryEmptySolve } from '../../src/lib/erp-attendance';
-import { claimJobs, reclaimStale, sweepOldJobs } from '../sync-erp-attendance';
+import { claimJobs, reclaimStale, sweepOldJobs, shouldEmptyPause } from '../sync-erp-attendance';
 
 let passed = 0;
 const ok = (name: string) => {
@@ -236,6 +236,16 @@ async function checkQueue() {
           assert.equal(shouldRetryEmptySolve(false, 'EMPTY', 1), false, 'fast path never retries-empty');
           assert.equal(shouldRetryEmptySolve(true, 'OK', 1), false, 'OK never retries');
           ok('empty-solve retry predicate');
+
+          // data-quality pause: streak >= 10 pauses once; success resets; probe
+          // after the pause window re-pauses only if still empty
+          const now = 1_800_000_000_000;
+          assert.equal(shouldEmptyPause(9, 0, now), false, 'below threshold');
+          assert.equal(shouldEmptyPause(10, 0, now), true, 'threshold reached → pause');
+          assert.equal(shouldEmptyPause(10, now + 10 * 60 * 1000, now), false, 'already paused');
+          assert.equal(shouldEmptyPause(10, now - 1, now + 10 * 60 * 1000), true, 'pause expired → probe allowed');
+          assert.equal(shouldEmptyPause(0, 0, now), false, 'success reset');
+          ok('data-quality pause state machine');
   } finally {
     await prisma.attendanceSyncJob.deleteMany({ where: { uid } });
     await prisma.$disconnect();
