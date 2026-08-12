@@ -53,6 +53,7 @@ export default function AttendanceSection() {
   const [capError, setCapError] = useState("");
   const [limitUntil, setLimitUntil] = useState(0); // epoch ms until refresh allowed again
   const [limitLeft, setLimitLeft] = useState(0);
+  const [syncStuck, setSyncStuck] = useState(false);
   const pollRef = useRef<number | null>(null);
 
   const stopPolling = () => {
@@ -70,9 +71,17 @@ export default function AttendanceSection() {
         const st = await fetch("/api/attendance/status", { credentials: "include" }).then((r) => r.json());
         const status = st?.data?.job?.status;
         setLiveJob(st?.data?.job ?? null);
-        if (status === "AWAITING_CAPTCHA") return; // student is solving — no cap
+        if (status === "AWAITING_CAPTCHA") return; // user solving — no cap
         ticks += 1;
         setElapsed(ticks * 5);
+        // Honest stuck state: a job that has been QUEUED/RUNNING for >3 min
+        // means the ERP/worker isn't responding — tell the student.
+        const jobAgeMs = st?.data?.job?.createdAt
+          ? Date.now() - new Date(st.data.job.createdAt).getTime()
+          : 0;
+        setSyncStuck(
+          (status === "QUEUED" || status === "RUNNING") && jobAgeMs > 3 * 60 * 1000,
+        );
         if (status === "SUCCESS" || status === "FAILED") {
           stopPolling();
           setQueued(false);
@@ -108,6 +117,14 @@ export default function AttendanceSection() {
         body.data.job?.status === "QUEUED" ||
         body.data.job?.status === "RUNNING" ||
         body.data.job?.status === "AWAITING_CAPTCHA";
+      if (running && body.data.job?.createdAt) {
+        const jobAgeMs = Date.now() - new Date(body.data.job.createdAt).getTime();
+        setSyncStuck(
+          body.data.job.status !== "AWAITING_CAPTCHA" && jobAgeMs > 3 * 60 * 1000,
+        );
+      } else {
+        setSyncStuck(false);
+      }
       setQueued(running);
       setPending(false);
       if (running) startPolling(); // job enqueued elsewhere — poll until it settles
@@ -323,17 +340,32 @@ export default function AttendanceSection() {
               className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent"
             />
             <div>
-              <p className="text-sm font-semibold text-primary">Syncing with ERP…</p>
-              <p className="mt-1 text-xs text-on-surface-variant">
-                {liveJob?.status === "RUNNING"
-                  ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
-                  : liveJob?.status === "QUEUED"
-                    ? "Queued — the sync worker picks it up within seconds."
-                    : "Connecting to the ERP…"}
+              <p className="text-sm font-semibold text-primary">
+                {syncStuck ? "ERP not responding" : "Syncing with ERP…"}
               </p>
-              <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-                {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
-              </p>
+              {syncStuck ? (
+                <>
+                  <p className="mt-1 text-xs text-on-surface-variant">
+                    The ERP isn't responding right now — your sync is queued and will run automatically once it's back.
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    Check back in a few minutes — nothing else needed from you.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-on-surface-variant">
+                    {liveJob?.status === "RUNNING"
+                      ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
+                      : liveJob?.status === "QUEUED"
+                        ? "Queued — the sync worker picks it up within seconds."
+                        : "Connecting to the ERP…"}
+                  </p>
+                  <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+                    {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
