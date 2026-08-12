@@ -25,6 +25,7 @@ PW = os.environ.get("ERP_PW", "Raunak@12345")
 _ap = argparse.ArgumentParser()
 _ap.add_argument("mode", choices=["fetch", "login", "report", "shot", "fast", "probe", "captcha", "solve"])
 _ap.add_argument("--workdir", default=os.environ.get("ERP_WORKDIR", "/tmp/erp"))
+_ap.add_argument("captcha", nargs="?", default=None, help="captcha text (login/solve modes)")
 _args = _ap.parse_args()
 WD = _args.workdir
 os.makedirs(WD, exist_ok=True)
@@ -243,4 +244,4 @@ def solve(cap):
     print("OK")
 
 if __name__ == "__main__":
-    {"fetch": fetch, "login": lambda: login(sys.argv[2]), "report": report, "shot": shot, "fast": fast, "probe": probe, "captcha": captcha, "solve": lambda: solve(sys.argv[2])}[_args.mode]()
+    {"fetch": fetch, "login": lambda: login(_args.captcha), "report": report, "shot": shot, "fast": fast, "probe": probe, "captcha": captcha, "solve": lambda: solve(_args.captcha)}[_args.mode]()
