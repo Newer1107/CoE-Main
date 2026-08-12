@@ -156,7 +156,7 @@ def fast():
             if not res:
                 raise RuntimeError("OCR_FAIL")
             txt = "".join(re.findall(r"[0-9A-Za-z]", "".join(r[1] for r in res)))
-            conf = sum(r[2] for r in res) / len(res)
+            conf = sum(float(r[2]) for r in res) / len(res)
             if len(txt) not in (5, 6) or conf < 0.6:
                 raise RuntimeError(f"OCR_UNSURE {txt!r} conf={conf:.2f}")
             print(f"OCR: {txt} conf={conf:.2f}")
