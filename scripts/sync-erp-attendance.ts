@@ -298,13 +298,17 @@ export async function runDrainPass(): Promise<{ claimed: number; succeeded: numb
 /** Rejects if the underlying promise hangs — a dead MySQL connection must
  *  never freeze the claim loop (observed: queue frozen for ~10 min until
  *  manual restart). The daemon catches and continues; pm2 is the backstop. */
-const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
-  Promise.race([
+const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> => {
+  // The loser of the race must still be handled — a late rejection on the
+  // original promise would otherwise crash the daemon (unhandledRejection).
+  p.catch(() => {});
+  return Promise.race([
     p,
     new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms);
     }),
   ]);
+};
 
 /** Daemon: claim loop runs every 3s regardless of in-flight fetches, so a new
  *  job is claimed within seconds of enqueue. Processing is fire-and-forget
@@ -323,10 +327,13 @@ async function runDaemon(): Promise<void> {
           15_000,
         );
         if (ids.length > 0) {
-          const jobs = await prisma.attendanceSyncJob.findMany({
-            where: { id: { in: ids } },
-            select: { id: true, uid: true },
-          });
+          const jobs = await withTimeout(
+            prisma.attendanceSyncJob.findMany({
+              where: { id: { in: ids } },
+              select: { id: true, uid: true },
+            }),
+            15_000,
+          );
           let nextStart = 0;
           for (const job of jobs) {
             const wait = Math.max(0, nextStart - Date.now());
@@ -340,8 +347,8 @@ async function runDaemon(): Promise<void> {
           }
         } else if (Date.now() - lastHousekeeping > 60_000) {
           lastHousekeeping = Date.now();
-          await reclaimStale();
-          await sweepOldJobs();
+          await withTimeout(reclaimStale(), 30_000);
+          await withTimeout(sweepOldJobs(), 30_000);
         }
       }
     } catch (err) {
@@ -350,6 +357,11 @@ async function runDaemon(): Promise<void> {
     await sleep(DAEMON_POLL_MS);
   }
 }
+
+// Backstop: a stray rejection must never kill the daemon silently.
+process.on('unhandledRejection', (reason) => {
+  console.log(`unhandled rejection: ${String(reason)}`);
+});
 
 async function main() {
   const daemon = process.argv.includes('--daemon');
