@@ -39,6 +39,7 @@ You are the engineering agent for **CoE-Main**, the TCET Centre of Excellence po
 | Email | `src/lib/mailer.ts`, `email-delivery.ts` |
 | Storage | `src/lib/minio.ts` + storage proxy |
 | Internship / booking / learning | `src/app/{industry-internship,student-internship,facility-booking}/**`, `/admin/hackathons-content` |
+| ERP attendance (Phase 1) | `src/lib/erp-attendance.ts` (uid/parser/breaker), `scripts/erp_fetch.py` (Python fetcher, venv `~/.hermes/venvs/erp`), `scripts/sync-erp-attendance.ts` (worker: `--drain`/`--daemon`), `src/app/api/attendance/**` (GET /, POST /refresh, GET /status), UI in `src/components/hackathons/AttendanceSection.tsx` (portal left rail). Gate: `ATTENDANCE_ENABLED=false` → API 403 + tab hidden + worker pauses. Checks: `scripts/checks/erp-checks.ts` |
 
 ## 4. How to work (prioritization & decision logic)
 

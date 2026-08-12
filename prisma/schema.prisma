@@ -983,3 +983,34 @@ model LearningResource {
   @@index([type])
   @@map("learning_resources")
 }
+
+model AttendanceSnapshot {
+  id          Int       @id @default(autoincrement())
+  uid         String // ERP ID = "S" + email local part
+  subject     String
+  type        String // TH | PR | TU
+  present     Int
+  total       Int
+  percentage  Float
+  periodStart DateTime? // from report header, when present
+  periodEnd   DateTime?
+  fetchedAt   DateTime  @default(now())
+
+  @@index([uid])
+  @@map("attendance_snapshots")
+}
+
+model AttendanceSyncJob {
+  id         Int       @id @default(autoincrement())
+  uid        String
+  status     String    @default("QUEUED") // QUEUED | RUNNING | SUCCESS | FAILED
+  attempts   Int       @default(0)
+  lastError  String?
+  claimantId String? // worker instance that claimed the job (double-claim guard)
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([uid, status])
+  @@map("attendance_sync_jobs")
+}

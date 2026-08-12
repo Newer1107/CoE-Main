@@ -3,6 +3,49 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { syncHackathonTicketUsageStatus } from '@/lib/tickets';
+import { deriveErpUid } from '@/lib/erp-attendance';
+
+// GET /api/attendance — ERP attendance snapshot for the session user.
+// uid is derived server-side from the session email; never from client input.
+export async function GET(req: NextRequest) {
+  try {
+    if (process.env.ATTENDANCE_ENABLED === 'false') {
+      return errorRes('Attendance sync is disabled', [], 403);
+    }
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+    const uid = deriveErpUid(user.email);
+    if (!uid) return successRes({ eligible: false, uid: null });
+
+    const [rows, lastSynced, job] = await Promise.all([
+      prisma.attendanceSnapshot.findMany({ where: { uid }, orderBy: { id: 'asc' } }),
+      prisma.attendanceSnapshot.findFirst({ where: { uid }, orderBy: { fetchedAt: 'desc' } }),
+      prisma.attendanceSyncJob.findFirst({
+        where: { uid },
+        orderBy: { id: 'desc' },
+        select: { id: true, status: true, attempts: true, lastError: true, createdAt: true },
+      }),
+    ]);
+    return successRes({
+      eligible: true,
+      uid,
+      rows: rows.map((r) => ({
+        subject: r.subject,
+        type: r.type,
+        present: r.present,
+        total: r.total,
+        percentage: r.percentage,
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+      })),
+      lastSyncedAt: lastSynced?.fetchedAt ?? null,
+      job,
+    });
+  } catch (err) {
+    console.error('Attendance GET error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
 
 const attendanceMarkSchema = z.object({
   claimId: z.coerce.number().int().positive(),

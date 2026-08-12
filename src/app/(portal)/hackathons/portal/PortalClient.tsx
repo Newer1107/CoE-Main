@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ProfileEditor from "@/components/hackathons/ProfileEditor";
+import AttendanceSection from "@/components/hackathons/AttendanceSection";
 
 type ApiEnvelope<T> = { success: boolean; message: string; data: T };
 
@@ -275,6 +276,8 @@ export default function PortalClient({ user }: { user: PortalUser }) {
                 ))}
               </dl>
             </div>
+
+            <AttendanceSection />
 
             <div>
               <SectionHeader title="Tickets" count={tickets.length} />
