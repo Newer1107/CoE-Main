@@ -278,6 +278,9 @@ export default function AttendanceSection() {
           <p className="mt-1 text-xs text-on-surface-variant">
             The automatic reader couldn't read the ERP captcha — type the characters exactly as shown.
           </p>
+          <p className="mt-1 text-[11px] text-muted">
+            If the report comes back empty, we'll retry automatically on a fresh connection — no need to do anything.
+          </p>
           <img
             src={`/api/attendance/captcha?jobId=${liveJob.id}`}
             alt="ERP captcha"

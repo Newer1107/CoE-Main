@@ -72,6 +72,13 @@ export async function bumpAttendanceStat(
   }
 }
 
+/** A correctly-solved captcha that still yields an empty report is usually the
+ *  ERP's node lottery (multi-node LB with inconsistent data) — retry once with
+ *  a fresh session so the next attempt gets a new node. */
+export function shouldRetryEmptySolve(isSolve: boolean, kind: string, attempts: number): boolean {
+  return isSolve && (kind === 'EMPTY' || kind === 'NO_RECORD') && attempts < 2;
+}
+
 export type AttendanceRow = {
   subject: string;
   type: string; // TH | PR | TU

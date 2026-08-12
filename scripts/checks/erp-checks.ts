@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
-import { parseErpOutput, CircuitBreaker, deriveErpUid, reverseErpUid, encryptErpPassword, decryptErpPassword, bumpAttendanceStat } from '../../src/lib/erp-attendance';
+import { parseErpOutput, CircuitBreaker, deriveErpUid, reverseErpUid, encryptErpPassword, decryptErpPassword, bumpAttendanceStat, shouldRetryEmptySolve } from '../../src/lib/erp-attendance';
 import { claimJobs, reclaimStale, sweepOldJobs } from '../sync-erp-attendance';
 
 let passed = 0;
@@ -210,23 +210,32 @@ async function checkQueue() {
         });
         if (inc.count > 0) return true;
         const created = await prisma.attendanceRefreshLimit
-          .create({ data: { userId: rateUser.id, windowStart: new Date(), count: 1 } })
-          .catch(() => null);
-        return created !== null;
-      };
-      assert.equal(await allowed(), true, 'press 1');
-      assert.equal(await allowed(), true, 'press 2');
-      assert.equal(await allowed(), false, 'press 3 blocked');
-      await prisma.attendanceRefreshLimit.update({
-        where: { userId: rateUser.id },
-        data: { windowStart: new Date(Date.now() - 6 * 60 * 1000), count: 2 },
-      });
-      assert.equal(await allowed(), true, 'window expired → reset + allowed');
-      ok('refresh rate limit 2/5min + window reset');
-    } finally {
-      await prisma.attendanceRefreshLimit.deleteMany({ where: { userId: rateUser.id } });
-      await prisma.user.delete({ where: { id: rateUser.id } });
-    }
+              .create({ data: { userId: rateUser.id, windowStart: new Date(), count: 1 } })
+              .catch(() => null);
+              return created !== null;
+            };
+            assert.equal(await allowed(), true, 'press 1');
+            assert.equal(await allowed(), true, 'press 2');
+            assert.equal(await allowed(), false, 'press 3 blocked');
+            await prisma.attendanceRefreshLimit.update({
+              where: { userId: rateUser.id },
+              data: { windowStart: new Date(Date.now() - 6 * 60 * 1000), count: 2 },
+            });
+            assert.equal(await allowed(), true, 'window expired → reset + allowed');
+            ok('refresh rate limit 2/5min + window reset');
+          } finally {
+            await prisma.attendanceRefreshLimit.deleteMany({ where: { userId: rateUser.id } });
+            await prisma.user.delete({ where: { id: rateUser.id } });
+          }
+
+          // empty-solve retry predicate: only a solved captcha with an empty report
+          // and attempts left gets the fresh-node retry
+          assert.equal(shouldRetryEmptySolve(true, 'EMPTY', 1), true, 'solve+empty+attempt1');
+          assert.equal(shouldRetryEmptySolve(true, 'NO_RECORD', 1), true, 'solve+no-record+attempt1');
+          assert.equal(shouldRetryEmptySolve(true, 'EMPTY', 2), false, 'attempts exhausted');
+          assert.equal(shouldRetryEmptySolve(false, 'EMPTY', 1), false, 'fast path never retries-empty');
+          assert.equal(shouldRetryEmptySolve(true, 'OK', 1), false, 'OK never retries');
+          ok('empty-solve retry predicate');
   } finally {
     await prisma.attendanceSyncJob.deleteMany({ where: { uid } });
     await prisma.$disconnect();

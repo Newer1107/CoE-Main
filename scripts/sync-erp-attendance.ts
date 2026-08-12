@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { parseErpOutput, CircuitBreaker, reverseErpUid, decryptErpPassword, ERP_EMAIL_DOMAIN } from '../src/lib/erp-attendance';
+import { parseErpOutput, CircuitBreaker, reverseErpUid, decryptErpPassword, ERP_EMAIL_DOMAIN, shouldRetryEmptySolve } from '../src/lib/erp-attendance';
 
 const prisma = new PrismaClient();
 const CLAIMANT_ID = `${process.pid}-${Date.now().toString(36)}`;
@@ -169,7 +169,7 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
   const password = await resolvePassword(uid);
   const jobRow = await prisma.attendanceSyncJob.findUnique({
     where: { id: jobId },
-    select: { captchaText: true },
+    select: { captchaText: true, attempts: true },
   });
   const isSolve = !!jobRow?.captchaText;
   const res = isSolve
@@ -196,7 +196,18 @@ export async function processJob(jobId: number, uid: string): Promise<boolean> {
   const parsed = parseErpOutput(res.stdout);
   if (parsed.kind !== 'OK') {
     breaker.recordFailure();
-    await failOrRetry(jobId, `PARSE_${parsed.kind}`);
+    const code = `PARSE_${parsed.kind}`;
+    console.log(`job ${jobId} (${uid}) failed: ${code}`);
+    // Node lottery: a good solve on an empty ERP node → one fresh-session retry.
+    if (shouldRetryEmptySolve(isSolve, parsed.kind, jobRow?.attempts ?? 1)) {
+      await prisma.attendanceSyncJob.update({
+        where: { id: jobId },
+        data: { captchaText: null, status: 'QUEUED', lastError: null },
+      });
+      console.log(`job ${jobId} (${uid}): empty after solve — retrying on a fresh node`);
+      return false;
+    }
+    await failOrRetry(jobId, code);
     return false;
   }
   const periodStart = parsed.periodStart ? new Date(parsed.periodStart) : null;
