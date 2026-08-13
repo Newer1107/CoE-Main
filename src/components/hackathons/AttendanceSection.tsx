@@ -11,17 +11,26 @@ type AttendanceRow = {
   periodStart: string | null;
   periodEnd: string | null;
 };
-type JobInfo = { id: number; status: string; attempts: number; lastError: string | null } | null;
+type JobInfo = { id: number; status: string; attempts: number; lastError: string | null; createdAt: string | null } | null;
 type ApiData = {
   eligible: boolean;
   hasPassword: boolean;
   erpPaused: boolean;
+  erpPausedAt: number | null;
   rows: AttendanceRow[];
   lastSyncedAt: string | null;
   job: JobInfo;
 };
 
 const STALE_MS = 24 * 3600 * 1000;
+
+const fmtElapsed = (ms: number) => {
+  const m = Math.max(0, Math.floor(ms / 60_000));
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+};
 const POLL_MS = 5000;
 const MAX_POLLS = 24;
 
@@ -69,6 +78,9 @@ export default function AttendanceSection() {
   const [limitUntil, setLimitUntil] = useState(0); // epoch ms until refresh allowed again
   const [limitLeft, setLimitLeft] = useState(0);
   const [syncStuck, setSyncStuck] = useState(false);
+  const [erpPaused, setErpPaused] = useState(false);
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [nowTs, setNowTs] = useState(Date.now());
   const [completedAway, setCompletedAway] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
@@ -87,6 +99,8 @@ export default function AttendanceSection() {
         const st = await fetch("/api/attendance/status", { credentials: "include" }).then((r) => r.json());
         const status = st?.data?.job?.status;
         setLiveJob(st?.data?.job ?? null);
+        setErpPaused(!!st?.data?.erpPaused);
+        setPausedAt(st?.data?.erpPausedAt ?? null);
         if (status === "AWAITING_CAPTCHA") return; // user solving — no cap
         ticks += 1;
         setElapsed(ticks * 5);
@@ -130,6 +144,8 @@ export default function AttendanceSection() {
       setData(body.data);
       setLiveJob(body.data.job ?? null);
       setHasPassword(!!body.data.hasPassword);
+      setErpPaused(!!body.data.erpPaused);
+      setPausedAt(body.data.erpPausedAt ?? null);
       const running =
         body.data.job?.status === "QUEUED" ||
         body.data.job?.status === "RUNNING" ||
@@ -178,6 +194,13 @@ export default function AttendanceSection() {
     void load();
     return stopPolling;
   }, [load]);
+
+  // Keep the "unavailable for X" elapsed time live while stuck (30s tick).
+  useEffect(() => {
+    if (!syncStuck) return;
+    const t = window.setInterval(() => setNowTs(Date.now()), 30_000);
+    return () => window.clearInterval(t);
+  }, [syncStuck]);
 
   const startSync = async () => {
     setBusy(true);
@@ -265,6 +288,8 @@ export default function AttendanceSection() {
   const job = data?.job ?? null;
   const failed = job?.status === "FAILED";
   const awaitingCaptcha = liveJob?.status === "AWAITING_CAPTCHA";
+  const stuckSince = pausedAt ?? (job?.createdAt ? new Date(job.createdAt).getTime() : nowTs);
+  const stuckFor = fmtElapsed(nowTs - stuckSince);
   const pwRejected =
     failed &&
     !job?.lastError?.startsWith("SOLVE_REJECTED") &&
@@ -399,7 +424,7 @@ export default function AttendanceSection() {
           </div>
           {pwError ? <p className="mt-2 text-xs text-error">{pwError}</p> : null}
         </div>
-      ) : awaitingCaptcha ? (
+      ) : awaitingCaptcha && !erpPaused ? (
         <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
           <p className="text-sm font-semibold text-primary">Type the code from the image</p>
           <p className="mt-1 text-xs text-on-surface-variant">
@@ -456,10 +481,11 @@ export default function AttendanceSection() {
               {syncStuck ? (
                 <>
                   <p className="mt-1 text-xs text-on-surface-variant">
-                    The ERP isn't responding right now — your sync is queued and will run automatically once it's back.
+                    The ERP has been unavailable for {stuckFor} — we're checking automatically, and your sync will
+                    run the moment it's back.
                   </p>
                   <p className="mt-1 text-[11px] text-muted">
-                    Check back in a few minutes — nothing else needed from you.
+                    Nothing else needed from you — your last synced data stays visible below.
                   </p>
                 </>
               ) : (

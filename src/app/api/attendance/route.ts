@@ -29,12 +29,15 @@ export async function GET(req: NextRequest) {
     ]);
     const pause = await prisma.attendanceStat.findUnique({ where: { key: 'erp_paused_until' } });
     const erpPaused = !!pause && pause.value * 1000 > Date.now();
+    const pausedAtRow = await prisma.attendanceStat.findUnique({ where: { key: 'erp_paused_at' } });
+    const erpPausedAt = pausedAtRow ? pausedAtRow.value * 1000 : null;
     void bumpAttendanceStat(prisma, 'views');
     return successRes({
       eligible: true,
       uid,
       hasPassword: !!userRow?.erpPasswordEnc,
       erpPaused,
+      erpPausedAt,
       rows: rows.map((r) => ({
         subject: r.subject,
         type: r.type,

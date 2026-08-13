@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
     });
     const pause = await prisma.attendanceStat.findUnique({ where: { key: 'erp_paused_until' } });
     const erpPaused = !!pause && pause.value * 1000 > Date.now();
-    return successRes({ job, erpPaused });
+    const pausedAtRow = await prisma.attendanceStat.findUnique({ where: { key: 'erp_paused_at' } });
+    const erpPausedAt = pausedAtRow ? pausedAtRow.value * 1000 : null;
+    return successRes({ job, erpPaused, erpPausedAt });
   } catch (err) {
     console.error('Attendance status error:', err);
     return errorRes('Internal server error', [], 500);

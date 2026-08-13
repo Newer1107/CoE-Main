@@ -170,7 +170,8 @@ async function requestHumanCaptcha(jobId: number, uid: string): Promise<boolean>
 const EMPTY_PAUSE_THRESHOLD = 10;
 const EMPTY_PAUSE_MS = 10 * 60 * 1000;
 const PAUSED_STAT_KEY = 'erp_paused_until'; // value = epoch SECONDS (fits Int32)
-const emptyHealth = { streak: 0, pausedUntil: 0 };
+const PAUSED_AT_STAT_KEY = 'erp_paused_at'; // when the CURRENT outage began (first pause, not re-arms)
+const emptyHealth = { streak: 0, pausedUntil: 0, pausedAt: 0 };
 
 async function publishPause(now = Date.now()): Promise<void> {
   try {
@@ -184,9 +185,23 @@ async function publishPause(now = Date.now()): Promise<void> {
   }
 }
 
+async function publishPausedAt(epochSeconds: number): Promise<void> {
+  try {
+    await prisma.attendanceStat.upsert({
+      where: { key: PAUSED_AT_STAT_KEY },
+      create: { key: PAUSED_AT_STAT_KEY, value: epochSeconds },
+      update: { value: epochSeconds },
+    });
+  } catch {
+    /* silent */
+  }
+}
+
 async function clearPause(): Promise<void> {
   try {
-    await prisma.attendanceStat.deleteMany({ where: { key: PAUSED_STAT_KEY } });
+    await prisma.attendanceStat.deleteMany({
+      where: { key: { in: [PAUSED_STAT_KEY, PAUSED_AT_STAT_KEY] } },
+    });
   } catch {
     /* silent */
   }
@@ -195,7 +210,12 @@ async function clearPause(): Promise<void> {
 function recordEmptyOutcome(now = Date.now()): void {
   emptyHealth.streak += 1;
   if (emptyHealth.streak >= EMPTY_PAUSE_THRESHOLD && now >= emptyHealth.pausedUntil) {
+    const firstPause = emptyHealth.pausedUntil === 0;
     emptyHealth.pausedUntil = now + EMPTY_PAUSE_MS;
+    if (firstPause) {
+      emptyHealth.pausedAt = now;
+      void publishPausedAt(Math.floor(now / 1000));
+    }
     console.log(
       `data-quality: ${emptyHealth.streak} consecutive empty reports — pausing claims ${EMPTY_PAUSE_MS / 60_000} min (auto-probe resumes)`,
     );
@@ -207,6 +227,7 @@ function recordSyncSuccess(): void {
   emptyHealth.streak = 0;
   if (emptyHealth.pausedUntil > 0) {
     emptyHealth.pausedUntil = 0;
+    emptyHealth.pausedAt = 0;
     void clearPause();
   }
 }
