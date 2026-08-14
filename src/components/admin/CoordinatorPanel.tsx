@@ -10,7 +10,7 @@ const inputCls = "mt-1 w-full border border-[#c4c6d3] bg-white px-3 py-2 text-sm
 const btnCls = "bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50";
 const btnGhost = "border border-[#002155] text-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#002155]/5 disabled:opacity-50";
 
-export default function CoordinatorPanel({ eventId, eventTitle }: { eventId: number; eventTitle: string }) {
+export default function CoordinatorPanel({ eventId, eventTitle, isAdmin }: { eventId: number; eventTitle: string; isAdmin?: boolean }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [toast, setToast] = useState<string | null>(null);
 
@@ -54,7 +54,7 @@ export default function CoordinatorPanel({ eventId, eventTitle }: { eventId: num
       </div>
 
       <div className="mt-6">
-        {tab === "overview" ? <OverviewTab eventId={eventId} notify={notify} /> : null}
+        {tab === "overview" ? <OverviewTab eventId={eventId} notify={notify} isAdmin={isAdmin} /> : null}
         {tab === "venues" ? <VenuesTab eventId={eventId} notify={notify} /> : null}
         {tab === "judges" ? <JudgesTab eventId={eventId} notify={notify} /> : null}
         {tab === "notices" ? <NoticesTab eventId={eventId} notify={notify} /> : null}
@@ -69,9 +69,12 @@ export default function CoordinatorPanel({ eventId, eventTitle }: { eventId: num
 /* ── Overview: event status + judging rounds ──────────────────────────── */
 const STATUS_FLOW = ["UPCOMING", "ACTIVE", "JUDGING", "CLOSED"] as const;
 
-function OverviewTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
+function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: string) => void; isAdmin?: boolean }) {
   const [status, setStatus] = useState<string | null>(null);
   const [round, setRound] = useState<{ round: number; maxRound: number } | null>(null);
+  const [coordinator, setCoordinator] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [faculty, setFaculty] = useState<{ id: number; name: string; email: string }[]>([]);
+  const [coordPick, setCoordPick] = useState("");
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/rounds`, { credentials: "include" })
@@ -85,7 +88,25 @@ function OverviewTab({ eventId, notify }: { eventId: number; notify: (m: string)
         if (b.success) setStatus(b.data.status);
       })
       .catch(() => null);
-  }, [eventId]);
+    if (isAdmin) {
+      void fetch(`/api/innovation/events/${eventId}/ops/coordinator`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((b: Api<{ coordinator: { id: number; name: string; email: string } | null; faculty: { id: number; name: string; email: string }[] }>) => {
+          if (b.success) {
+            setCoordinator(b.data.coordinator);
+            setFaculty(b.data.faculty);
+          }
+        })
+        .catch(() => null);
+    } else {
+      void fetch(`/api/innovation/events/${eventId}/ops/coordinator`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((b: Api<{ coordinator: { id: number; name: string; email: string } | null }>) => {
+          if (b.success) setCoordinator(b.data.coordinator);
+        })
+        .catch(() => null);
+    }
+  }, [eventId, isAdmin]);
 
   useEffect(load, [load]);
 
@@ -103,6 +124,22 @@ function OverviewTab({ eventId, notify }: { eventId: number; notify: (m: string)
     const b = (await res.json()) as Api<unknown>;
     notify(b.success ? `Event is now ${next}` : b.message);
     if (b.success) load();
+  };
+
+  const saveCoordinator = async () => {
+    if (!coordPick) return;
+    const res = await fetch(`/api/innovation/events/${eventId}/ops/coordinator`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ coordinatorId: Number(coordPick) }),
+    });
+    const b = (await res.json()) as Api<unknown>;
+    notify(b.success ? b.message : b.message);
+    if (b.success) {
+      setCoordPick("");
+      load();
+    }
   };
 
   const advance = async () => {
@@ -139,6 +176,33 @@ function OverviewTab({ eventId, notify }: { eventId: number; notify: (m: string)
           UPCOMING → ACTIVE (registration open) → JUDGING (scoring open) → CLOSED (terminal). Closing requires every
           team to have rubric scores; final scores are computed from the last round automatically.
         </p>
+      </div>
+
+      <div className="border border-[#c4c6d3] bg-white p-5">
+        <h3 className="font-headline text-xl text-[#002155]">Event Coordinator</h3>
+        {coordinator ? (
+          <p className="mt-2 text-sm text-[#434651]">
+            <span className="font-bold text-[#002155]">{coordinator.name}</span> ({coordinator.email}) runs this event's
+            panel.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-[#747782]">No coordinator assigned — an admin can assign a teacher below.</p>
+        )}
+        {isAdmin ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <select className={inputCls + " md:w-80"} value={coordPick} onChange={(e) => setCoordPick(e.target.value)}>
+              <option value="">Assign a teacher as coordinator…</option>
+              {faculty.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name} ({f.email})
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => void saveCoordinator()} className={btnCls} disabled={!coordPick}>
+              Assign Coordinator
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="border border-[#c4c6d3] bg-white p-5">

@@ -45,3 +45,14 @@ export async function findJudgeAssignment(judgeId: number, eventId: number) {
 export function canJudgeClaim(assignment: { venueId: number | null }, claimVenueId: number | null): boolean {
   return assignment.venueId === null || assignment.venueId === claimVenueId;
 }
+
+/**
+ * Event manager = global ADMIN or the event's assigned coordinator (a teacher).
+ * This is the single gate for all coordinator-panel routes.
+ */
+export function canManageEvent(
+  user: { id: number; role: string },
+  event: { coordinatorId: number | null },
+): boolean {
+  return user.role === 'ADMIN' || event.coordinatorId === user.id;
+}

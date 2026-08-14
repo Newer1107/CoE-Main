@@ -1,15 +1,19 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
+import { canManageEvent } from '@/lib/hackathon-ops';
 
 // PUT  — rename / re-capacity / reorder a venue
 // DELETE — remove (blocked while claims are assigned)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string; venueId: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
     const venueId = Number((await params).venueId);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
     const venue = await prisma.venue.findFirst({ where: { id: venueId, eventId } });
     if (!venue) return errorRes('Venue not found', [], 404);

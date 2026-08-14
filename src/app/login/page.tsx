@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import ContinueWithGoogleButton from "@/components/ContinueWithGoogleButton";
 import { useToast } from "@/components/ToastProvider";
 import { trackEvent } from "@/lib/analytics";
 import { DEFAULT_CALLBACK_URL, isValidCallbackUrl } from "@/lib/callback-url";
@@ -467,9 +468,7 @@ export default function LoginPage() {
   };
 
   const googleClientId =
-    typeof process !== "undefined"
-      ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-      : "";
+    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "" : "";
 
   const handleGoogleCredential = useCallback(
     async (credential: string) => {
@@ -642,6 +641,7 @@ export default function LoginPage() {
     }
   };
 
+  const [showPopupGoogle, setShowPopupGoogle] = useState(false);
   const googleSignInEnabled = Boolean(googleClientId);
 
   const [googleBtnWidth, setGoogleBtnWidth] = useState(0);
@@ -659,24 +659,46 @@ export default function LoginPage() {
     if (!googleSignInEnabled) return null;
     return (
       <div className="mt-5">
-        <div ref={googleBtnMeasureRef} className="w-full min-h-[52px] flex justify-center">
+        <div ref={googleBtnMeasureRef} className="w-full min-h-[52px] flex flex-col items-center">
           {googleBtnWidth > 0 && (
-            <GoogleLogin
-              onSuccess={(response) => {
-                if (response.credential) {
-                  void handleGoogleCredential(response.credential);
-                }
-              }}
-              onError={() => {
-                setError("Google sign-in failed. Please try again.");
-              }}
-              theme="outline"
-              size="large"
-              text="continue_with"
-              shape="rectangular"
-              width={googleBtnWidth}
-              logo_alignment="center"
-            />
+            showPopupGoogle ? (
+              <GoogleLogin
+                onSuccess={(response) => {
+                  if (response.credential) {
+                    void handleGoogleCredential(response.credential);
+                  }
+                }}
+                onError={() => {
+                  setError("Google sign-in failed. Please try again.");
+                }}
+                theme="outline"
+                size="large"
+                text="continue_with"
+                shape="rectangular"
+                width={googleBtnWidth}
+                logo_alignment="center"
+              />
+            ) : (
+              <>
+                <ContinueWithGoogleButton
+                  clientId={googleClientId}
+                  width={googleBtnWidth}
+                  onSuccess={(credential) => {
+                    void handleGoogleCredential(credential);
+                  }}
+                  onError={() => {
+                    setError("Google sign-in failed. Please try again.");
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPopupGoogle(true)}
+                  className="mt-2 text-xs text-[#747782] underline hover:text-[#002155]"
+                >
+                  Having trouble? Sign in with Google in a new tab
+                </button>
+              </>
+            )
           )}
         </div>
       </div>
@@ -830,24 +852,46 @@ export default function LoginPage() {
       </p>
 
       <div className="mt-5">
-        <div ref={googleBtnMeasureRef} className="w-full min-h-[52px] flex justify-center">
+        <div ref={googleBtnMeasureRef} className="w-full min-h-[52px] flex flex-col items-center">
           {googleBtnWidth > 0 && (
-            <GoogleLogin
-              onSuccess={(response) => {
-                if (response.credential) {
-                  void handleGoogleCredential(response.credential);
-                }
-              }}
-              onError={() => {
-                setError("Google sign-in failed. Please try again.");
-              }}
-              theme="outline"
-              size="large"
-              text="continue_with"
-              shape="rectangular"
-              width={googleBtnWidth}
-              logo_alignment="center"
-            />
+            showPopupGoogle ? (
+              <GoogleLogin
+                onSuccess={(response) => {
+                  if (response.credential) {
+                    void handleGoogleCredential(response.credential);
+                  }
+                }}
+                onError={() => {
+                  setError("Google sign-in failed. Please try again.");
+                }}
+                theme="outline"
+                size="large"
+                text="continue_with"
+                shape="rectangular"
+                width={googleBtnWidth}
+                logo_alignment="center"
+              />
+            ) : (
+              <>
+                <ContinueWithGoogleButton
+                  clientId={googleClientId}
+                  width={googleBtnWidth}
+                  onSuccess={(credential) => {
+                    void handleGoogleCredential(credential);
+                  }}
+                  onError={() => {
+                    setError("Google sign-in failed. Please try again.");
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPopupGoogle(true)}
+                  className="mt-2 text-xs text-[#747782] underline hover:text-[#002155]"
+                >
+                  Having trouble? Sign in with Google in a new tab
+                </button>
+              </>
+            )
           )}
         </div>
       </div>

@@ -1113,6 +1113,34 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
   const [emailPageSize, setEmailPageSize] = useState(25);
   const [emailFailedBadgeCount, setEmailFailedBadgeCount] = useState<number | null>(null);
   const [customEmailScope, setCustomEmailScope] = useState<"CUSTOM" | "STUDENTS" | "FACULTY" | "ALL_USERS" | "STUDENTS_BY_BRANCH">("CUSTOM");
+  const [newUserForm, setNewUserForm] = useState({ name: "", email: "", role: "FACULTY", password: "", uid: "", phone: "" });
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [userCreatedMsg, setUserCreatedMsg] = useState<string | null>(null);
+
+  const handleCreateUser = async () => {
+    setCreatingUser(true);
+    setUserCreatedMsg(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: newUserForm.name,
+          email: newUserForm.email,
+          role: newUserForm.role,
+          password: newUserForm.password,
+          uid: newUserForm.uid || undefined,
+          phone: newUserForm.phone || undefined,
+        }),
+      });
+      const body = (await res.json()) as { success: boolean; message: string; data?: { user?: { email: string } } };
+      setUserCreatedMsg(body.success ? `Account created for ${body.data?.user?.email}` : body.message);
+      if (body.success) setNewUserForm({ name: "", email: "", role: "FACULTY", password: "", uid: "", phone: "" });
+    } finally {
+      setCreatingUser(false);
+    }
+  };
   const [customEmailRecipients, setCustomEmailRecipients] = useState("");
   const [customEmailSubject, setCustomEmailSubject] = useState("");
   const [customEmailMessage, setCustomEmailMessage] = useState("");
@@ -4592,6 +4620,74 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
       {operationsTab === "faculty" ? (
       <>
+
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-headline text-2xl text-[#002155]">Create Account</h2>
+          <span className="text-xs uppercase tracking-widest text-[#434651] font-label">teachers & students</span>
+        </div>
+        <div className="border border-[#c4c6d3] bg-white p-5">
+          <p className="mb-3 text-xs text-[#434651]">
+            Create a teacher (FACULTY) or student account directly. Teachers can then be assigned as event
+            coordinators or judges from the event's Coordinator Panel.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <input
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              placeholder="Full name"
+              value={newUserForm.name}
+              onChange={(e) => setNewUserForm((p) => ({ ...p, name: e.target.value }))}
+            />
+            <input
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              placeholder="Email (e.g. teacher@tcetmumbai.in)"
+              value={newUserForm.email}
+              onChange={(e) => setNewUserForm((p) => ({ ...p, email: e.target.value }))}
+            />
+            <select
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              value={newUserForm.role}
+              onChange={(e) => setNewUserForm((p) => ({ ...p, role: e.target.value }))}
+            >
+              <option value="FACULTY">FACULTY (teacher)</option>
+              <option value="STUDENT">STUDENT</option>
+            </select>
+            <input
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              placeholder="Temporary password (min 8 chars)"
+              type="password"
+              value={newUserForm.password}
+              onChange={(e) => setNewUserForm((p) => ({ ...p, password: e.target.value }))}
+            />
+            <input
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              placeholder="UID (optional, e.g. 24-COMPD13-28)"
+              value={newUserForm.uid}
+              onChange={(e) => setNewUserForm((p) => ({ ...p, uid: e.target.value }))}
+            />
+            <input
+              className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              placeholder="Phone (optional)"
+              value={newUserForm.phone}
+              onChange={(e) => setNewUserForm((p) => ({ ...p, phone: e.target.value }))}
+            />
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              onClick={() => void handleCreateUser()}
+              disabled={creatingUser}
+              className="bg-[#002155] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+            >
+              {creatingUser ? "Creating…" : "Create Account"}
+            </button>
+            {userCreatedMsg ? (
+              <p className={`text-sm ${userCreatedMsg.startsWith("Account") ? "text-[#0b6b2e]" : "text-[#ba1a1a]"}`}>
+                {userCreatedMsg}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">

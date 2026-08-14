@@ -1,14 +1,18 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
+import { canManageEvent } from '@/lib/hackathon-ops';
 
 // GET — assignments for the event (judge info + venue + claim count)
 // POST — upsert { judgeId, venueId? } (venueId null = all claims)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
 
     const [assignments, allVenues, faculty] = await Promise.all([
       prisma.judgeAssignment.findMany({
@@ -36,8 +40,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
     const judgeId = Number(body?.judgeId);
     const venueId = body?.venueId == null || body?.venueId === '' ? null : Number(body?.venueId);

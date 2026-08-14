@@ -1,15 +1,19 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
+import { canManageEvent } from '@/lib/hackathon-ops';
 
 // PUT — move judge to another venue (null = all claims)
 // DELETE — remove assignment (scores are kept)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
     const assignmentId = Number((await params).assignmentId);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
 
     const assignment = await prisma.judgeAssignment.findFirst({ where: { id: assignmentId, eventId } });

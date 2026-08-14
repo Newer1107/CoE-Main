@@ -6,19 +6,20 @@ import { innovationEventStatusSchema } from '@/lib/validators';
 import { canTransitionEventStatus, getEventLeaderboard, getEventParticipantEmails } from '@/lib/innovation';
 import { issueCertificatesForEvent } from '@/lib/certificate-issuance';
 import { sendInnovationEventActiveEmail, sendInnovationEventClosedScoreEmail } from '@/lib/mailer';
+import { canManageEvent } from '@/lib/hackathon-ops';
 
-// GET /api/innovation/admin/events/[id]/status — current event status (admin)
+// GET /api/innovation/admin/events/[id]/status — current event status (admin or event coordinator)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
     const eventId = Number((await params).id);
     const event = await prisma.hackathonEvent.findUnique({
       where: { id: eventId },
-      select: { id: true, status: true, registrationOpen: true, title: true },
+      select: { id: true, status: true, registrationOpen: true, title: true, coordinatorId: true },
     });
     if (!event) return errorRes('Hackathon event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     return successRes(event);
   } catch (err) {
     console.error('Event status GET error:', err);
@@ -31,7 +32,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
-    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
+    if (!authorize(user, 'ADMIN') && !authorize(user, 'FACULTY')) {
+      return errorRes('Forbidden', ['Coordinator access required'], 403);
+    }
 
     const { id } = await params;
     const eventId = Number(id);
@@ -43,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
     if (!event) return errorRes('Hackathon event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
 
     const nextStatus = parsed.data.status;
     if (event.status === nextStatus) {

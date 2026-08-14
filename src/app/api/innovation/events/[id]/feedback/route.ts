@@ -1,15 +1,18 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
+import { canManageEvent } from '@/lib/hackathon-ops';
 
-// GET /events/[id]/feedback — the viewer's own feedback + submitted flag (student), all rows (admin)
+// GET /events/[id]/feedback — manager: all rows; others: their own submission
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
 
-    if (user.role === 'ADMIN') {
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (canManageEvent(user, event)) {
       const rows = await prisma.eventFeedback.findMany({
         where: { eventId },
         include: { user: { select: { id: true, name: true, email: true } } },

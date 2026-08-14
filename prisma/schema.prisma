@@ -181,6 +181,7 @@ model User {
   attendanceMarkedEntries     TicketAttendance[]            @relation("AttendanceMarker")
   judgeAssignments            JudgeAssignment[]
   feedbackGiven               EventFeedback[]
+  coordinatedEvents           HackathonEvent[]              @relation("EventCoordinator")
   attendanceEntries           TicketAttendance[]            @relation("AttendanceParticipant")
   internshipTasks             InternshipTask[]              @relation("InternshipTaskAssignee")
   internshipMessages          InternshipMessage[]           @relation("InternshipMessageSender")
@@ -576,6 +577,8 @@ model HackathonEvent {
   status             EventStatus                  @default(UPCOMING)
   createdById        Int
   createdBy          User                         @relation("HackathonCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  coordinatorId      Int?
+  coordinator        User?                        @relation("EventCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
   problems           Problem[]
   interests          HackathonInterest[]
   sessionUploadLocks HackathonSessionUploadLock[]

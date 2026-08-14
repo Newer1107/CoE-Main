@@ -1,20 +1,21 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { currentRound } from '@/lib/hackathon-ops';
+import { canManageEvent, currentRound } from '@/lib/hackathon-ops';
 
 // GET — scoreboard: claims + per-category scores + totals (ADMIN, venue filter optional)
 // PUT — coordinator override { claimId, categoryId, score, reason } (JUDGING only, cap = weight)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const venueIdParam = req.nextUrl.searchParams.get('venueId');
     const venueId = venueIdParam ? Number(venueIdParam) : null;
 
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
-    if (!event) return errorRes('Event not found', [], 404);
     const round = currentRound(event);
 
     const [categories, claims] = await Promise.all([
@@ -39,8 +40,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
     const claimId = Number(body?.claimId);
     const categoryId = Number(body?.categoryId);
@@ -56,8 +60,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ]);
     if (!category || !claim) return errorRes('Claim or category not found', [], 404);
 
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
-    if (event?.status !== 'JUDGING') return errorRes('Scoring is locked', ['Overrides are only allowed while judging is open'], 403);
+    const statusCheck = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { status: true } });
+    if (statusCheck?.status !== 'JUDGING') return errorRes('Scoring is locked', ['Overrides are only allowed while judging is open'], 403);
     if (score > category.weight) {
       return errorRes('Score exceeds category cap', [`Max for “${category.label}” is ${category.weight}`], 400);
     }

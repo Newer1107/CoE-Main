@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
+import { canManageEvent } from '@/lib/hackathon-ops';
 import { uploadFile } from '@/lib/minio';
 
 const KIND_LIMITS: Record<string, { max: number; mime: RegExp }> = {
@@ -28,8 +29,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, config: true } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const form = await req.formData();
     const kind = String(form.get('kind') || '').toUpperCase();
     const caption = ((form.get('caption') as string) || '').trim().slice(0, 300) || null;
