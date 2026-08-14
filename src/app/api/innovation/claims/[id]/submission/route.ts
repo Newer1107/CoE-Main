@@ -14,13 +14,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const claimId = Number((await params).id);
     if (!Number.isInteger(claimId)) return errorRes('Invalid claim', [], 400);
 
-    const formData = await req.formData();
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return errorRes('Presentation file is required', [], 400);
+    }
     const file = formData.get('pptFile');
-    if (!(file instanceof File)) return errorRes('Presentation file is required', [], 400);
-    if (file.size > MAX_PPT_MB * 1024 * 1024) {
+    if (!file || typeof (file as File).arrayBuffer !== 'function') {
+      return errorRes('Presentation file is required', [], 400);
+    }
+    const pptFile = file as File;
+    if (pptFile.size > MAX_PPT_MB * 1024 * 1024) {
       return errorRes('File too large', [`Presentation must be under ${MAX_PPT_MB} MB`], 400);
     }
-    if (!/\.(ppt|pptx|pdf)$/i.test(file.name)) {
+    if (!/\.(ppt|pptx|pdf)$/i.test(pptFile.name)) {
       return errorRes('Invalid file type', ['Only .ppt, .pptx or .pdf files are allowed'], 400);
     }
 
@@ -48,12 +56,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return errorRes('Event registration is closed', [`Submissions are only open while the event is UPCOMING or ACTIVE (currently ${event.status})`], 400);
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(await pptFile.arrayBuffer());
     const fileKey = await uploadFile(`events/${event.id}/claims/${claimId}`, {
       buffer,
-      originalname: file.name,
-      mimetype: file.type,
-      size: file.size,
+      originalname: pptFile.name,
+      mimetype: pptFile.type,
+      size: pptFile.size,
     });
 
     const updated = await prisma.claim.update({
