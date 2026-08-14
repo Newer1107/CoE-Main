@@ -1,6 +1,6 @@
 [
  {
-  "title": "Transformer based end-to-end Web Application Firewall (WAF) pipeline. Smart India Hackathon 2025 \u2013 Space Applications Centre (ISRO)",
+  "title": "Transformer based end-to-end Web Application Firewall (WAF) pipeline",
   "source": "",
   "domain": "Cybersecurity"
  },
@@ -20,7 +20,7 @@
   "domain": "Applications Centre (ISRO)"
  },
  {
-  "title": "Develop a blockchain-based system for botanical traceability of Ayurvedic herbs, including geo-tagging from the point of collection (farmers/wild collectors) to the final Ayurvedic formulation label",
+  "title": "Develop a blockchain-based system for botanical traceability of Ayurvedic herbs, including geo-tagging from the point of collection (farmers/wild collectors) to the final Ayurvedic",
   "source": "Smart India Hackathon 2025 \u2013 Ministry of AYUSH",
   "domain": "North Eastern Region"
  },
@@ -35,8 +35,8 @@
   "domain": "National Technical Research Organisation (NTRO)"
  },
  {
-  "title": "Develop an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens File Grievances Through the CPGRAMS Portal. Source: DARPG Online Hackathon 2024",
-  "source": "",
+  "title": "Develop an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens File Grievances Through the CPGRAMS Portal. Source:",
+  "source": "DARPG Online Hackathon 2024",
   "domain": "National Technical Research Organisation (NTRO)"
  },
  {
@@ -60,7 +60,7 @@
   "domain": "Hackathon"
  },
  {
-  "title": "Utilize Machine Learning Algorithms to Identify Ransomware Behavior Patterns. Bihar Cyber Hackathon 2025",
+  "title": "Utilize Machine Learning Algorithms to Identify Ransomware Behavior Patterns",
   "source": "",
   "domain": "Ideathon"
  },
@@ -75,7 +75,7 @@
   "domain": "Ideathon"
  },
  {
-  "title": "Blockchain & Cybersecurity (Student Innovation Theme). Hackathon 2025 \u2013 AICTE Student Innovation Theme",
+  "title": "Blockchain & Cybersecurity (Student Innovation Theme). Hackathon 2025 \u2013",
   "source": "Smart India",
   "domain": "Ideathon"
  },
@@ -95,7 +95,7 @@
   "domain": "Ideathon"
  },
  {
-  "title": "Developing a Blockchain-Based eVault for Legal Records. 2023 \u2013 Department of Justice",
+  "title": "Developing a Blockchain-Based eVault for Legal Records. 2023 \u2013",
   "source": "Smart India Hackathon",
   "domain": "Ideathon"
  },
@@ -250,7 +250,7 @@
   "domain": "Renewable / Sustainable Energy"
  },
  {
-  "title": "Develop machine learning models to accurately predict Global Horizontal Irradiance (GHI) across multi-hour prediction windows to reduce solar power intermittency and stabilize grid integration",
+  "title": "Develop machine learning models to accurately predict Global Horizontal Irradiance (GHI) across multi-hour prediction windows to reduce solar power intermittency and stabilize grid",
   "source": "",
   "domain": "Renewable / Sustainable Energy"
  },
@@ -305,7 +305,7 @@
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Dashboard for Swachhta and LiFE. Develop a dashboard aimed at maintaining cleanliness and LiFE practices, integrating AI-powered image processing technology for effective monitoring of Swachhta and green practices adopted in post offices",
+  "title": "Dashboard for Swachhta and LiFE. Develop a dashboard aimed at maintaining cleanliness and LiFE practices, integrating AI-powered image processing technology for effective monitorin",
   "source": "",
   "domain": "Clean & Green Technology"
  },
@@ -335,12 +335,12 @@
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Create a predictive AI model using multi-source satellite imagery (Sentinel, Landsat, INSAT) alongside dynamic weather and terrain data to forecast daily fire risk probability maps and simulate flame spread dynamics up to 12 hours ahead",
+  "title": "Create a predictive AI model using multi-source satellite imagery (Sentinel, Landsat, INSAT) alongside dynamic weather and terrain data to forecast daily fire risk probability maps",
   "source": "",
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Develop a smart platform for urban planners that leverages NASA satellite and environmental data to design sustainable city growth strategies\u2014balancing urban density, microclimate cooling, renewable energy generation (roof solar potential), and urban green spaces",
+  "title": "Develop a smart platform for urban planners that leverages NASA satellite and environmental data to design sustainable city growth strategies\u2014balancing urban density, microclimate",
   "source": "",
   "domain": "Clean & Green Technology"
  },
@@ -355,7 +355,7 @@
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Innovating for Sustainability: Smart Resource Conservation (Energy & Water) in Home Appliances (Godrej Appliances)",
+  "title": "Innovating for Sustainability: Smart Resource Conservation (Energy & Water) in Home Appliances (",
   "source": "",
   "domain": "Clean & Green Technology"
  },
@@ -365,17 +365,17 @@
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Develop an integrated AI/ML framework that processes INSAT-3D/3DS satellite radiance data alongside ground-based sensor readings to compute real-time surface-level particulate matter maps and forecast urban air quality",
+  "title": "Develop an integrated AI/ML framework that processes INSAT-3D/3DS satellite radiance data alongside ground-based sensor readings to compute real-time surface-level particulate matt",
   "source": "",
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Combine satellite observations (e.g., NASA EMIT, OCO-2) and model-based datasets to map anthropogenic and natural greenhouse gas sources and sinks to enable localized carbon tracking",
+  "title": "Combine satellite observations (e.g., NASA EMIT, OCO-2) and model-based datasets to map anthropogenic and natural greenhouse gas sources and sinks to enable localized carbon tracki",
   "source": "",
   "domain": "Clean & Green Technology"
  },
  {
-  "title": "Build an interactive audio-visual tool utilizing NASA Earth-observing satellite data to display the complex interactions between climate change, renewable energy potential, wildfires, water stress, and greenhouse gas emissions",
+  "title": "Build an interactive audio-visual tool utilizing NASA Earth-observing satellite data to display the complex interactions between climate change, renewable energy potential, wildfir",
   "source": "",
   "domain": "Clean & Green Technology"
  },
@@ -655,7 +655,7 @@
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Develop API code to integrate NAMASTE and/or the International Classification of Diseases (ICD-11) via the Traditional Medicine Module 2 (TM2) into existing EMR systems that comply with Electronic Health Record (EHR) Standards for India",
+  "title": "Develop API code to integrate NAMASTE and/or the International Classification of Diseases (ICD-11) via the Traditional Medicine Module 2 (TM2) into existing EMR systems that comply",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
@@ -910,7 +910,7 @@
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Development of advanced drone neutralisation methodologies for urban and densely populated environments, ensuring suppression without interference to local radio communications or sensitive electronic infrastructure within a defined proximity",
+  "title": "Development of advanced drone neutralisation methodologies for urban and densely populated environments, ensuring suppression without interference to local radio communications or",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
@@ -935,32 +935,32 @@
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Design a self-contained water surface cleaning robot with high efficiency capable of environmental protection free from human involvement. Lightweight, flexible, and enhanced using Industry 4.0 technologies including IoT and artificial intelligence the robot should be",
+  "title": "Design a self-contained water surface cleaning robot with high efficiency capable of environmental protection free from human involvement. Lightweight, flexible, and enhanced using",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Ponds, Lakes, Rivers are often polluted by floating debris such as plastic, water Hyacinth, algae build-up etc. Manual cleaning is difficult, unsafe and inefficient. Thus there is a need for an autonomous Underwater Robot capable of detecting and collecting waste materials and improving water quality thus ultimately increases the oxygen levels for acquatic animals",
+  "title": "Ponds, Lakes, Rivers are often polluted by floating debris such as plastic, water Hyacinth, algae build-up etc. Manual cleaning is difficult, unsafe and inefficient. Thus there is",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Any person in distress or in an emergency help should communicate to central control unit for the activation of drone which tracks the location of distress person's location and identifies the problems such as road blockage due to land slides, suffering due to heart attacking, and life threat situation using high quality camera even in the dark conditions and sends the signal to control unit to take nesessary action",
+  "title": "Any person in distress or in an emergency help should communicate to central control unit for the activation of drone which tracks the location of distress person's location and id",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Lonely elder people cannot go for buying for groceries, medicine from shops and vegetables from nearby market places. A robot with navigation ability to identify the shop location and purchases the required items based on the list of items specified. The billed amount and UPI details have to send to owner to pay the amount and have to come back safely climbing steps if necessary",
+  "title": "Lonely elder people cannot go for buying for groceries, medicine from shops and vegetables from nearby market places. A robot with navigation ability to identify the shop location",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Manual sorting and packing in warehouses are time-consuming, labor-intensive, and prone to errors, leading to high operational costs and reduced efficiency. There is a need for an intelligent, collaborative robotic system capable of performing flexible, automated sorting and packing to improve productivity and cost effectiveness",
+  "title": "Manual sorting and packing in warehouses are time-consuming, labor-intensive, and prone to errors, leading to high operational costs and reduced efficiency. There is a need for an",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
  {
-  "title": "Traditional drone frames are often bulky and non-modular, leading to reduced flight time, limited payload capacity, and increased maintenance complexity. There is a critical need to design a lightweight, modular drone frame that enhances endurance, flexibility, and structural integrity. The proposed solution aims to develop a 3D-modeled frame using optimized materials and geometry, supported by relevant load and stress analysis to ensure stability and reliability during flight operations",
+  "title": "Traditional drone frames are often bulky and non-modular, leading to reduced flight time, limited payload capacity, and increased maintenance complexity. There is a critical need t",
   "source": "",
   "domain": "MedTech / BioTech / HealthTech"
  },
@@ -1530,7 +1530,7 @@
   "domain": "Travel & Tourism"
  },
  {
-  "title": "Development of a travel-related mobile application to capture trip-related information. \u25cf PS- 04: Development of a Smart Digital Platform to Promote Eco & Cultural Tourism in Jharkhand",
+  "title": "Development of a travel-related mobile application to capture trip-related information. \u25cf PS- 04: Development of a Smart Digital Platform to Promote Eco & Cultural Tourism in Jhark",
   "source": "",
   "domain": "Travel & Tourism"
  },
@@ -2040,7 +2040,7 @@
   "domain": "Problem Statements Related To Civil"
  },
  {
-  "title": "Cost-effective methods to make water sources for piped drinking water supply sustainable in rural areas. Problem Statements On Themes Of Viksit Bharat 2047 \u25cf AI, Data Science & Intelligent Automation: \u25cb",
+  "title": "Cost-effective methods to make water sources for piped drinking water supply sustainable in rural areas. Problem Statements On Themes Of Viksit Bharat 2047 \u25cf AI, Data Science & Int",
   "source": "",
   "domain": "Problem Statements Related To Civil"
  },
@@ -2180,7 +2180,7 @@
   "domain": "Department of Consumer Affairs"
  },
  {
-  "title": "Enhancing Farmer Productivity through Innovative Technology Solutions. \u2013 AICTE Student Innovation Theme",
+  "title": "Enhancing Farmer Productivity through Innovative Technology Solutions. \u2013",
   "source": "SIH 2025",
   "domain": "Department of Consumer Affairs"
  },
@@ -2275,7 +2275,7 @@
   "domain": "Jammu & Kashmir"
  },
  {
-  "title": "Address Technology-Facilitated Gender-Based Violence (TFGBV) through Designing or Modification of Existing Solutions on Awareness, Prevention, Detection and Reporting. UNFPA India \u2013 Crack the Code Hackathon",
+  "title": "Address Technology-Facilitated Gender-Based Violence (TFGBV) through Designing or Modification of Existing Solutions on Awareness, Prevention, Detection and Reporting. UNFPA India",
   "source": "",
   "domain": "Jammu & Kashmir"
  },
@@ -2290,7 +2290,7 @@
   "domain": "Timely Access to Services for Gender-Based Violence Survivors and Those at Risk in"
  },
  {
-  "title": "Grey Water Management (GWM): Designing Low-Cost Testing Kits Capable of Detecting Bacterial, Faecal and Microbial Contaminants in Groundwater. Hackathon \u2013 Ministry of Jal Shakti",
+  "title": "Grey Water Management (GWM): Designing Low-Cost Testing Kits Capable of Detecting Bacterial, Faecal and Microbial Contaminants in Groundwater. Hackathon \u2013",
   "source": "Smart India",
   "domain": "Hackathon"
  },
@@ -2310,12 +2310,12 @@
   "domain": "Theme"
  },
  {
-  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. Smart India Hackathon 2024 \u2013 Ministry of New & Renewable Energy",
+  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg",
   "source": "",
   "domain": "Student Innovation Category"
  },
  {
-  "title": "Design/Development of an Efficient Energy Storage System (ESS) to Integrate Intermittent Renewable Energy Sources and Support/Stabilize the Grid. Hackathon 2024 \u2013 Ministry of New & Renewable Energy",
+  "title": "Design/Development of an Efficient Energy Storage System (ESS) to Integrate Intermittent Renewable Energy Sources and Support/Stabilize the Grid. Hackathon 2024 \u2013",
   "source": "Smart India",
   "domain": "Student Innovation Category"
  },
@@ -2340,17 +2340,17 @@
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
  {
-  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013 Department of Consumer Affairs",
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013",
   "source": "Smart",
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
  {
-  "title": "Development of a Digital Farm Management Portal for Monitoring Maximum Residue Limits (MRL) and Antimicrobial Usage (AMU) in Livestock. 2025 \u2013 Ministry of Fisheries, Animal Husbandry & Dairying SDG 9 \u2013 Industry, Innovation and Infrastructure",
+  "title": "Development of a Digital Farm Management Portal for Monitoring Maximum Residue Limits (MRL) and Antimicrobial Usage (AMU) in Livestock. 2025 \u2013",
   "source": "Smart India Hackathon",
   "domain": "Animal Husbandry & Dairying"
  },
  {
-  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. 2024 \u2013 Ministry of New & Renewable Energy",
+  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. 2024 \u2013",
   "source": "SIH",
   "domain": "Animal Husbandry & Dairying"
  },
@@ -2390,7 +2390,7 @@
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
  {
-  "title": "AI-Based Real-Time Captioning and Accessibility Solution for Public Services. Smart India Hackathon \u2013 Department of Empowerment of Persons with Disabilities",
+  "title": "AI-Based Real-Time Captioning and Accessibility Solution for Public Services. Smart India Hackathon \u2013",
   "source": "",
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
@@ -2415,11 +2415,6 @@
   "domain": "Jal Shakti"
  },
  {
-  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013 Ministry of Consumer Affairs, Food & Public Distribution",
-  "source": "Smart",
-  "domain": "Department of Consumer Affairs"
- },
- {
   "title": "Affordable Technologies for Temperature and Humidity Control in Onion Storage Structures to Reduce Post-Harvest Losses",
   "source": "Smart India Hackathon 2025 \u2013 Ministry of",
   "domain": "Department of Consumer Affairs"
@@ -2430,7 +2425,7 @@
   "domain": "Consumer Affairs, Food & Public Distribution"
  },
  {
-  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items. CPCB National Hackathon 2025 \u2013 One Nation, One Mission: End Plastic Pollution SDG 13 \u2013 Climate Action",
+  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items",
   "source": "",
   "domain": "Consumer Affairs, Food & Public Distribution"
  },
@@ -2440,17 +2435,12 @@
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
  {
-  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items. CPCB National Hackathon 2025 SDG 14 \u2013 Life Below Water",
-  "source": "",
-  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
- },
- {
   "title": "AI-Driven Unified Data Platform for Oceanographic, Fisheries and Molecular Biodiversity Insights",
   "source": "Smart India Hackathon 2025 \u2013 Ministry of Earth Sciences",
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
  {
-  "title": "Image-based Breed Recognition for Cattle and Buffaloes of India (supports sustainable fisheries & animal resource management themes through the Ministry, but primarily terrestrial\u2014 omit if you want a strict marine-only repository). 2025 \u2013 Ministry of Fisheries, Animal Husbandry & Dairying",
+  "title": "Image-based Breed Recognition for Cattle and Buffaloes of India (supports sustainable fisheries & animal resource management themes through the Ministry, but primarily terrestrial\u2014",
   "source": "Smart India Hackathon",
   "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
  },
@@ -2465,7 +2455,7 @@
   "domain": "Animal Husbandry & Dairying"
  },
  {
-  "title": "Identifying Taxonomy and Assessing Biodiversity from eDNA Datasets. India Hackathon 2025 \u2013 Ministry of Earth Sciences (PS: SIH25042)",
+  "title": "Identifying Taxonomy and Assessing Biodiversity from eDNA Datasets. India Hackathon 2025 \u2013",
   "source": "Smart",
   "domain": "Animal Husbandry & Dairying"
  },
@@ -2498,6 +2488,106 @@
   "title": "Develop a Dashboard for Analytics, Monitoring and Decision Support Using CPGRAMS Grievance Data. SDG 17 \u2013 Partnerships for the Goals",
   "source": "DARPG Hackathon 2024",
   "domain": "Auto-Categorisation of Received Grievance Reports for Sharing with Concerned Officers and"
+ },
+ {
+  "title": "Development of Legacy Systems to NHCX-Aligned FHIR Converter. Hackathon \u2013",
+  "source": "ABDM NHCX",
+  "domain": "Auto-Categorisation of Received Grievance Reports for Sharing with Concerned Officers and"
+ },
+ {
+  "title": "Fraud Management and Detection Leveraging NHCX Capabilities. Ideathon \u2013",
+  "source": "ABDM NHCX",
+  "domain": "National Health Authority"
+ },
+ {
+  "title": "Transformer based end-to-end Web Application Firewall (WAF) pipeline. Smart India Hackathon 2025 \u2013 Space Applications Centre (ISRO)",
+  "source": "",
+  "domain": "Cybersecurity"
+ },
+ {
+  "title": "Develop an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens File Grievances Through the CPGRAMS Portal. Source: DARPG Online Hackathon 2024",
+  "source": "DARPG Online Hackathon 2024",
+  "domain": "National Technical Research Organisation (NTRO)"
+ },
+ {
+  "title": "Utilize Machine Learning Algorithms to Identify Ransomware Behavior Patterns. Bihar Cyber Hackathon 2025",
+  "source": "",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Blockchain & Cybersecurity (Student Innovation Theme). Hackathon 2025 \u2013 AICTE Student Innovation Theme",
+  "source": "Smart India",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Developing a Blockchain-Based eVault for Legal Records. 2023 \u2013 Department of Justice",
+  "source": "Smart India Hackathon",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Innovating for Sustainability: Smart Resource Conservation (Energy & Water) in Home Appliances (Godrej Appliances)",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Enhancing Farmer Productivity through Innovative Technology Solutions. \u2013 AICTE Student Innovation Theme",
+  "source": "SIH 2025",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "Grey Water Management (GWM): Designing Low-Cost Testing Kits Capable of Detecting Bacterial, Faecal and Microbial Contaminants in Groundwater. Hackathon \u2013 Ministry of Jal Shakti",
+  "source": "Smart India",
+  "domain": "Hackathon"
+ },
+ {
+  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. Smart India Hackathon 2024 \u2013 ",
+  "source": "",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "Design/Development of an Efficient Energy Storage System (ESS) to Integrate Intermittent Renewable Energy Sources and Support/Stabilize the Grid. Hackathon 2024 \u2013 Ministry of New &",
+  "source": "Smart India",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013 Department of Consumer Affairs",
+  "source": "Smart",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of a Digital Farm Management Portal for Monitoring Maximum Residue Limits (MRL) and Antimicrobial Usage (AMU) in Livestock. 2025 \u2013 Ministry of Fisheries, Animal Husband",
+  "source": "Smart India Hackathon",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. 2024 \u2013 Ministry of New & Rene",
+  "source": "SIH",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "AI-Based Real-Time Captioning and Accessibility Solution for Public Services. Smart India Hackathon \u2013 Department of Empowerment of Persons with Disabilities",
+  "source": "",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013 Ministry of Consumer Affairs, Food & Public Distribution",
+  "source": "Smart",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items. CPCB National Hackathon 2025 \u2013 One Nation, One Mission: End Plastic Pollution SDG 13 \u2013 Climate Action",
+  "source": "",
+  "domain": "Consumer Affairs, Food & Public Distribution"
+ },
+ {
+  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items. CPCB National Hackathon 2025 SDG 14 \u2013 Life Below Water",
+  "source": "",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Identifying Taxonomy and Assessing Biodiversity from eDNA Datasets. India Hackathon 2025 \u2013 Ministry of Earth Sciences (PS: SIH25042)",
+  "source": "Smart",
+  "domain": "Animal Husbandry & Dairying"
  },
  {
   "title": "Development of Legacy Systems to NHCX-Aligned FHIR Converter. Hackathon \u2013 National Health Authority",

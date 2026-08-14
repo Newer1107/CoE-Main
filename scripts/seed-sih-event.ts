@@ -15,6 +15,19 @@ import path from "node:path";
 const p = new PrismaClient();
 
 const EVENT_TITLE = "SIH 2026 — Internal Hackathon";
+const EVENT_DESCRIPTION = `Smart India Hackathon (SIH) 2026 — Internal Round at TCET.
+
+The internal hackathon is the college-level screening for SIH 2026. Teams select one problem statement from the official SIH catalogue (500+ statements across Cybersecurity, Space Technology, MedTech & BioTech, Robotics & Drones, Smart Automation, Renewable Energy, Smart Education, Agriculture and more), build a working solution, and present it to a judging panel.
+
+How it works:
+• Form a team of up to 6 members (solo participation allowed) with an @tcetmumbai.in student as the team lead.
+• Choose your problem statement — search the full catalogue right on this page.
+• Upload your team presentation (PPT / PPTX / PDF) during registration — it is required.
+• Presentations lock on Sunday night at 11:59 PM; registration closes with the lock.
+• The internal round is evaluated on four parameters: Problem Understanding & Impact (25%), Innovation & Technical Excellence (30%), Feasibility, Practicability & Scalability (25%), and Solution Quality & Presentation (20%).
+• Top teams are recommended for the SIH 2026 national submission.
+
+Please complete registration before the deadline — late submissions will not be accepted.`;
 const RUBRICS = [
   { key: "problem_understanding", label: "Problem Understanding & Impact", weight: 25, order: 1 },
   { key: "innovation_technical", label: "Innovation & Technical Excellence", weight: 30, order: 2 },
@@ -34,26 +47,26 @@ function nextSundayLock(): Date {
 }
 
 const psData = JSON.parse(
-  readFileSync(path.join(__dirname, "data-sih-2026-problems.json"), "utf8"),
+  readFileSync(path.join(process.cwd(), "scripts/data-sih-2026-problems.json"), "utf8"),
 ) as { title: string; source: string; domain: string }[];
 
 (async () => {
   const admin = await p.user.findFirst({ where: { role: "ADMIN" }, orderBy: { id: "asc" } });
   if (!admin) throw new Error("no ADMIN user in this database");
 
-  // 1) event (idempotent)
+  // 1) event (idempotent; keeps dates/lock in sync on re-runs)
   let event = await p.hackathonEvent.findFirst({ where: { title: EVENT_TITLE } });
+  const lock = nextSundayLock();
   if (!event) {
     const start = new Date();
     const end = new Date(start.getTime() + 14 * 86400_000);
     event = await p.hackathonEvent.create({
       data: {
         title: EVENT_TITLE,
-        description:
-          "SIH 2026 internal round — register your team, upload your presentation, and compete on the official SIH problem statements.",
+        description: EVENT_DESCRIPTION,
         startTime: start,
         endTime: end,
-        submissionLockAt: nextSundayLock(),
+        submissionLockAt: lock,
         status: "UPCOMING",
         registrationOpen: true,
         createdById: admin.id,
@@ -71,7 +84,25 @@ const psData = JSON.parse(
     });
     console.log("event created:", event.id, "| PPT lock:", event.submissionLockAt?.toISOString());
   } else {
-    console.log("event exists:", event.id);
+    event = await p.hackathonEvent.update({
+      where: { id: event.id },
+      data: {
+        description: EVENT_DESCRIPTION,
+        submissionLockAt: lock,
+        registrationOpen: true,
+        config: {
+          ...((event.config ?? {}) as Record<string, unknown>),
+          registration: {
+            requiresPpt: true,
+            requiresProblemSelection: true,
+            minTeamSize: 1,
+            maxTeamSize: 6,
+            allowSolo: true,
+          },
+        },
+      },
+    });
+    console.log("event exists — description/lock refreshed:", event.id);
   }
 
   // 2) rubrics (upsert by key)
