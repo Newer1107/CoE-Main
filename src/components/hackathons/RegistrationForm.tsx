@@ -174,6 +174,95 @@ export default function RegistrationForm({
     return () => lookupTimers.current.forEach((t) => t && clearTimeout(t));
   }, []);
 
+  // Prefix suggestions while typing a member UID (name appears as you type).
+  type Suggestion = { id: number; name: string; uid: string; derivedText?: string };
+  const [suggestions, setSuggestions] = useState<{ items: Suggestion[]; open: boolean }[]>([]);
+  const suggestionTimers = useRef<(ReturnType<typeof setTimeout> | null)[]>([]);
+
+  const runSuggestions = (index: number, value: string) => {
+    if (suggestionTimers.current[index]) clearTimeout(suggestionTimers.current[index]);
+    const trimmed = value.trim().toUpperCase();
+    if (trimmed.length < 4) {
+      setSuggestions((prev) => {
+        const next = [...prev];
+        next[index] = { items: [], open: false };
+        return next;
+      });
+      return;
+    }
+    suggestionTimers.current[index] = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/innovation/students/lookup?q=${encodeURIComponent(trimmed)}`, { credentials: "include" });
+        const body = await res.json();
+        const items = (body?.data?.suggestions ?? []).map((s: { id: number; name: string; uid: string; derived: { branchName?: string; currentYear?: string; division?: string; rollNo?: string } | null }) => ({
+          id: s.id,
+          name: s.name,
+          uid: s.uid,
+          derivedText: formatStudentInfo(s.derived as Parameters<typeof formatStudentInfo>[0]) ?? undefined,
+        }));
+        setSuggestions((prev) => {
+          const next = [...prev];
+          next[index] = { items, open: items.length > 0 };
+          return next;
+        });
+      } catch {
+        setSuggestions((prev) => {
+          const next = [...prev];
+          next[index] = { items: [], open: false };
+          return next;
+        });
+      }
+    }, 300);
+  };
+
+  const pickSuggestion = (index: number, s: Suggestion) => {
+    updateMemberUid(index, s.uid);
+    setSuggestions((prev) => {
+      const next = [...prev];
+      next[index] = { items: [], open: false };
+      return next;
+    });
+    runLookup(index, s.uid);
+  };
+
+  // Mentor email → name confirmation (must be a registered teacher).
+  type MentorLookup = { state: "idle" | "loading" | "found" | "missing" | "invalid"; name?: string };
+  const [mentorLookup, setMentorLookup] = useState<MentorLookup>({ state: "idle" });
+  const mentorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const trimmed = mentor.trim().toLowerCase();
+    if (mentorTimer.current) clearTimeout(mentorTimer.current);
+    if (!trimmed) {
+      setMentorLookup({ state: "idle" });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setMentorLookup({ state: "invalid" });
+      return;
+    }
+    setMentorLookup((prev) => ({ ...prev, state: "loading" }));
+    mentorTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/innovation/students/lookup?email=${encodeURIComponent(trimmed)}`, { credentials: "include" });
+        const body = await res.json();
+        const d = body?.data;
+        if (d?.found && d.mentor) {
+          setMentorLookup({ state: "found", name: d.mentor.name });
+        } else {
+          setMentorLookup({ state: "missing" });
+        }
+      } catch {
+        setMentorLookup({ state: "idle" });
+      }
+    }, 350);
+    return () => {
+      if (mentorTimer.current) clearTimeout(mentorTimer.current);
+    };
+  }, [mentor]);
+
+  const mentorBlocked = !!mentor.trim() && (mentorLookup.state === "missing" || mentorLookup.state === "loading" || mentorLookup.state === "invalid");
+
   // Duplicate / self-membership detection across all slots.
   const memberProblems: Record<number, string> = {};
   memberUids.forEach((uid, index) => {
@@ -194,6 +283,16 @@ export default function RegistrationForm({
     event.preventDefault();
     if (hasInvalidMembers) {
       setErrorMessage("Please fix the member details below before registering.");
+      return;
+    }
+    if (mentorBlocked) {
+      setErrorMessage(
+        mentorLookup.state === "missing"
+          ? "Mentor not registered on the portal — ask them to register first."
+          : mentorLookup.state === "invalid"
+            ? "Enter a valid mentor email address."
+            : "Confirming the mentor… please wait."
+      );
       return;
     }
     if (requiresProblemSelection && !problemId && psMode === "catalogue") {
@@ -497,7 +596,7 @@ export default function RegistrationForm({
         const lookup = memberLookups[index];
         const problem = memberProblems[index];
         return (
-          <div key={index}>
+          <div key={index} className="relative">
             <label htmlFor={`member-uid-${index}`} className={labelClass}>
               Member {index + 1} UID
             </label>
@@ -511,6 +610,7 @@ export default function RegistrationForm({
               onChange={(event) => {
                 updateMemberUid(index, event.target.value.toUpperCase());
                 runLookup(index, event.target.value);
+                runSuggestions(index, event.target.value);
               }}
               placeholder="24-COMPD13-28"
               className={`${inputClass} mt-1 uppercase ${
@@ -521,6 +621,26 @@ export default function RegistrationForm({
                     : ""
               }`}
             />
+            {suggestions[index]?.open && suggestions[index].items.length > 0 ? (
+              <ul className="absolute z-20 mt-1 w-full overflow-hidden border border-[#c4c6d3] bg-white shadow-md">
+                {suggestions[index].items.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        pickSuggestion(index, s);
+                      }}
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[#f4f6fa]"
+                    >
+                      <span className="font-semibold text-[#002155]">{s.name}</span>{" "}
+                      <span className="text-xs text-[#747782]">{s.uid}</span>
+                      {s.derivedText ? <span className="block text-xs text-[#747782]">{s.derivedText}</span> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {problem ? (
               <p className="mt-1 text-xs font-semibold text-red-600">{problem}</p>
             ) : lookup?.state === "loading" ? (
@@ -598,11 +718,33 @@ export default function RegistrationForm({
             value={mentor}
             onChange={(event) => setMentor(event.target.value)}
             placeholder="faculty@tcetmumbai.in"
-            className={`${inputClass} mt-1`}
+            className={`${inputClass} mt-1 ${
+              mentorLookup.state === "found"
+                ? "border-[#0b6b2e] focus:border-[#0b6b2e]"
+                : mentorLookup.state === "missing" || mentorLookup.state === "invalid"
+                  ? "border-red-400 focus:border-red-500"
+                  : ""
+            }`}
           />
-          <p className="mt-1 text-xs text-[#747782]">
-            Preferably from your department — we'll contact them with your team details.
-          </p>
+          {mentorLookup.state === "loading" ? (
+            <p className="mt-1 text-xs text-[#747782]">Checking mentor…</p>
+          ) : mentorLookup.state === "found" ? (
+            <div className="mt-1 border border-[#0b6b2e] bg-emerald-50 px-3 py-2">
+              <p className="text-sm font-semibold text-[#0b6b2e]">
+                Mentor confirmed: {mentorLookup.name} <span className="font-normal">({mentor.trim().toLowerCase()})</span>
+              </p>
+            </div>
+          ) : mentorLookup.state === "missing" ? (
+            <p className="mt-1 text-xs font-semibold text-red-600">
+              Mentor not registered on the portal — please ask them to register first, then come back and confirm.
+            </p>
+          ) : mentorLookup.state === "invalid" ? (
+            <p className="mt-1 text-xs font-semibold text-red-600">That doesn't look like a valid email address.</p>
+          ) : (
+            <p className="mt-1 text-xs text-[#747782]">
+              Preferably from your department — we'll contact them with your team details.
+            </p>
+          )}
         </div>
       </div>
 

@@ -478,7 +478,7 @@ export default async function HomePage() {
               <div className="border-b border-[#c4c6d3]">
                 <div className="px-4 py-2 bg-[#eef0f5] flex items-center justify-between">
                   <span className="text-[9px] font-bold uppercase tracking-widest text-[#002155]">Hackathons</span>
-                  <Link href="/innovation/events" className="text-[9px] font-bold uppercase tracking-widest text-[#8c4f00] hover:underline">
+                  <Link href="/hackathons" className="text-[9px] font-bold uppercase tracking-widest text-[#8c4f00] hover:underline">
                     View all
                   </Link>
                 </div>
@@ -486,7 +486,7 @@ export default async function HomePage() {
                   <p className="px-4 py-3 text-[11px] text-[#747782]">No active hackathons.</p>
                 ) : (
                   openHackathons.map((hackathon) => (
-                    <Link key={hackathon.id} href={`/innovation/events/${hackathon.id}`}>
+                    <Link key={hackathon.id} href={`/hackathons/${hackathon.id}`}>
                       <article className="px-4 py-2.5 border-b border-[#f0efe9] last:border-b-0 hover:bg-[#faf9f5] transition-colors">
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="text-[11px] font-semibold text-[#002155] leading-snug line-clamp-2 flex-1">

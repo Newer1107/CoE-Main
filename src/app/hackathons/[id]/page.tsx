@@ -31,9 +31,15 @@ export type ProblemPayload = {
 
 export type ClaimPayload = {
   id: number;
+  claimId: number;
   status: string;
   teamName: string | null;
   problemId: number;
+  problem: { id: number; title: string } | null;
+  mentor: string | null;
+  pptUploaded: boolean;
+  isLeader: boolean;
+  members: { role: string; name: string; uid: string | null; email: string }[];
 } | null;
 
 export type EventDetailPayload = {
@@ -138,7 +144,24 @@ export default async function HackathonEventDetailPage({
           claim: { problem: { eventId: event.id } },
         },
         select: {
-          claim: { select: { id: true, status: true, teamName: true, problemId: true } },
+          claim: {
+            select: {
+              id: true,
+              status: true,
+              teamName: true,
+              problemId: true,
+              mentor: true,
+              submissionFileKey: true,
+              problem: { select: { id: true, title: true } },
+              members: {
+                select: {
+                  role: true,
+                  userId: true,
+                  user: { select: { id: true, name: true, uid: true, email: true } },
+                },
+              },
+            },
+          },
         },
       }),
       prisma.hackathonInterest.findUnique({
@@ -149,10 +172,21 @@ export default async function HackathonEventDetailPage({
 
     if (claimMember) {
       myClaim = {
+        claimId: claimMember.claim.id,
         id: claimMember.claim.id,
         status: claimMember.claim.status,
         teamName: claimMember.claim.teamName,
         problemId: claimMember.claim.problemId,
+        problem: claimMember.claim.problem,
+        mentor: claimMember.claim.mentor,
+        pptUploaded: !!claimMember.claim.submissionFileKey,
+        isLeader: claimMember.claim.members.some((m) => m.role === 'LEAD' && m.userId === viewerUserId),
+        members: claimMember.claim.members.map((m) => ({
+          role: m.role,
+          name: m.user.name,
+          uid: m.user.uid,
+          email: m.user.email,
+        })),
       };
     }
     myInterest = interest != null;

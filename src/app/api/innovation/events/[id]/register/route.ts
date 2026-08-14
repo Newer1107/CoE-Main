@@ -24,12 +24,14 @@ type ClaimSummaryInput = {
   createdAt: Date;
   updatedAt: Date;
   submissionFileKey: string | null;
+  mentor: string | null;
   problem: {
     id: number;
     title: string;
   };
   members: Array<{
     role: string;
+    userId: number;
     user: {
       id: number;
       name: string;
@@ -39,11 +41,12 @@ type ClaimSummaryInput = {
   }>;
 };
 
-const buildRegistrationSummary = async (claim: ClaimSummaryInput) => {
+const buildRegistrationSummary = async (claim: ClaimSummaryInput, viewerId?: number) => {
   const teamLeader = claim.members.find((member) => member.role === 'LEAD') || claim.members[0] || null;
   const submissionFileUrl = claim.submissionFileKey
     ? await getSignedUrl(claim.submissionFileKey).catch(() => null)
     : null;
+  const isLeader = viewerId != null && claim.members.some((member) => member.role === 'LEAD' && member.userId === viewerId);
 
   return {
     claimId: claim.id,
@@ -70,6 +73,9 @@ const buildRegistrationSummary = async (claim: ClaimSummaryInput) => {
       },
     })),
     submissionFileUrl,
+    pptUploaded: !!claim.submissionFileKey,
+    mentor: claim.mentor,
+    isLeader,
     submittedAt: claim.updatedAt.toISOString(),
     createdAt: claim.createdAt.toISOString(),
   };
@@ -157,6 +163,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const mentor = ((formData.get('mentor') as string) || '').trim().toLowerCase().slice(0, 200);
     if (mentor && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mentor)) {
       return errorRes('Invalid mentor email', ['Enter a valid faculty email address'], 400);
+    }
+    if (mentor) {
+      const mentorUser = await prisma.user.findFirst({
+        where: { email: mentor, role: { in: ['FACULTY', 'ADMIN'] }, status: 'ACTIVE', isVerified: true },
+        select: { id: true },
+      });
+      if (!mentorUser) {
+        return errorRes(
+          'Mentor not registered',
+          ['The mentor must be a registered teacher on the portal — please ask them to create an account first, then confirm their email here'],
+          400,
+        );
+      }
     }
     const rawPhone = ((formData.get('phone') as string) || '').trim();
     const phone = normalizePhone(rawPhone);
@@ -394,18 +413,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     if (existingInEvent) {
-      const existingSummary = await buildRegistrationSummary({
-        id: existingInEvent.claim.id,
-        teamName: existingInEvent.claim.teamName,
-        createdAt: existingInEvent.claim.createdAt,
-        updatedAt: existingInEvent.claim.updatedAt,
-        submissionFileKey: existingInEvent.claim.submissionFileKey,
-        problem: {
-          id: existingInEvent.claim.problem.id,
-          title: existingInEvent.claim.problem.title,
+      const existingSummary = await buildRegistrationSummary(
+        {
+          id: existingInEvent.claim.id,
+          teamName: existingInEvent.claim.teamName,
+          createdAt: existingInEvent.claim.createdAt,
+          updatedAt: existingInEvent.claim.updatedAt,
+          submissionFileKey: existingInEvent.claim.submissionFileKey,
+          mentor: existingInEvent.claim.mentor,
+          problem: {
+            id: existingInEvent.claim.problem.id,
+            title: existingInEvent.claim.problem.title,
+          },
+          members: existingInEvent.claim.members,
         },
-        members: existingInEvent.claim.members,
-      });
+        user.id
+      );
 
       logActivity('INNOVATION_HACKATHON_REGISTER_REJECTED', {
         userId: user.id,
@@ -502,15 +525,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // A duplicate slipped in between the fast-path check and the lock —
       // remove the just-uploaded file (best effort) and report the existing team.
       if (fileKey) await deleteFile(fileKey).catch(() => null);
-      const existingSummary = await buildRegistrationSummary({
-        id: result.existing.id,
-        teamName: result.existing.teamName,
-        createdAt: result.existing.createdAt,
-        updatedAt: result.existing.updatedAt,
-        submissionFileKey: result.existing.submissionFileKey,
-        problem: result.existing.problem,
-        members: result.existing.members,
-      });
+      const existingSummary = await buildRegistrationSummary(
+        {
+          id: result.existing.id,
+          teamName: result.existing.teamName,
+          createdAt: result.existing.createdAt,
+          updatedAt: result.existing.updatedAt,
+          submissionFileKey: result.existing.submissionFileKey,
+          mentor: result.existing.mentor,
+          problem: result.existing.problem,
+          members: result.existing.members,
+        },
+        user.id
+      );
 
       logActivity('INNOVATION_HACKATHON_REGISTER_REJECTED', {
         userId: user.id,
@@ -541,18 +568,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       teamSize: updated.members.length,
     });
 
-    const registrationSummary = await buildRegistrationSummary({
-      id: updated.id,
-      teamName: updated.teamName,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-      submissionFileKey: updated.submissionFileKey,
-      problem: {
-        id: updated.problem.id,
-        title: updated.problem.title,
+    const registrationSummary = await buildRegistrationSummary(
+      {
+        id: updated.id,
+        teamName: updated.teamName,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+        submissionFileKey: updated.submissionFileKey,
+        mentor: updated.mentor,
+        problem: {
+          id: updated.problem.id,
+          title: updated.problem.title,
+        },
+        members: updated.members,
       },
-      members: updated.members,
-    });
+      user.id
+    );
 
     return successRes(
       {

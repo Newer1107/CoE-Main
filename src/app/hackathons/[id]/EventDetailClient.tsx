@@ -230,23 +230,147 @@ export default function EventDetailClient({
     registrationInfoRows.push({ label: "Tickets", value: "Required" });
   }
 
+  const [pptFile, setPptFile] = useState<File | null>(null);
+  const [pptUploading, setPptUploading] = useState(false);
+  const [pptMessage, setPptMessage] = useState<string | null>(null);
+
+  const handlePptReupload = async () => {
+    if (!pptFile || !myClaim) return;
+    setPptUploading(true);
+    setPptMessage(null);
+    try {
+      const form = new FormData();
+      form.append("pptFile", pptFile);
+      const res = await fetch(`/api/innovation/claims/${myClaim.claimId}/submission`, {
+        method: "PUT",
+        credentials: "include",
+        body: form,
+      });
+      const body = (await res.json()) as ApiEnvelope<unknown>;
+      if (body.success) {
+        setPptMessage("Presentation updated successfully.");
+        setPptFile(null);
+        window.setTimeout(() => window.location.reload(), 900);
+      } else {
+        setPptMessage(body.message);
+      }
+    } catch {
+      setPptMessage("Upload failed — please try again.");
+    } finally {
+      setPptUploading(false);
+    }
+  };
+
   // ── Register CTA panel ───────────────────────────────────
   const canRegister = event.registrationOpen && !isClosed;
   const isFacultyOrAdmin = viewerRole === "FACULTY" || viewerRole === "ADMIN";
 
   const renderCtaContent = () => {
     if (myClaim) {
+      const pptLocked = !!event.submissionLockAt && new Date(event.submissionLockAt) <= new Date();
       return (
-        <div className="mt-5 border border-secondary bg-secondary-container/10 p-5">
-          <p className="text-xs font-bold uppercase tracking-widest text-secondary">
-            Claim status — {CLAIM_STATUS_LABELS[myClaim.status] ?? myClaim.status}
-          </p>
-          {myClaim.teamName ? (
-            <p className="mt-1 text-sm text-on-surface-variant">Team: {myClaim.teamName}</p>
-          ) : null}
+        <div className="mt-5 space-y-4">
+          <div className="border border-secondary bg-secondary-container/10 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                Claim status — {CLAIM_STATUS_LABELS[myClaim.status] ?? myClaim.status}
+              </p>
+              {myClaim.isLeader ? (
+                <span className="bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Team lead
+                </span>
+              ) : null}
+            </div>
+
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-on-surface">Team:</dt>
+                <dd className="text-on-surface-variant">{myClaim.teamName ?? `Team-${myClaim.claimId}`}</dd>
+              </div>
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-on-surface">Problem statement:</dt>
+                <dd className="text-on-surface-variant">{myClaim.problem?.title ?? "Open Innovation (custom)"}</dd>
+              </div>
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-on-surface">Mentor:</dt>
+                <dd className="text-on-surface-variant">{myClaim.mentor ?? "—"}</dd>
+              </div>
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-on-surface">Presentation:</dt>
+                <dd className={myClaim.pptUploaded ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
+                  {myClaim.pptUploaded ? "Uploaded" : "Not uploaded"}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-3 border-t border-outline-variant/60 pt-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted">Team members</p>
+              <ul className="mt-2 space-y-1">
+                {myClaim.members.map((member) => (
+                  <li key={`${member.uid ?? member.email}`} className="flex items-center gap-2 text-sm">
+                    <span className="font-semibold text-on-surface">{member.name}</span>
+                    <span className="text-xs text-muted">{member.uid ?? member.email}</span>
+                    {member.role === "LEAD" ? (
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+                        Lead
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {myClaim.isLeader ? (
+            <div className="border border-outline-variant bg-surface-container p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted">Update presentation</p>
+              {pptLocked ? (
+                <p className="mt-2 text-sm font-semibold text-red-600">
+                  Presentations are locked — the submission window has closed.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-on-surface-variant">
+                    Re-upload your team's presentation (PPT/PPTX/PDF) — only if needed.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <input
+                      type="file"
+                      accept=".ppt,.pptx,.pdf"
+                      onChange={(e) => setPptFile(e.target.files?.[0] ?? null)}
+                      className="text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handlePptReupload()}
+                      disabled={!pptFile || pptUploading}
+                      className="bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {pptUploading ? "Uploading…" : "Re-upload PPT"}
+                    </button>
+                  </div>
+                  {pptMessage ? (
+                    <p className={`mt-2 text-xs font-semibold ${pptMessage.startsWith("Presentation updated") ? "text-emerald-700" : "text-red-600"}`}>
+                      {pptMessage}
+                    </p>
+                  ) : null}
+                </>
+              )}
+              <p className="mt-3 text-xs text-on-surface-variant">
+                For any other changes to your team, contact{" "}
+                <span className="font-bold text-on-surface">Raunak Singh — 9372499047</span>.
+              </p>
+            </div>
+          ) : (
+            <p className="border border-outline-variant bg-surface-container p-4 text-xs text-on-surface-variant">
+              You're a team member on this registration — details are view-only. For any changes, ask your team lead
+              (or contact Raunak Singh — 9372499047).
+            </p>
+          )}
+
           <Link
             href="/hackathons/portal"
-            className="mt-4 inline-flex bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+            className="inline-flex bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
           >
             View my hackathons
           </Link>
