@@ -9,6 +9,13 @@ import { deleteFile, uploadFileWithObjectKey } from '@/lib/minio';
 import { logActivity } from '@/lib/activity-log';
 import { getSignedUrl } from '@/lib/minio';
 import { EventDefaultConfig, getEventTypeDefaults } from '@/lib/platform-config';
+import { deriveStudentInfo, DerivedStudentInfo } from '@/lib/student-info';
+
+const normalizePhone = (raw: string): string | null => {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 13) return null;
+  return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+};
 
 type ClaimSummaryInput = {
   id: number;
@@ -100,6 +107,30 @@ const resolveEffectiveConfig = (config: unknown, eventType: string): EventDefaul
       ) as unknown as EventDefaultConfig)
     : null;
 
+// GET /api/innovation/events/[id]/register — registration meta for the form:
+// student info derived from the session uid (never re-typed) + profile phone.
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+    if (!authorize(user, 'STUDENT')) return errorRes('Forbidden', ['Student access required'], 403);
+
+    const row = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { uid: true, phone: true },
+    });
+
+    return successRes({
+      uid: row?.uid ?? null,
+      derived: deriveStudentInfo(row?.uid ?? null),
+      phone: row?.phone ?? null,
+    });
+  } catch (err) {
+    console.error('Registration meta GET error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
+
 // POST /api/innovation/events/[id]/register
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -122,6 +153,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const memberUids = parseStringList((formData.get('memberUids') as string) || '').map((uid) => uid.toUpperCase());
     const problemId = Number(formData.get('problemId'));
     const pptFile = formData.get('pptFile') as File | null;
+    const mentor = ((formData.get('mentor') as string) || '').trim().toLowerCase().slice(0, 200);
+    if (mentor && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mentor)) {
+      return errorRes('Invalid mentor email', ['Enter a valid faculty email address'], 400);
+    }
+    const rawPhone = ((formData.get('phone') as string) || '').trim();
+    const phone = normalizePhone(rawPhone);
+    // Manual fallback for unparseable UIDs (shown only when derivation fails).
+    const manualBranch = ((formData.get('manualBranch') as string) || '').trim().slice(0, 60);
+    const manualYear = ((formData.get('manualYear') as string) || '').trim().slice(0, 10);
+    const manualDivision = ((formData.get('manualDivision') as string) || '').trim().slice(0, 10);
+    const manualRoll = ((formData.get('manualRoll') as string) || '').trim().slice(0, 10);
 
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
 
@@ -176,10 +218,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const now = new Date();
     if (event.submissionLockAt && now > event.submissionLockAt) {
-      return errorRes('Submission window closed', ['Submissions are locked for this event'], 400);
+      return errorRes('Submission window closed', ['Submissions locked after the stated deadline — contact the coordinator if this is a mistake'], 400);
     }
     if (!event.registrationOpen || event.status === 'CLOSED' || now > event.endTime) {
-      return errorRes('Registration closed', ['Registration is closed after the event registration closing date'], 400);
+      return errorRes('Event registration is closed', [], 400);
+    }
+    if (event.status !== 'UPCOMING' && event.status !== 'ACTIVE') {
+      return errorRes('Event registration is closed', [`Registration is only open while the event is UPCOMING or ACTIVE (currently ${event.status})`], 400);
     }
 
     if (parsedData.teamSize !== parsedData.memberUids.length + 1) {
@@ -236,6 +281,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return errorRes('Invalid team lead', ['Team lead UID must be your own UID for this registration'], 400);
     }
 
+    if (rawPhone && !phone) {
+      return errorRes('Invalid phone number', ['Enter a valid 10-digit mobile number'], 400);
+    }
+
+    // Phone lives on the user profile (single source of truth) — save it there.
+    if (phone) {
+      await prisma.user
+        .update({ where: { id: user.id }, data: { phone } })
+        .catch(() => null);
+    }
+
     let members: { id: number; uid: string | null }[];
     if (parsedData.teamSize === 1) {
       // Solo registration: no member UID lookups needed — the lead (logged-in
@@ -250,15 +306,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         select: { id: true, uid: true },
       });
 
-      if (foundMembers.length !== allMemberUids.length) {
-        const foundUids = new Set(foundMembers.map((member) => member.uid).filter(Boolean));
-        const missingUids = allMemberUids.filter((uid) => !foundUids.has(uid));
+      // uid is NOT unique on User (legacy data) — dedupe by uid and compare
+      // SETS, never lengths, or duplicate rows break the check.
+      const membersByUid = new Map<string, { id: number; uid: string | null }>();
+      for (const member of foundMembers) {
+        if (member.uid && !membersByUid.has(member.uid)) membersByUid.set(member.uid, member);
+      }
+      const foundUids = new Set(membersByUid.keys());
+      const missingUids = allMemberUids.filter((uid) => !foundUids.has(uid));
+      if (missingUids.length > 0) {
         return errorRes('Invalid team members', [`These UIDs are not registered active students: ${missingUids.join(', ')}. Please register these users first.`], 400);
       }
-      members = foundMembers;
+      members = [...membersByUid.values()];
     }
 
     const memberIds = members.map((member) => member.id);
+
+    // Snapshot of UID-derived info at registration time — branch/year/division/roll
+    // are never re-typed by the student and never re-parsed later.
+    const leadDerived = deriveStudentInfo(currentStudent.uid);
+    const derivedInfo = {
+      lead:
+        leadDerived ??
+        ({ manual: { branch: manualBranch, year: manualYear, division: manualDivision, rollNo: manualRoll } } as const),
+      members: Object.fromEntries(
+        members.map((member) => [member.uid ?? `id:${member.id}`, deriveStudentInfo(member.uid)]),
+      ),
+    };
 
     const existingInEvent = await prisma.claimMember.findFirst({
       where: {
@@ -364,6 +438,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           problemId: problem.id,
           teamName: parsedData.teamName,
           submissionFileKey: fileKey,
+          mentor: mentor || null,
+          derivedInfo,
           status: 'SUBMITTED',
           members: {
             create: memberIds.map((memberId) => ({

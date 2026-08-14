@@ -1,0 +1,2512 @@
+[
+ {
+  "title": "Transformer based end-to-end Web Application Firewall (WAF) pipeline. Smart India Hackathon 2025 \u2013 Space Applications Centre (ISRO)",
+  "source": "",
+  "domain": "Cybersecurity"
+ },
+ {
+  "title": "Conversational SIEM Assistant for Investigation and Automated Threat Reporting using NLP",
+  "source": "Smart India Hackathon 2025 \u2013 Space Applications Centre (ISRO)",
+  "domain": "Cybersecurity"
+ },
+ {
+  "title": "Quantum Secure Email Client Application",
+  "source": "Smart India Hackathon 2025 \u2013 Space",
+  "domain": "Cybersecurity"
+ },
+ {
+  "title": "Smart Tourist Safety Monitoring & Incident Response System using AI, Geo-Fencing, and Blockchain-based Digital ID",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of Development of",
+  "domain": "Applications Centre (ISRO)"
+ },
+ {
+  "title": "Develop a blockchain-based system for botanical traceability of Ayurvedic herbs, including geo-tagging from the point of collection (farmers/wild collectors) to the final Ayurvedic formulation label",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of AYUSH",
+  "domain": "North Eastern Region"
+ },
+ {
+  "title": "Identification of URL based attacks from IP data",
+  "source": "Smart India Hackathon 2025 \u2013",
+  "domain": "North Eastern Region"
+ },
+ {
+  "title": "AICTE Student Innovation: Swadeshi for Atmanirbhar Bharat \u2013 Blockchain & Cybersecurity",
+  "source": "Smart India Hackathon 2025 \u2013 AICTE Student Innovation Theme",
+  "domain": "National Technical Research Organisation (NTRO)"
+ },
+ {
+  "title": "Develop an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens File Grievances Through the CPGRAMS Portal. Source: DARPG Online Hackathon 2024",
+  "source": "",
+  "domain": "National Technical Research Organisation (NTRO)"
+ },
+ {
+  "title": "Evaluate and Optimize an Open-Source Speech-to-Text Tool for Converting Citizen Grievance Feedback Calls into English Text",
+  "source": "DARPG Online Hackathon 2024",
+  "domain": "Develop an AI/ML-Driven System for Topic Clustering/Modelling to Enable"
+ },
+ {
+  "title": "Development of Legacy Systems to NHCX-Aligned FHIR Converter",
+  "source": "ABDM NHCX",
+  "domain": "Develop an AI/ML-Driven System for Topic Clustering/Modelling to Enable"
+ },
+ {
+  "title": "Clinical Documents to FHIR Structured Data Converter",
+  "source": "ABDM NHCX Hackathon",
+  "domain": "Hackathon"
+ },
+ {
+  "title": "Fraud Management and Detection Leveraging NHCX Capabilities",
+  "source": "ABDM NHCX",
+  "domain": "Hackathon"
+ },
+ {
+  "title": "Utilize Machine Learning Algorithms to Identify Ransomware Behavior Patterns. Bihar Cyber Hackathon 2025",
+  "source": "",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Securing IoT Networks with Blockchain and Zero Trust Architecture. Hackathon 2025",
+  "source": "Bihar Cyber",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "AI-Powered Web Vulnerability Scanner and Automated Patching System. Cyber Hackathon 2025",
+  "source": "Bihar",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Blockchain & Cybersecurity (Student Innovation Theme). Hackathon 2025 \u2013 AICTE Student Innovation Theme",
+  "source": "Smart India",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Identification of URL-Based Attacks from IP Data. 2025 \u2013 National Technical Research Organisation (NTRO)",
+  "source": "Smart India Hackathon",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Develop API Code to Integrate NAMASTE and ICD-11 (TM2) into Existing EMR Systems Complying with EHR Standards for India. of AYUSH",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Develop a Secure Blockchain-Based Traceability System for Ayurvedic Supply Chains",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of AYUSH",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Developing a Blockchain-Based eVault for Legal Records. 2023 \u2013 Department of Justice",
+  "source": "Smart India Hackathon",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "AI-powered Legal Documentation Assistant",
+  "source": "Smart India Hackathon 2023 \u2013",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Digital Assistant for Legal Awareness and Designing a KYR (Know Your Rights) Framework in India",
+  "source": "Smart India Hackathon 2023 \u2013 Department of Justice",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Incentives-based Design for Onboarding Legal Service Providers on eMarket Place for Extending Legal Services to Citizens",
+  "source": "Smart India Hackathon 2023 \u2013 Department of Justice",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Cyber Crime Investigation using Artificial Intelligence",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "AI-Based Financial Fraud Detection and Prevention",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Deepfake Detection for Digital Evidence Verification",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Detection and Analysis of Cryptocurrency Transactions for Cybercrime Investigation",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Dark Web Intelligence and Monitoring System",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Secure Digital Evidence Collection and Chain of Custody Management. 2023",
+  "source": "KAVACH",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "AI-Based Phishing Website Detection System",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Mobile Device Forensics Automation Platform",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "OSINT-Based Cyber Threat Intelligence Platform",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Malware Classification Using Machine Learning",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Social Media Intelligence for Cybercrime Detection",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Secure Authentication Framework for Government Digital Services",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "AI-Based Detection of Financial Cyber Frauds",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Cyber Threat Intelligence Correlation Platform",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Ransomware Detection and Incident Response System",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Digital Forensics Automation Framework",
+  "source": "KAVACH 2023",
+  "domain": "Department of Justice"
+ },
+ {
+  "title": "Build a detailed concept for an industrial scale green hydrogen (> 50 TPD) production facility, with a levelized cost of hydrogen (LCOH) below $2 USD per kg",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Development of co-electrolyzer: which would synthesize organic chemicals like methanol and inorganic chemicals like ammonia in a single stage",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "SolarQuest: Innovate to Capture More Sunlight and Boost Energy",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Development of a non-electrical device for tracking the movement of the sun for movement of the solar panels, increasing their efficiency",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Sustainable Utilization of 100% of Ash from Coal based Thermal Power Plants",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "A web application specifically designed for Indian coal mines to quantify their carbon footprint and explore pathways to carbon neutrality",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Building Integrated Photo-voltaic (BIPV) potential assessment and visualisation using LOD- 1 3D City Model",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Ministry of Mines Design and Implementation of Solar-Powered Dewatering in Mining Operations",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Design/Development of an Efficient Energy Storage System (ESS) to integrate intermittent renewable energy sources and stabilize the grid",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Government of Kerala - Improving the Renewable Energy hosting capacity in Distribution Feeders improving the Power quality of Distribution network during high RE injection",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Student Innovation: Innovative ideas to manage and generate renewable/sustainable energy efficiently",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Develop machine learning models to accurately predict Global Horizontal Irradiance (GHI) across multi-hour prediction windows to reduce solar power intermittency and stabilize grid integration",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Design a digital platform leveraging IoT and edge computing that enables peer-to-peer (P2P) renewable energy trading and load balancing within localized urban microgrids",
+  "source": "",
+  "domain": "Renewable / Sustainable Energy"
+ },
+ {
+  "title": "Ministry of Earth Sciences (MoES) - Blockchain-Based Blue Carbon Registry and MRV System",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Government of Jharkhand - Crowdsourced Civic Issue Reporting and Resolution System",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Government of Punjab - Waste Segregation Monitoring System for Urban Local Bodies",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Grey Water Management (GWM) - Designing low-cost testing kits capable of detecting bacterial, faecal, and microbial contaminants in groundwater",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "GOBARdhan - Simple control systems and/or instrumentation for small biogas plants that will allow better process control leading to effective digestion and improved yield of biogas",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Developing innovative solution for efficient management of waste and conversion to valuable products, Waste to Energy - waste recycling",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Reducing the carbon emissions from thermal plants, developing ways of Carbon capture and utilisation through value added products",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "The technological solutions for capturing AQI values through mobile and other forms of stations",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Downscaling of Satellite based air quality map using AI/ML",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Dashboard for Swachhta and LiFE. Develop a dashboard aimed at maintaining cleanliness and LiFE practices, integrating AI-powered image processing technology for effective monitoring of Swachhta and green practices adopted in post offices",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "A Digital BRSR Platform for India Post Network",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Grey Water Management (GWM) - Implementing low cost technical solutions to mitigate water contamination, especially removal of contaminants, before discharge into rivers and lakes",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Grey Water Management (GWM) - Mechanism for treating grey water and black water together in densely populated areas preferably having low land implication",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "GOBARdhan - Low-cost kits to measure nutrient content of F/L OM",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "GOBARdhan - Low-cost enrichment models for F/L OM (Fermented / Liquid Organic Manure)",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Create a predictive AI model using multi-source satellite imagery (Sentinel, Landsat, INSAT) alongside dynamic weather and terrain data to forecast daily fire risk probability maps and simulate flame spread dynamics up to 12 hours ahead",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Develop a smart platform for urban planners that leverages NASA satellite and environmental data to design sustainable city growth strategies\u2014balancing urban density, microclimate cooling, renewable energy generation (roof solar potential), and urban green spaces",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Ministry of Social Justice & Empowerment (MoSJE) - Real life solutions for Waste Management",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Government of Kerala - GREY WATER MANAGEMENT AND REUSE WET LAND MANAGEMENT WATER CONSERVATION",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Innovating for Sustainability: Smart Resource Conservation (Energy & Water) in Home Appliances (Godrej Appliances)",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Carbon Capture, Utilization & Storage (CCUS) for thermal power plants",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Develop an integrated AI/ML framework that processes INSAT-3D/3DS satellite radiance data alongside ground-based sensor readings to compute real-time surface-level particulate matter maps and forecast urban air quality",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Combine satellite observations (e.g., NASA EMIT, OCO-2) and model-based datasets to map anthropogenic and natural greenhouse gas sources and sinks to enable localized carbon tracking",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Build an interactive audio-visual tool utilizing NASA Earth-observing satellite data to display the complex interactions between climate change, renewable energy potential, wildfires, water stress, and greenhouse gas emissions",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Build an automated system that collects operational logistics data to track, report, and optimize Scope 1, 2, and 3 carbon emissions across global industrial supply chains",
+  "source": "",
+  "domain": "Clean & Green Technology"
+ },
+ {
+  "title": "Image-based Breed Recognition for Cattle and Buffaloes",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Image-based Animal Type Classification",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Digital Farm Biosecurity Management Portal",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Livestock Antibiotic & Residue Monitoring System",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Smart Crop Advisory System",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Intelligent Pesticide Sprinkling System",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "AI-based Crop Recommendation",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "AI-powered Crop Yield Prediction",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-based Agricultural Supply Chain",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Improved Onion Storage Technology",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Smart Agriculture for Hilly Regions",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "AI-powered Personal Farming Assistant",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Gamified Sustainable Farming Platform",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "AI Farmer Query & Advisory Chatbot",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Detection of Medicinal Plants",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Crop Disease Detection",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Smart Farm Mechanization",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Precision Agriculture using IoT & Drones",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Soil Fertility & Water Quality Monitoring",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Smart Pest & Nutrient Monitoring",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Agricultural Supply Chain & Logistics Optimization",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Food Processing & Value Addition",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Waste-to-Wealth in Agriculture",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Smart Warehousing & Storage for Farmers",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Climate-Smart Agriculture Platform. Blockchain",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-Based Botanical Traceability for Ayurvedic Herbs",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Secure Digital Identity Management",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-based Academic Certificate Verification",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-based Land Record Verification",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-based Supply Chain Security",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-enabled Drug Inventory and Supply Chain Tracking System",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-based Carbon Credit Trading Platform",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Decentralized Donation & Grant Tracking Platform using Smart Contracts",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Blockchain-based Agricultural Produce Traceability & Farm-to-Market Transparency",
+  "source": "",
+  "domain": "Agriculture, FoodTech & Rural Development"
+ },
+ {
+  "title": "Get Fit Faster with a High-Tech Tracker: Analyze Human Activity and GPS Data for Improved Results",
+  "source": "",
+  "domain": "Fitness & Sports"
+ },
+ {
+  "title": "AI-based Sports Performance Analysis and Injury Prevention System",
+  "source": "",
+  "domain": "Fitness & Sports"
+ },
+ {
+  "title": "Smart Wearable for Real-time Athlete Health Monitoring",
+  "source": "",
+  "domain": "Fitness & Sports"
+ },
+ {
+  "title": "Gamified Fitness Platform to Promote Physical Activity Among School Students",
+  "source": "",
+  "domain": "Fitness & Sports"
+ },
+ {
+  "title": "IoT-enabled Sports Equipment Performance Analytics System",
+  "source": "",
+  "domain": "Fitness & Sports"
+ },
+ {
+  "title": "Development of Virtual Reality (VR) technology for Dhatuposhana Nyaya",
+  "source": "",
+  "domain": "Heritage & Culture"
+ },
+ {
+  "title": "AI-powered Digital Preservation of Cultural Heritage Monuments",
+  "source": "",
+  "domain": "Heritage & Culture"
+ },
+ {
+  "title": "Interactive AR-based Virtual Museum for Indian Heritage",
+  "source": "",
+  "domain": "Heritage & Culture"
+ },
+ {
+  "title": "Intelligent Heritage Site Visitor Guidance and Navigation System",
+  "source": "",
+  "domain": "Heritage & Culture"
+ },
+ {
+  "title": "AI-based Restoration and Digitization of Ancient Manuscripts and Historical Documents",
+  "source": "",
+  "domain": "Heritage & Culture"
+ },
+ {
+  "title": "Design Educational Toys based on Indian Culture, History, Knowledge and Ethos",
+  "source": "",
+  "domain": "Toys & Games"
+ },
+ {
+  "title": "Develop STEM-based Educational Toys for school students",
+  "source": "",
+  "domain": "Toys & Games"
+ },
+ {
+  "title": "Rediscover and Redesign Traditional Indian Toys using modern, sustainable materials",
+  "source": "",
+  "domain": "Toys & Games"
+ },
+ {
+  "title": "Design Inclusive Toys and Games for Children with Special Needs (Divyang)",
+  "source": "",
+  "domain": "Toys & Games"
+ },
+ {
+  "title": "Develop Strategy, Logic and Skill-based Board Games inspired by Indian Knowledge Systems",
+  "source": "",
+  "domain": "Toys & Games"
+ },
+ {
+  "title": "Smart Community Health Monitoring and Early Warning System for Water-Borne Diseases in Rural Northeast India",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Telemedicine Access for Rural Healthcare in Nabha",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "AyurSutra - Panchakarma Patient Management and Therapy Scheduling Software",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Comprehensive Cloud-Based Practice Management & Nutrient Analysis Software for Ayurvedic Dietitians, Tailored for Ayurveda-Focused Diet Plans",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "E-Tongue for Dravya Identification",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Develop API code to integrate NAMASTE and/or the International Classification of Diseases (ICD-11) via the Traditional Medicine Module 2 (TM2) into existing EMR systems that comply with Electronic Health Record (EHR) Standards for India",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Identifying Taxonomy and Assessing Biodiversity from eDNA Datasets",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "AI-Driven Public Health Chatbot for Disease Awareness",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Digital Health Record Management System for Migrant Workers in Kerala aligned with Sustainable Development Goals",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development of a Digital Mental Health and Psychological Support System for Students in Higher Education",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Virtual Reality (VR) for Patient Rehabilitation",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "AI-Based Speech Language Therapy Platform",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development of an Alternative Technology to Check Blockage of Blood Vessels (an Alternative to Conventional Angiography)",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Online Testing and Monitoring of Quality of Medicines and Consumables",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Drug Inventory and Supply Chain Tracking System",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "A Comprehensive AYUSH Startup Registration Portal to Streamline the Registration Process for Startups in the AYUSH Sector",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development of Portable Device (Non-Contact Device) for Measurement of Eye Pressure in Glaucoma Patients for Usage at Home",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Create a Virtual Herbal Garden that Provides an Interactive, Educational, and Immersive Experience Showcasing Medicinal Plants Used in AYUSH",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Develop a Smart Yoga Mat Integrated with Artificial Intelligence (AI) Capabilities to Support Smart Watch Integration for Tracking Progress and Provide Curated Yoga Content",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development of Cost Effective Myoelectric Prosthesis",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Queuing Models in OPDs / Availability of Beds / Admission of Patients with City-Wide Integration",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Software for Speech Language Therapy Clinical Services",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "A Software that Suggests Drugs and Formulations for a Disease/Pharmacological Property Based on Ayurvedic Classical Books/Repositories",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Optimizing Doctor Availability and Appointment Allocation in Hospitals through Digital Technology and AI Integration",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Ear Electronic Device for Tinnitus Frequency Finding and Adjusting to Provide Relief to Tinnitus Suffering Patients",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Active Prosthetic Ankle and Adaptive Equipment for Bike Riding in Lower Limb Amputees",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Low Cost Myoelectric Prosthetic Arm. Robotics & Drones",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "There is a need to design drones and robots that can solve some of the pressing challenges of India, such as handling medical emergencies, search and rescue operations, etc",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Drone-based Intelligent ET sensing system and irrigation water use accounting system for irrigation commands",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Research and develop a design for an autonomous water surface cleaning robot",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Micro-Doppler-based Target Classification",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Online monitoring of Unauthorized construction across the city",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Utilization of aerial/ drone-based images for monitoring of progress of construction \u25cf \u25cf \u25cf activities for building construction projects",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Drone-Based Intelligent System for Apple Orchard Management in Himachal Pradesh",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Gamification for Rural Planning using Drone land survey maps and GIS data",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development and Optimization of an AI model for Feature identification/ Extraction from drone orthophotos",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Students to use any 3D designing software to research and develop a design on \"Smart Glass Cleaning Robot\", which can climb, clean, and carry liquid cleaners",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Drone-based surveillance system for the vessels plying in port areas and encroachments",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Developing a system for Patient Care in the Health Sector",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Robotics for inspection of abrasion/corrosion of underwater equipment/parts and further repair and maintenance",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "AI-based automatic alarm generation and dropping of payload at a particular object through a Drone",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Disaster Response Drone for Remote Areas",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Landslide monitoring through drones",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Delivery of Essential Medicines by Drones in Hilly areas",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Design and Development of working prototype of Helicopter Turbo-propellers",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Remotely Operated Vehicle (ROV) for inspection of the HRT (Head Race Tunnels) in Hydroelectric Plant",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "There is a need to design drones and robots that can solve some of the pressing challenges of India, such as handling medical emergencies and search and rescue operations",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Intelligent Scanning System (Non invasive, quick and cost effective way of checking of parcels in parcel offices (both booked by railway and leaseholders)",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Robotic Arm for inspection, cleaning and painting of tanks on ships to save on time, cost and avoid accidents",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Last-mile delivery in a multi-storey building of a society",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Artificial intelligence-enabled robotic trash boat to drive & harvest floating trash from urban drain",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Firefighting through high resistance robots",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development of AI, ML and Chat boat-powered Interactive Robot Mascot (Chacha Chaudhary) and digital avatar to strengthen the river people connect component of Namami Gange",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Measurement of Coastal topography and marking the high and low tide lines using drones",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Pattern recognition algorithm to identify marine animals",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Insufficient medical support system and remote villages in hill areas",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Development of advanced drone neutralisation methodologies for urban and densely populated environments, ensuring suppression without interference to local radio communications or sensitive electronic infrastructure within a defined proximity",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "AI based interactive robot for elderly care",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "To build robots for all kinds of dedicated tasks such as cleaning shoes, planting crops, cleaning windows, etc",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Artificial intelligence enabled robotic trash boat to drive & harvest floating trash from urban drain",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Design of drones and robots capable of addressing some of India's urgent problems including handling medical crises, rescue and search operations, etc. is much needed",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Design a self-contained water surface cleaning robot with high efficiency capable of environmental protection free from human involvement. Lightweight, flexible, and enhanced using Industry 4.0 technologies including IoT and artificial intelligence the robot should be",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Ponds, Lakes, Rivers are often polluted by floating debris such as plastic, water Hyacinth, algae build-up etc. Manual cleaning is difficult, unsafe and inefficient. Thus there is a need for an autonomous Underwater Robot capable of detecting and collecting waste materials and improving water quality thus ultimately increases the oxygen levels for acquatic animals",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Any person in distress or in an emergency help should communicate to central control unit for the activation of drone which tracks the location of distress person's location and identifies the problems such as road blockage due to land slides, suffering due to heart attacking, and life threat situation using high quality camera even in the dark conditions and sends the signal to control unit to take nesessary action",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Lonely elder people cannot go for buying for groceries, medicine from shops and vegetables from nearby market places. A robot with navigation ability to identify the shop location and purchases the required items based on the list of items specified. The billed amount and UPI details have to send to owner to pay the amount and have to come back safely climbing steps if necessary",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Manual sorting and packing in warehouses are time-consuming, labor-intensive, and prone to errors, leading to high operational costs and reduced efficiency. There is a need for an intelligent, collaborative robotic system capable of performing flexible, automated sorting and packing to improve productivity and cost effectiveness",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Traditional drone frames are often bulky and non-modular, leading to reduced flight time, limited payload capacity, and increased maintenance complexity. There is a critical need to design a lightweight, modular drone frame that enhances endurance, flexibility, and structural integrity. The proposed solution aims to develop a 3D-modeled frame using optimized materials and geometry, supported by relevant load and stress analysis to ensure stability and reliability during flight operations",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Intelligent Hospital Assistance Robot",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "Autonomous Drone-Based Infrastructure Inspection System",
+  "source": "",
+  "domain": "MedTech / BioTech / HealthTech"
+ },
+ {
+  "title": "AI-powered energy management system for industrial and commercial facilities to dynamically optimize energy consumption",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Automated public lighting infrastructure that regulates illumination based on real-time environmental data and traffic patterns",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Autodesk Fusion 360 solution to research, design, and generate precise NC codes, machine specs, and tool libraries",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Solution to detect, monitor, and reduce Aggregate Technical and Commercial (AT&C) losses caused by electricity theft",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Automated mechanisms and robotics to eliminate hazardous manual cleaning of sewers and septic tanks",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Independent student-led hardware innovations focusing on breakthrough concepts in smart automation",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Centralized monitoring system for real-time street light fault detection, diagnostics, and location tracking",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Independent student-led software innovations focusing on breakthrough concepts in smart automation",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Deep learning technologies to address marine engineering challenges and enhance vessel operational efficiency",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Intelligent, real-time management system for optimized street parking utilization and monitoring",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "AI-driven platform simplifying the lodging and tracking of citizen grievances across municipal departments",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Natural language translation engine for seamless station announcements and information dissemination",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "AI-driven solution for accurate digitization and management of cadastral maps",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Digital monitoring system for diesel generators to track performance, fuel usage, and operational status",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "AI/ML integration with existing CCTV networks for crowd management, crime prevention, and work progress monitoring",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Contact center knowledge management tool integrated with interactive decision trees for customer support",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Comparative pricing tool to analyze Government e-Marketplace (GeM) products against e- commerce platforms",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Annual report portal for institutes to integrate and customize departmental reports",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Real-time tracking system to monitor ongoing infrastructure development projects",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Live digital twins for power projects, integrating construction, operation, and maintenance data into a unified platform",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Software to monitor and analyze citizen behavioral changes toward sustainability",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Digital locator tool to map and find certified e-waste recycling facilities",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Tracking application to monitor daily water and electricity consumption patterns",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Chatbot-based helpdesk to streamline support for government employees and departments",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Digital Assistant for Legal Awareness and designing a KYC framework in India",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "AI/ML/Chatbot-powered Interactive Robot Mascot (Chacha Chaudhary) and digital avatar for Namami Gange",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Intelligent chatbot to answer queries regarding Maintenance Processes within Substations",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Integrated Geo-referenced fish catch data repository and access system",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "ML model-based solution to refine CAPTCHA",
+  "source": "",
+  "domain": "Smart Automation"
+ },
+ {
+  "title": "Secure, proctored examination tool to screen and shortlist candidates for hackathons",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Gamified platform on Children's Rights to increase legal literacy and awareness among children in India",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "System to ideate and implement solutions for enhancing the quality of education in rural areas",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Interactive job and internship platform for the Technical Education department",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Online integrated platform for projects taken up by students across various universities/colleges",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Interactive gaming software/mobile app on Intellectual Property Awareness for school students",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Translation software for resource material and educational texts from English to Indian regional languages",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "AI-based IT training system",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Online personalized learning remediation/tutoring tool with teacher-matching for specific topics",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Identification tool for slow learners to enable remedial teaching and capacity building",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Mental health and well-being surveillance, assessment, and tracking solution for children",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Portal for tracking and evaluating Innovation Excellence Indicators",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Accessible AI-based career counseling, aptitude tests, and detailed career pathing at the secondary school level",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Education ecosystem for specially-abled students to manage compliance, governance, and conduct",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Blended Learning framework to overcome inadequate physical educational infrastructure",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Capacity building, performance assessment, and motivation-driven tool for faculty upgradation",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "Analytics tool for student dropout analysis in school education",
+  "source": "",
+  "domain": "Smart Education"
+ },
+ {
+  "title": "DVB-S2 Satellite Stream Analysis & Content Extraction Platform",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "AI-Enabled DNS Filtering for Space Networks Security",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Quantum-Secure Email Client Integrated with QKD Services",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Bluetooth-Based UT-to-UT Multimedia Communication App",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Explainable AI for Heavy Rainfall Prediction Using INSAT Data",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "NTRIP-Based RTK Correction Server & Client Application",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Super-Resolution Hazard Mapping for Lunar Lander Navigation",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "AI-Based Human Activity Change Detection from Satellite Imagery",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Place-Name Extraction & Canonical Mapping for Geospatial Queries",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Automatic SAR Change Detection for Man-Made Activities",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Automated Road Extraction & New Road Alert System",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Deep-Learning Colorization of SAR Imagery",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Low-Light Enhancement of Lunar Permanently Shadowed Regions",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Cloud-Optimized GeoTIFF Streaming for INSAT Satellite Data",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Oil Spill Detection Using AIS and Satellite Data",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "AI/ML-Based Downscaling of Satellite Air Quality Maps",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "On-Device Semantic Segmentation of WMS Geospatial Layers",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "AI-Based Frame Interpolation and Video Generation for WMS Data",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Automatic Modulation Recognition for DVB-S2X Satellite Waveforms",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "BIPV Potential Assessment Using LOD-1 3D City Models",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Cyclone Intensity Estimation Using INSAT-3D IR Imagery",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Pseudo-Height Assignment & 3D Web Visualization of Cloud Fields",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Augmented-Reality Weather Forecast Visualization",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Monument & Landmark Identification with Explainable AI",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "LunaBot \u2013 Autonomous Navigation for Lunar Habitat Robots",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Optical-Guided Super-Resolution for Thermal IR Imagery",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Short-Term Forecast of Ground-Level O3 and NO2",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "AI/ML Error Pattern Prediction for Navigation Satellite Data",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Multi-Modal Space Weather Visualization Platform",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "UAV-Assisted Data Relay for Remote Satellite Ground Campaigns",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Edge-AI Platform for Onboard Anomaly Detection in EO Satellites",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Integrated Digital Twin for Spaceport Ground Operations",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "AI-Driven Collision Risk Assessment for Mega-Constellation Satellites",
+  "source": "",
+  "domain": "Space Technology"
+ },
+ {
+  "title": "Real-Time Public Bus Tracking & Emission-Aware Information System",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Smart Vehicle Innovation \u2013 Intelligent Mobility Software Solutions",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Smart Vehicle Innovation \u2013 Intelligent Hardware Systems",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "IoT-Based Tyre Maintenance & Operation System for Dumpers",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "AI-ML Map-Matching to Distinguish Highway vs Service Road Traffic",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "AI-Based Adaptive Traffic Signal Management System",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Intelligent Transport & Logistics Optimization Concepts",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Drone-Based Road Construction Progress Monitoring",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Safe Autonomous Road Navigation Using Low-Cost Smartphone Sensors",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Smart Lane Change Assistance for Connected Vehicles",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Intelligent Fleet Management System for Electric Public Buses",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Smart Vehicle-to-Infrastructure System for Dynamic Safety Alerts",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "AI-Based Driver Behavior Analytics for Commercial Fleets",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Satellite-Aided Dynamic Route Planning for Long-Haul Freight",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Smart Parking & Charging Coordination for Autonomous EV Shuttles",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Satellite-Based Rainfall Nowcasting for Highway Safety Management",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Edge-AI Wildlife Crossing Detection for High-Speed Corridors",
+  "source": "",
+  "domain": "Smart Vehicles"
+ },
+ {
+  "title": "Cost-effective solution for detecting breakage of Low Voltage AC Distribution Overhead Conductors",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Software solution to detect and turn off LT lines when line breaks",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Earthquake Stabilised Dialysis System for Patient Safety During Seismic Events",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Downscaling of Satellite-Based Air Quality Map using AI/ML",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "AI-Based Rockfall Prediction and Alert System for Open-Pit Mines",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Software other than a circuit breaker that can be used to detect and turn off LT lines when the line breaks",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Cyclone Vision \u2013 AI-based cyclone monitoring and impact assessment",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "GeoHub \u2013 Geospatial platform for disaster information and decision support",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "High-resolution 3D model of terrain, infrastructure and roads in disaster-struck areas",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Weather Forecast and its Visualization using Augmented Reality (AR): Mobile Application (SS589)",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Short-Term Forecast of Gaseous Air Pollutants Using Satellite and Reanalysis Data",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Solar Flare Forecasting",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Optimizing Urban Heat Mitigation and Cooling Strategies via AI/ML",
+  "source": "",
+  "domain": "Disaster Management"
+ },
+ {
+  "title": "Smart Tourist Safety Monitoring & Incident Response System using AI, Geo-Fencing and Blockchain-based Digital ID",
+  "source": "",
+  "domain": "Travel & Tourism"
+ },
+ {
+  "title": "Digitize and Showcase Monasteries of Sikkim for Tourism and Cultural Preservation",
+  "source": "",
+  "domain": "Travel & Tourism"
+ },
+ {
+  "title": "Development of a travel-related mobile application to capture trip-related information. \u25cf PS- 04: Development of a Smart Digital Platform to Promote Eco & Cultural Tourism in Jharkhand",
+  "source": "",
+  "domain": "Travel & Tourism"
+ },
+ {
+  "title": "Identify monuments from satellite images using Deep Learning (Explainable AI)",
+  "source": "",
+  "domain": "Travel & Tourism"
+ },
+ {
+  "title": "Identification of Monuments from Satellite Images using Deep Learning & Explainable AI (SS588)",
+  "source": "",
+  "domain": "Travel & Tourism"
+ },
+ {
+  "title": "Identification of Place Names from Natural Language Sentence. Transportation &",
+  "source": "",
+  "domain": "Travel & Tourism"
+ },
+ {
+  "title": "Dynamic Inspector Routing",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Holiday-Aware Relief Train Planning",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Automated Rail Network Layout",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Rail Simulation Optimizer",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Unified Locomotive Database",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Smart Night Train Assistant",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Open Cross-Border Mobility Platform",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI Indoor Navigation for Stations & Terminals",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Railway Incident Information System",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Digital Taxi Voucher System",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Smart Station Information Display",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Station Data Platform",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Gamified Route Allocation",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Railway Congestion Prediction",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI-Based Acoustic Wave Monitoring of Rail Defects",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Development of a Versatile and Fast Algorithm for Optimal Ship Routing",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Enhancing Navigation for Railway Station Facilities and Locations",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Road Transport Network Telematics",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI-Powered Delivery Post Office Identification System",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Dynamic Mail Transmission Solution Using Best Connectivity Across Modes",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI & IoT-Based EV Battery Health and Range Prediction",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Smart EV Charging Station Locator and Slot Booking System",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Multimodal Commuter Mobility in Cities",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Multi-modal Freight Handling and Transportation. Miscellaneous",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Railway Rule Navigator",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI Contract Analysis",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Predictive Energy Analytics",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Software Configuration Management",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Digital Solution for Citizens\u2019 Charter Compliance Monitoring",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "India Post: A Bridge for Indian Diaspora",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI-Powered Cloud Cost Optimization & Resource Intelligence Platform",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI-Driven IT Operations Resilience & Incident Intelligence Platform",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Autonomous Financial Crime Investigation Agent",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Autonomous Farm-to-Field Advisory & Action Orchestration Agents",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Multilingual Voice Copilot & Trusted Farm Input Recommendation",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "A Vision-Based Autonomous System for Smart Farming",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Crop Shift Mitigation App for Oilseed Farming",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Real-Time Groundwater Resource Evaluation",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Solutions for Electric Revolution",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Image-Based Breed Recognition for Indian Cattle & Buffaloes",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Political Performance Evaluation System",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Automated Early Detection of Crop Diseases & Pests in Agricultural Fields Using Drone Imagery",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "SmartAg Ops Advisor: AI Market & Risk Intelligence",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Autonomous Satellite Mission Ops & Anomaly Response",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Audio Language Model (ALM): Listen, Think & Understand",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "AI/ML-Based Prediction of GNSS Satellite Errors",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "LunaBot: Autonomous Navigation for Lunar Habitats",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Autonomous AI Drone Swarm for Search & Rescue",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Indigenous Modular Turbojet Engine for Defence UAVs",
+  "source": "",
+  "domain": "Logistics"
+ },
+ {
+  "title": "Development of innovative flushing systems for western toilets in public places",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Development of a suction-based low-water flush system for rural sanitation",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "GOBARdhan hardware solutions for waste management",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Health monitoring system for earthing infrastructure",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Smart construction site safety helmet with real-time worker tracking and hazard alerts",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Smart pothole detection and autonomous road repair mechanism for urban roads",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Portable flood barrier system for rapid deployment in urban flood-prone areas",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Autonomous crack inspection robot for bridges, flyovers, dams, and tunnels",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Smart stormwater drainage system with automatic blockage detection and debris removal",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Intelligent dust suppression system for construction sites based on air-quality monitoring",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Autonomous drone-assisted inspection and digital twin generation for high-rise building facades",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Portable road roughness and pavement condition assessment device for municipal authorities",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Automatic regulation of valves for water release based on soil moisture in piped irrigation",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Automatic opening of reservoir gates based on rainfall and soil moisture inflow estimation",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Monitoring through AI-based Remote Access Vehicle",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Drone-based surveillance system for vessels plying in port areas and encroachments",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "IoT device system to prevent under-loading/overloading of railway wagons",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Development of a telematic control unit for capturing vital vehicle data",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Development of a Smart Toilet",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Visibility enhancement hardware/system for operating heavy earth-moving machinery during heavy rains",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Autonomous haulage system for mine dumpers in the absence of operators",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Condition monitoring system to predict wear and tear of cable belt conveyor ropes and belts",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Development of a small-scale wind energy device",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "One-stop monitoring system for dairy plant energy consumption, hygiene, and packaging waste collection",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Robotics for inspection and repair of abrasion/corrosion in underwater equipment",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Development of technology for manufacturing a mind-controlled BIONIC hand with a sense of touch",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Mechanical/Robotic solution for uncontrolled growth and harvesting of water hyacinth in lakes",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Low-cost Myoelectric Prosthetic Arm",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Low-cost desalination technology unit for island and inland saline water",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Robotic device for borewell rescue operations",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Smart glass cleaning robot capable of climbing, cleaning, and carrying fluid",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Mechanical alignment and stabilization system to prevent frequent dislodgement of belt conveyors in hilly terrains",
+  "source": "",
+  "domain": "Problem Statements Related to Mechanical (Hardware)"
+ },
+ {
+  "title": "Grey Water Management (GWM) infrastructure",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Personalized testing kits for residual chlorine, silver ions, and bacteriological contamination in drinking water",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Drone-based intelligent ET sensing and irrigation water accounting system",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Pressure transducer-based equipment with well cap for head measurement in autoflow wells",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Sustainable utilization of 100% fly ash generated from thermal power plants in construction",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Waste-to-energy and waste recycling solutions for urban civil infrastructure",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Carbon Capture, Utilization, and Storage (CCUS) based value-added building products",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Condition-based monitoring and predictive maintenance system for civil infrastructure",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "AI-based early warning system for landslides using geotechnical sensors and weather data",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Development of self-healing concrete using bacteria or encapsulated healing agents",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "IoT-enabled bridge expansion joint monitoring system for preventive maintenance",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Low-cost modular housing system using recycled construction waste",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Real-time groundwater recharge monitoring system using IoT and remote sensing",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "AI-powered building energy efficiency assessment and retrofit recommendation platform",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Developing an AI-powered energy management system for industrial/commercial facilities",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Automated public lighting infrastructure",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Developing a system for patient care infrastructure in the health sector",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Cost-effective methods to make water sources for piped drinking water supply sustainable in rural areas. Problem Statements On Themes Of Viksit Bharat 2047 \u25cf AI, Data Science & Intelligent Automation: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "AI-Based Citizen Grievance Classification System. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "AI-Based Smart Waste Management System. \u25cf Smart Mobility, EVs & Logistics: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "EV Battery Health Monitoring & Range Prediction System Using AI & IoT. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "EV Charging Station Locator & Slot Booking System. \u25cf Agriculture, FoodTech & Rural Innovation: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Direct Farmer-to-Consumer Digital Marketplace Platform. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "AI-Based Precision Agriculture System. \u25cf Mobile & Next-Gen App Innovation: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Digital Minimalism & Screen Time Optimizer. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Social Commerce Platform for Local Sellers & Community Engagement. \u25cf Cybersecurity, Blockchain & Digital Trust: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Smart Traceability System for Food & Retail Supply Chains. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "A decentralized Web 3.0-based document authentication system. \u25cf Robotics, Drones & Industry 5.0: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Intelligent Hospital Assistance Robot. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Autonomous Drone-Based Infrastructure Inspection System. \u25cf Smart Cities & Urban Innovation and Disaster Management: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "IoT-enabled Water Leakage & Theft Detection System. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Intelligent Safe-Route Navigation System for Women & Vulnerable Groups. \u25cf Healthcare, BioTech and Digital HealthCare: \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Intelligent Medication Adherence & Monitoring System. \u25cb",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Emergency Health Monitoring Wearable",
+  "source": "",
+  "domain": "Problem Statements Related To Civil"
+ },
+ {
+  "title": "Low-Cost Smart Transportation Solution for Agricultural Produce from Remote Farms to the Nearest Motorable Road in the North Eastern Region",
+  "source": "Smart India Hackathon (Ministry of",
+  "domain": "Goals (SDGs)"
+ },
+ {
+  "title": "Develop an AI/ML-Driven System for Topic Clustering/Modelling to Enable Auto-Categorisation of Citizen Grievances and Monitoring of Their Resolution. Online Hackathon 2024",
+  "source": "DARPG",
+  "domain": "Development of North Eastern Region)"
+ },
+ {
+  "title": "Develop an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens File Grievances Through the CPGRAMS Portal",
+  "source": "DARPG Online Hackathon 2024",
+  "domain": "Development of North Eastern Region)"
+ },
+ {
+  "title": "Evaluate and Optimize an Open-Source Speech-to-Text Tool for Converting Citizen Grievance Feedback Calls into English Text. SDG 2 \u2013 Zero Hunger",
+  "source": "DARPG Online Hackathon 2024",
+  "domain": "Development of North Eastern Region)"
+ },
+ {
+  "title": "Image-based Breed Recognition for Cattle and Buffaloes of India",
+  "source": "SIH 2025 \u2013",
+  "domain": "Development of North Eastern Region)"
+ },
+ {
+  "title": "Image-based Animal Type Classification for Cattle and Buffaloes",
+  "source": "SIH 2025 \u2013",
+  "domain": "Ministry of Fisheries, Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Development of a Digital Farm Management Portal for Implementing Biosecurity Measures in Pig and Poultry Farms",
+  "source": "SIH 2025 \u2013 Ministry of Fisheries, Animal Husbandry &",
+  "domain": "Ministry of Fisheries, Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Development of a Digital Farm Management Portal for Monitoring Maximum Residue Limits (MRL) and Antimicrobial Usage (AMU) in Livestock",
+  "source": "SIH 2025 \u2013 Ministry of",
+  "domain": "Dairying"
+ },
+ {
+  "title": "Smart Crop Advisory System for Small and Marginal Farmers",
+  "source": "SIH 2025 \u2013",
+  "domain": "Fisheries, Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life",
+  "source": "SIH 2025 \u2013",
+  "domain": "Government of Punjab"
+ },
+ {
+  "title": "Development of Affordable Technologies for Temperature and Humidity Control in Onion Storage Structures",
+  "source": "SIH 2025 \u2013 Department of Consumer Affairs",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "Enhancing Farmer Productivity through Innovative Technology Solutions. \u2013 AICTE Student Innovation Theme",
+  "source": "SIH 2025",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "AI-Powered Monitoring of Crop Health, Soil Condition, and Pest Risks Using Sensor and Imaging Data",
+  "source": "SIH 2025 \u2013 AICTE Student Innovation Theme",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "AI-Powered Crop Yield Prediction and Optimization",
+  "source": "SIH 2025 \u2013 AICTE",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "Rapid Colorimetric and AI-Based Methods for Determining the Microbial Quality of Raw Milk, Processed Milk and Milk Products",
+  "source": "SIH \u2013 Ministry of Fisheries, Animal",
+  "domain": "Region"
+ },
+ {
+  "title": "AI-Based Detection of Blood Vessel Blockages from Medical Images",
+  "source": "SIH \u2013",
+  "domain": "Husbandry & Dairying"
+ },
+ {
+  "title": "Smart Eye Pressure Monitoring Device for Glaucoma Detection",
+  "source": "SIH \u2013 MedTech",
+  "domain": "Ministry/MedTech Challenge"
+ },
+ {
+  "title": "AI-Based Speech Therapy Platform",
+  "source": "SIH \u2013 HealthTech Challenge",
+  "domain": "Challenge"
+ },
+ {
+  "title": "Wearable AI System for Fall Detection and Prevention in Elderly Patients",
+  "source": "SIH \u2013",
+  "domain": "Challenge"
+ },
+ {
+  "title": "Capacity Building, Performance Assessment and Motivation-Driven Tool for Faculty Upgradation",
+  "source": "Smart India Hackathon \u2013 AICTE",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Automated Student Attendance Monitoring and Analytics System for Colleges",
+  "source": "Smart India Hackathon 2025 \u2013 Government of Punjab",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Digital Platform for Centralized Alumni Data Management and Engagement",
+  "source": "Smart India Hackathon 2025 \u2013 Government of Punjab",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Digital Learning Platform for Rural School Students in Nabha",
+  "source": "Smart India Hackathon 2025 \u2013 Government of Punjab",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Smart Classroom & Timetable Scheduler",
+  "source": "Smart India",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Authenticity Validator for Academia",
+  "source": "Smart India",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "AI-Based Timetable Generation System Aligned with NEP 2020 for Multidisciplinary Education Structures",
+  "source": "Smart India Hackathon 2025 \u2013 Government of",
+  "domain": "Ideathon"
+ },
+ {
+  "title": "Centralised Digital Platform for Comprehensive Student Activity Record in HEIs",
+  "source": "Smart India Hackathon 2025 \u2013 Government of Jammu & Kashmir",
+  "domain": "Jammu & Kashmir"
+ },
+ {
+  "title": "One-Stop Personalized Career & Education Advisor",
+  "source": "Smart",
+  "domain": "Jammu & Kashmir"
+ },
+ {
+  "title": "Women Safety Analytics \u2013 Protecting Women from Safety Threats. Hackathon 2024",
+  "source": "Smart India",
+  "domain": "Jammu & Kashmir"
+ },
+ {
+  "title": "Women Safety",
+  "source": "KAVACH 2023 \u2013 Official Problem Statement Bucket",
+  "domain": "Jammu & Kashmir"
+ },
+ {
+  "title": "Address Technology-Facilitated Gender-Based Violence (TFGBV) through Designing or Modification of Existing Solutions on Awareness, Prevention, Detection and Reporting. UNFPA India \u2013 Crack the Code Hackathon",
+  "source": "",
+  "domain": "Jammu & Kashmir"
+ },
+ {
+  "title": "Enhance Awareness About Available Services and Facilitate Anonymous, Safe and",
+  "source": "",
+  "domain": "Jammu & Kashmir"
+ },
+ {
+  "title": "Address Key Knowledge Gaps and Enable Access to Services for Persons with Disabilities Experiencing Gender-Based Violence",
+  "source": "UNFPA India \u2013 Crack the Code",
+  "domain": "Timely Access to Services for Gender-Based Violence Survivors and Those at Risk in"
+ },
+ {
+  "title": "Grey Water Management (GWM): Designing Low-Cost Testing Kits Capable of Detecting Bacterial, Faecal and Microbial Contaminants in Groundwater. Hackathon \u2013 Ministry of Jal Shakti",
+  "source": "Smart India",
+  "domain": "Hackathon"
+ },
+ {
+  "title": "Water Resource Management and Conservation Using Digital Technologies (Student Innovation Theme)",
+  "source": "Smart India Hackathon \u2013 Student Innovation Category",
+  "domain": "Hackathon"
+ },
+ {
+  "title": "Water Conservation and Management",
+  "source": "Toycathon / National Student Innovation",
+  "domain": "Hackathon"
+ },
+ {
+  "title": "Smart Solutions for Wastewater Treatment and Reuse",
+  "source": "Smart India Hackathon \u2013",
+  "domain": "Theme"
+ },
+ {
+  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. Smart India Hackathon 2024 \u2013 Ministry of New & Renewable Energy",
+  "source": "",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "Design/Development of an Efficient Energy Storage System (ESS) to Integrate Intermittent Renewable Energy Sources and Support/Stabilize the Grid. Hackathon 2024 \u2013 Ministry of New & Renewable Energy",
+  "source": "Smart India",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "Reducing Carbon Emissions from Thermal Plants Through Carbon Capture and Utilisation into Value-Added Products",
+  "source": "Smart India Hackathon 2024 \u2013 Ministry of Coal",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "SolarQuest: Innovate to Capture More Sunlight and Boost Energy. \u25cf Hackathon 2024",
+  "source": "Smart India",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "Improving the Renewable Energy Hosting Capacity in Distribution Feeders While",
+  "source": "",
+  "domain": "Student Innovation Category"
+ },
+ {
+  "title": "AI-Driven Unified Data Platform for Oceanographic, Fisheries and Molecular Biodiversity Insights. SDG 8 \u2013 Decent Work and Economic Growth",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of Earth Sciences",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013 Department of Consumer Affairs",
+  "source": "Smart",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of a Digital Farm Management Portal for Monitoring Maximum Residue Limits (MRL) and Antimicrobial Usage (AMU) in Livestock. 2025 \u2013 Ministry of Fisheries, Animal Husbandry & Dairying SDG 9 \u2013 Industry, Innovation and Infrastructure",
+  "source": "Smart India Hackathon",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Build a Detailed Concept for an Industrial-Scale Green Hydrogen (>50 TPD) Production Facility with a Levelized Cost of Hydrogen (LCOH) Below USD 2/kg. 2024 \u2013 Ministry of New & Renewable Energy",
+  "source": "SIH",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Design/Development of an Efficient Energy Storage System (ESS) to Integrate Intermittent Renewable Energy Sources and Support/Stabilize the Grid",
+  "source": "SIH 2024 \u2013",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Reducing Carbon Emissions from Thermal Plants Through Carbon Capture and Utilisation into Value-Added Products. SDG 10 \u2013 Reduced Inequalities",
+  "source": "SIH 2024 \u2013 Ministry of Coal",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens File \u25cf Grievances Through the CPGRAMS Portal",
+  "source": "DARPG Online Hackathon 2024",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of an AI/ML-Driven System for Topic Clustering/Modelling to Enable Auto- Categorisation of Citizen Grievances and Monitoring of Their Resolution. Hackathon 2024",
+  "source": "DARPG Online",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "AI-Based Indian Sign Language (ISL) Translation and Communication System for Persons with Hearing Impairment. of Persons with Disabilities",
+  "source": "Smart India Hackathon \u2013 Department of Empowerment",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Accessible Navigation System for Visually Impaired Persons Using AI and Computer Vision",
+  "source": "Smart India Hackathon \u2013 Department of Empowerment of Persons with Disabilities",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of an Inclusive Digital Platform for Persons with Disabilities to Access Government Services. with Disabilities",
+  "source": "Smart India Hackathon \u2013 Department of Empowerment of Persons",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "AI-Based Real-Time Captioning and Accessibility Solution for Public Services. Smart India Hackathon \u2013 Department of Empowerment of Persons with Disabilities",
+  "source": "",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Smart Assistive Technology Solution for Independent Living of Persons with Disabilities",
+  "source": "Smart India Hackathon \u2013 Department of Empowerment of Persons with",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of Accessible Digital Learning Resources for Persons with Disabilities. 11 \u2013 Sustainable Cities and Communities",
+  "source": "Smart India Hackathon \u2013 Department of Empowerment of Persons with Disabilities SDG",
+  "domain": "Disabilities"
+ },
+ {
+  "title": "Grey Water Management (GWM): Designing Low-Cost Testing Kits Capable of Detecting Bacterial, Faecal and Microbial Contaminants in Groundwater",
+  "source": "SIH \u2013 Ministry of",
+  "domain": "Development of North Eastern Region"
+ },
+ {
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions",
+  "source": "SIH 2025 \u2013",
+  "domain": "Jal Shakti"
+ },
+ {
+  "title": "Improved Onion Storage Technology for Enhanced Shelf Life of Onions. India Hackathon 2025 \u2013 Ministry of Consumer Affairs, Food & Public Distribution",
+  "source": "Smart",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "Affordable Technologies for Temperature and Humidity Control in Onion Storage Structures to Reduce Post-Harvest Losses",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of",
+  "domain": "Department of Consumer Affairs"
+ },
+ {
+  "title": "Provide an Eco-Friendly, Economically Viable and Scalable Solution to Banned Thin Plastic Carry Bags (Less than 120 \u03bcm Thickness). Nation, One Mission: End Plastic Pollution",
+  "source": "CPCB National Hackathon 2025 \u2013 One",
+  "domain": "Consumer Affairs, Food & Public Distribution"
+ },
+ {
+  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items. CPCB National Hackathon 2025 \u2013 One Nation, One Mission: End Plastic Pollution SDG 13 \u2013 Climate Action",
+  "source": "",
+  "domain": "Consumer Affairs, Food & Public Distribution"
+ },
+ {
+  "title": "Provide an Eco-Friendly, Economically Viable and Scalable Solution to Banned Thin Plastic Carry Bags (Less than 120 \u03bcm Thickness)",
+  "source": "CPCB National Hackathon 2025",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Develop Eco-Friendly Alternatives to Banned Single-Use Plastic (SUP) Items. CPCB National Hackathon 2025 SDG 14 \u2013 Life Below Water",
+  "source": "",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "AI-Driven Unified Data Platform for Oceanographic, Fisheries and Molecular Biodiversity Insights",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of Earth Sciences",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Image-based Breed Recognition for Cattle and Buffaloes of India (supports sustainable fisheries & animal resource management themes through the Ministry, but primarily terrestrial\u2014 omit if you want a strict marine-only repository). 2025 \u2013 Ministry of Fisheries, Animal Husbandry & Dairying",
+  "source": "Smart India Hackathon",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "Development of a Digital Farm Management Portal for Implementing Biosecurity Measures in Aquaculture/Fisheries",
+  "source": "Smart India Hackathon 2025 \u2013 Ministry of Fisheries,",
+  "domain": "Improving the Power Quality of the Distribution Network During High Renewable Energy"
+ },
+ {
+  "title": "AI-Based Solution for Marine Litter and Plastic Pollution Monitoring Using Remote Sensing Data. SDG 15 \u2013 Life on Land",
+  "source": "ISRO Bharatiya Antariksh Hackathon (Geospatial/Marine Applications)",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Identifying Taxonomy and Assessing Biodiversity from eDNA Datasets. India Hackathon 2025 \u2013 Ministry of Earth Sciences (PS: SIH25042)",
+  "source": "Smart",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "AI-Powered FRA Atlas and WebGIS-Based Decision Support System for Monitoring",
+  "source": "",
+  "domain": "Animal Husbandry & Dairying"
+ },
+ {
+  "title": "Human\u2013Wildlife Coexistence: National Hackathon Problem Statements",
+  "source": "Wildlife",
+  "domain": "Individual Forest Rights (IFR), Community Rights (CR) and Community Forest Resource"
+ },
+ {
+  "title": "Develop an AI/ML-Driven System for Topic Clustering/Modelling to Enable",
+  "source": "",
+  "domain": "Institute of India, Ministry of Environment, Forest & Climate Change"
+ },
+ {
+  "title": "Develop an AI/ML-Driven Ministry-Specific Chatbot to Help Citizens Resolve Queries Related to Filing Grievances on the CPGRAMS Portal",
+  "source": "DARPG Hackathon 2024",
+  "domain": "Auto-Categorisation of Received Grievance Reports for Sharing with Concerned Officers and"
+ },
+ {
+  "title": "Create a Smart AI Search Solution for Citizen Grievance Data to Retrieve Similar Cases and Improve Grievance Redressal",
+  "source": "DARPG Hackathon 2024",
+  "domain": "Auto-Categorisation of Received Grievance Reports for Sharing with Concerned Officers and"
+ },
+ {
+  "title": "Develop a Dashboard for Analytics, Monitoring and Decision Support Using CPGRAMS Grievance Data. SDG 17 \u2013 Partnerships for the Goals",
+  "source": "DARPG Hackathon 2024",
+  "domain": "Auto-Categorisation of Received Grievance Reports for Sharing with Concerned Officers and"
+ },
+ {
+  "title": "Development of Legacy Systems to NHCX-Aligned FHIR Converter. Hackathon \u2013 National Health Authority",
+  "source": "ABDM NHCX",
+  "domain": "Auto-Categorisation of Received Grievance Reports for Sharing with Concerned Officers and"
+ },
+ {
+  "title": "Fraud Management and Detection Leveraging NHCX Capabilities. Ideathon \u2013 National Health Authority",
+  "source": "ABDM NHCX",
+  "domain": "National Health Authority"
+ }
+]

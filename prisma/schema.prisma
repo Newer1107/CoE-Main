@@ -179,6 +179,8 @@ model User {
   uploadedSessionDocuments    SessionDocument[]             @relation("SessionDocumentUploader")
   sessionUploadLockUpdates    HackathonSessionUploadLock[]  @relation("SessionUploadLockUpdater")
   attendanceMarkedEntries     TicketAttendance[]            @relation("AttendanceMarker")
+  judgeAssignments            JudgeAssignment[]
+  feedbackGiven               EventFeedback[]
   attendanceEntries           TicketAttendance[]            @relation("AttendanceParticipant")
   internshipTasks             InternshipTask[]              @relation("InternshipTaskAssignee")
   internshipMessages          InternshipMessage[]           @relation("InternshipMessageSender")
@@ -279,6 +281,10 @@ model Claim {
   badges            String?
   isAbsent          Boolean            @default(false)
   reminderSent      Boolean            @default(false)
+  mentor            String?            @db.VarChar(200)
+  derivedInfo       Json?              // snapshot: { lead: StudentInfo|manual, members: {uid: StudentInfo} }
+  venueId           Int?
+  venue             Venue?             @relation(fields: [venueId], references: [id], onDelete: SetNull)
   tickets           Ticket[]
   attendanceRecords TicketAttendance[]
   rubricScores      RubricScore[]
@@ -580,6 +586,11 @@ model HackathonEvent {
   config             Json?
   featured           Boolean                      @default(false)
   rubrics            RubricCategory[]
+  venues             Venue[]
+  judgeAssignments   JudgeAssignment[]
+  notices            Notice[]
+  feedback           EventFeedback[]
+  media              EventMedia[]
   createdAt          DateTime                     @default(now())
   updatedAt          DateTime                     @updatedAt
   certificates       Certificate[]
@@ -918,10 +929,12 @@ model RubricScore {
   rubricCategoryId Int
   rubricCategory   RubricCategory @relation(fields: [rubricCategoryId], references: [id], onDelete: Cascade)
   score            Int
+  comment          String?        @db.VarChar(1000)
+  round            Int            @default(1)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  @@unique([claimId, rubricCategoryId])
+  @@unique([claimId, rubricCategoryId, round])
   @@index([claimId])
   @@index([rubricCategoryId])
   @@map("rubric_scores")
@@ -1036,4 +1049,78 @@ model AttendanceSyncJob {
 
   @@index([uid, status])
   @@map("attendance_sync_jobs")
+}
+
+// ── Hackathon ops: venues, judges, notices, feedback, media ──────────────
+model Venue {
+  id        Int     @id @default(autoincrement())
+  eventId   Int
+  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name      String  @db.VarChar(120)
+  capacity  Int?
+  order     Int     @default(0)
+  claims    Claim[]
+  judgeAssignments JudgeAssignment[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@map("venues")
+}
+
+model JudgeAssignment {
+  id        Int     @id @default(autoincrement())
+  eventId   Int
+  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  judgeId   Int
+  judge     User    @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  venueId   Int?
+  venue     Venue?  @relation(fields: [venueId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, judgeId])
+  @@index([eventId])
+  @@index([judgeId])
+  @@map("judge_assignments")
+}
+
+model Notice {
+  id        Int     @id @default(autoincrement())
+  eventId   Int
+  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title     String  @db.VarChar(200)
+  body      String  @db.Text
+  fileKey   String?
+  pinned    Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@map("notices")
+}
+
+model EventFeedback {
+  id        Int     @id @default(autoincrement())
+  eventId   Int
+  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String? @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@map("event_feedback")
+}
+
+model EventMedia {
+  id        Int     @id @default(autoincrement())
+  eventId   Int
+  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  kind      String  @db.VarChar(16) // REPORT | PHOTO | VIDEO
+  fileKey   String
+  caption   String? @db.VarChar(300)
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("event_media")
 }

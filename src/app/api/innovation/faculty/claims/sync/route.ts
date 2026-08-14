@@ -210,13 +210,14 @@ export async function PATCH(req: NextRequest) {
               if (typeof score !== 'number') continue;
               await tx.rubricScore.upsert({
                 where: {
-                  claimId_rubricCategoryId: {
+                  claimId_rubricCategoryId_round: {
                     claimId: claim.id,
                     rubricCategoryId: category.id,
+                    round: 1,
                   },
                 },
                 update: { score },
-                create: { claimId: claim.id, rubricCategoryId: category.id, score },
+                create: { claimId: claim.id, rubricCategoryId: category.id, score, round: 1 },
               });
             }
           }

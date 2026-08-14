@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import RegistrationForm from "@/components/hackathons/RegistrationForm";
+import EventOpsSections from "@/components/hackathons/EventOpsSections";
 import TabBar, { type HackathonTab } from "@/components/hackathons/TabBar";
 import {
   EventStatusPill,
@@ -27,6 +28,7 @@ type LeaderboardRow = {
   problemTitle: string;
   score: number;
   updatedAt: string;
+  comments: string[];
   members: { id: number; name: string; email: string; role: string }[];
 };
 
@@ -570,6 +572,15 @@ export default function EventDetailClient({
                             <p className="text-xs text-muted">
                               {row.members.map((member) => member.name).join(", ")}
                             </p>
+                            {row.comments && row.comments.length > 0 ? (
+                              <div className="mt-2 space-y-1 border-l-2 border-secondary pl-2">
+                                {row.comments.map((comment, i) => (
+                                  <p key={i} className="text-xs italic text-on-surface-variant">
+                                    “{comment}”
+                                  </p>
+                                ))}
+                              </div>
+                            ) : null}
                           </td>
                           <td className="py-3 pr-4 text-on-surface-variant">{row.problemTitle}</td>
                           <td className="py-3 font-bold text-primary">{row.score}</td>
@@ -587,6 +598,12 @@ export default function EventDetailClient({
       <p className="mt-6 text-xs text-muted">
         <EventStatusPill status={event.status} /> {eventTypeLabel(event.eventType)} · Event #{event.id}
       </p>
+
+      <EventOpsSections
+        eventId={event.id}
+        status={event.status}
+        ops={(((event.config ?? {}) as { ops?: { notices?: boolean; feedback?: boolean; mediaReport?: boolean } }).ops ?? {})}
+      />
     </div>
   );
 }

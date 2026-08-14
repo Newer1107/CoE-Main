@@ -7,6 +7,25 @@ import { canTransitionEventStatus, getEventLeaderboard, getEventParticipantEmail
 import { issueCertificatesForEvent } from '@/lib/certificate-issuance';
 import { sendInnovationEventActiveEmail, sendInnovationEventClosedScoreEmail } from '@/lib/mailer';
 
+// GET /api/innovation/admin/events/[id]/status — current event status (admin)
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+    if (!authorize(user, 'ADMIN')) return errorRes('Forbidden', ['Admin access required'], 403);
+    const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({
+      where: { id: eventId },
+      select: { id: true, status: true, registrationOpen: true, title: true },
+    });
+    if (!event) return errorRes('Hackathon event not found', [], 404);
+    return successRes(event);
+  } catch (err) {
+    console.error('Event status GET error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
+
 // PATCH /api/innovation/admin/events/[id]/status
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,14 +57,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const unjudged = await prisma.claim.count({
         where: {
           problem: { eventId },
-          status: { in: ['IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'SHORTLISTED'] },
+          rubricScores: { none: {} },
         },
       });
       if (unjudged > 0) {
         return errorRes(
           'Pending judging',
           [
-            `${unjudged} submission${unjudged === 1 ? '' : 's'} still await${unjudged === 1 ? 's' : ''} a judging decision. Judge or reject them before closing the event.`,
+            `${unjudged} submission${unjudged === 1 ? '' : 's'} still await${unjudged === 1 ? 's' : ''} a rubric score. Score them before closing the event.`,
           ],
           400
         );
@@ -61,6 +80,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           },
           data: { status: 'SUBMITTED' },
         });
+
+        // Finalize rubric totals: finalScore = sum of the LAST judging round per claim,
+        // so results, leaderboard and certificates all read one source of truth.
+        const claimsWithScores = await tx.claim.findMany({
+          where: { problem: { eventId }, rubricScores: { some: {} } },
+          select: { id: true, rubricScores: { select: { round: true, score: true } } },
+        });
+        for (const claim of claimsWithScores) {
+          const byRound = new Map<number, number>();
+          for (const s of claim.rubricScores) {
+            byRound.set(s.round, (byRound.get(s.round) ?? 0) + s.score);
+          }
+          const lastRound = Math.max(...byRound.keys());
+          await tx.claim.update({
+            where: { id: claim.id },
+            data: { finalScore: byRound.get(lastRound) ?? 0 },
+          });
+        }
       }
 
       return tx.hackathonEvent.update({

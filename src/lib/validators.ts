@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { HACKATHON_RUBRIC_WEIGHTS } from './hackathon-scoring';
 
+// Accepts both UID shapes: fused "24-COMPD13-28" and separate "23-CSE-A-05".
 const tcetUidSchema = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(/^\d{2}-[A-Z]+[A-Z]\d{1,3}-\d{2}$/, 'Invalid UID format. Expected e.g. 24-COMPD13-28');
+  .regex(/^\d{2}-[A-Z0-9&]+(?:-[A-Z0-9]{1,4})?-\d{1,3}$/, 'Invalid UID format. Expected e.g. 24-COMPD13-28');
 
 const booleanLikeSchema = z.preprocess((value) => {
   if (typeof value === 'boolean') return value;

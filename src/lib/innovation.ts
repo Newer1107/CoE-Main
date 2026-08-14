@@ -160,7 +160,7 @@ export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number)
   const claims = await prisma.claim.findMany({
     where: {
       problem: { eventId },
-      OR: [{ finalScore: { not: null } }, { score: { not: null } }],
+      OR: [{ finalScore: { not: null } }, { score: { not: null } }, { rubricScores: { some: {} } }],
     },
     select: {
       id: true,
@@ -173,18 +173,36 @@ export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number)
       finalScore: true,
       score: true,
       updatedAt: true,
+      rubricScores: { select: { round: true, score: true } },
     },
-    orderBy: [{ finalScore: 'desc' }, { score: 'desc' }, { updatedAt: 'asc' }],
   });
 
-  return claims.map((claim, index) => ({
-    rank: index + 1,
-    teamName: claim.teamName || `Team-${claim.id}`,
-    problemTitle: claim.problem.title,
-    score: claim.finalScore ?? claim.score ?? 0,
-    claimId: claim.id,
-    updatedAt: claim.updatedAt,
-  }));
+  return claims
+    .map((claim) => {
+      // Live rubric total = sum of the LAST judging round (rounds are audit layers,
+      // never summed together).
+      let rubricTotal: number | null = null;
+      if (claim.rubricScores.length > 0) {
+        const byRound = new Map<number, number>();
+        for (const s of claim.rubricScores) {
+          byRound.set(s.round, (byRound.get(s.round) ?? 0) + s.score);
+        }
+        rubricTotal = byRound.get(Math.max(...byRound.keys())) ?? 0;
+      }
+      return {
+        claim,
+        score: claim.finalScore ?? claim.score ?? rubricTotal ?? 0,
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.claim.updatedAt.getTime() - b.claim.updatedAt.getTime())
+    .map(({ claim, score }, index) => ({
+      rank: index + 1,
+      teamName: claim.teamName || `Team-${claim.id}`,
+      problemTitle: claim.problem.title,
+      score,
+      claimId: claim.id,
+      updatedAt: claim.updatedAt,
+    }));
 };
 
 export const getEventParticipantEmails = async (prisma: PrismaClient, eventId: number): Promise<string[]> => {

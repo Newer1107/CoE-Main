@@ -35,22 +35,43 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             user: { select: { id: true, name: true } },
           },
         },
+        rubricScores: { include: { rubricCategory: true } },
       },
     });
 
+    // Identity-stripped judge comments (final round only) when enabled and results are final.
+    const cfg = ((event.config ?? {}) as { ops?: { commentsToStudents?: boolean } }).ops ?? {};
+    const showComments = event.status === 'CLOSED' && !!cfg.commentsToStudents;
     const claimMap = new Map(claims.map((claim) => [claim.id, claim]));
-    const payload = ranked.map((row) => ({
-      rank: row.rank,
-      teamName: row.teamName,
-      problemTitle: row.problemTitle,
-      score: row.score,
-      updatedAt: row.updatedAt,
-      members: (claimMap.get(row.claimId)?.members || []).map((member) => ({
-        id: member.user.id,
-        name: member.user.name,
-        role: member.role,
-      })),
-    }));
+    const payload = ranked.map((row) => {
+      const claim = claimMap.get(row.claimId);
+      let comments: string[] = [];
+      if (showComments && claim) {
+        const byRound = new Map<number, { comment: string | null }[]>();
+        for (const s of claim.rubricScores) {
+          const list = byRound.get(s.round) ?? [];
+          list.push({ comment: s.comment });
+          byRound.set(s.round, list);
+        }
+        const lastRound = byRound.size > 0 ? Math.max(...byRound.keys()) : 1;
+        comments = (byRound.get(lastRound) ?? [])
+          .map((s) => (s.comment ?? '').trim())
+          .filter((c) => c.length > 0 && !c.startsWith('[OVERRIDE]'));
+      }
+      return {
+        rank: row.rank,
+        teamName: row.teamName,
+        problemTitle: row.problemTitle,
+        score: row.score,
+        updatedAt: row.updatedAt,
+        comments: Array.from(new Set(comments)),
+        members: (claim?.members || []).map((member) => ({
+          id: member.user.id,
+          name: member.user.name,
+          role: member.role,
+        })),
+      };
+    });
 
     return successRes(payload, 'Leaderboard retrieved.');
   } catch (err) {

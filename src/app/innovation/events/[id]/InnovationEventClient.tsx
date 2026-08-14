@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { trackEvent } from '@/lib/analytics';
+import RegistrationForm from "@/components/hackathons/RegistrationForm";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
@@ -158,6 +159,7 @@ type InnovationEventClientProps = {
   registrationCloseISO: string;
   eventBriefUrl: string | null;
   problems: ProblemLite[];
+  config: Record<string, unknown>;
   viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null;
   initialRegistration: ExistingRegistrationSummary | null;
   initialInterest: ViewerInterestSummary | null;
@@ -184,6 +186,7 @@ export default function InnovationEventClient({
   viewerRole,
   initialRegistration,
   initialInterest,
+  config,
 }: InnovationEventClientProps) {
   const [selectedProblem, setSelectedProblem] = useState<ProblemLite | null>(null);
   const [selectedProblemIndex, setSelectedProblemIndex] = useState<number | null>(null);
@@ -913,6 +916,38 @@ export default function InnovationEventClient({
         ) : null}
       </section>
 
+      {canShowRegistrationForm ? (
+        <section id="register-team" className="mb-8 border border-[#c4c6d3] bg-white p-5">
+          <RegistrationForm
+            eventId={eventId}
+            config={config}
+            problems={problems}
+            onRegistered={() => {
+              // sync the legacy page state (session docs, already-registered view)
+              setTimeout(() => window.location.reload(), 900);
+            }}
+          />
+        </section>
+      ) : null}
+
+      {!canShowRegistrationForm && !registrationSummary ? (
+        <p className="mb-8 border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">
+          {viewerRole === null
+            ? 'Login as a student to register for this event.'
+            : viewerRole !== 'STUDENT'
+              ? 'Only student accounts can register for this event.'
+              : !registrationOpen
+                ? 'Event registration is currently closed by faculty/admin.'
+                : registrationClosed
+                  ? 'Event registration is closed.'
+                  : 'Registration will open once event problems are available.'}
+          {viewerRole === null ? (
+            <Link href={`/login?next=${encodeURIComponent(`/innovation/events/${eventId}`)}`} className="ml-2 text-[#002155] font-bold underline uppercase text-xs tracking-wider">
+              Go to Login
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
       <section className="mb-8">
         <h3 className="font-headline text-2xl text-[#002155] mb-4">Event Problems</h3>
         {problems.length === 0 ? (
@@ -1136,120 +1171,6 @@ export default function InnovationEventClient({
         </section>
       ) : null}
 
-      {canShowRegistrationForm ? (
-        <section id="register-team" className="mb-8 border border-[#c4c6d3] bg-white p-5">
-          <h3 className="font-headline text-2xl text-[#002155] mb-4">Register Team</h3>
-          <p className="mb-3 text-xs text-[#434651]">UID format: STARTYEAR-BRANCHDIVISIONROLLNO-ENDYEAR (example: 24-COMPD13-28). Enter valid UIDs for all team members. First fetch user details to verify the team, then submit registration.</p>
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleRegister}>
-            <input className="border border-[#747782] p-3 text-sm" placeholder="Team name" value={teamName} onChange={(e) => setTeamName(e.target.value)} required />
-            <select
-              className="border border-[#747782] p-3 text-sm"
-              value={teamSize}
-              onChange={(e) => setTeamSize(Number(e.target.value))}
-              required
-            >
-              <option value={1}>Total team size: 1 (Lead only)</option>
-              <option value={2}>Total team size: 2</option>
-              <option value={3}>Total team size: 3</option>
-              <option value={4}>Total team size: 4</option>
-              <option value={5}>Total team size: 5</option>
-            </select>
-            <select className="border border-[#747782] p-3 text-sm" value={problemId} onChange={(e) => setProblemId(Number(e.target.value))} required>
-              {problems.map((problem) => (
-                <option key={problem.id} value={problem.id}>
-                  {problem.title}
-                </option>
-              ))}
-            </select>
-            <input
-              className="border border-[#747782] p-3 text-sm"
-              placeholder="Team lead UID (e.g. 24-COMPD13-28)"
-              value={teamLeadUid}
-              onChange={(e) => setTeamLeadUid(e.target.value)}
-              required
-            />
-            {memberUids.map((uid, index) => (
-              <input
-                key={index}
-                className="border border-[#747782] p-3 text-sm md:col-span-2"
-                placeholder={`Member ${index + 1} UID (e.g. 24-COMPD13-28)`}
-                value={uid}
-                onChange={(e) =>
-                  setMemberUids((prev) => {
-                    const next = [...prev];
-                    next[index] = e.target.value;
-                    return next;
-                  })
-                }
-                required
-              />
-            ))}
-            <button
-              type="button"
-              onClick={() => void handleFetchUidDetails()}
-              disabled={uidLookupBusy || busy}
-              className="border border-[#002155] text-[#002155] px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-60"
-            >
-              {uidLookupBusy ? 'Fetching UID Details...' : 'Fetch UID Details'}
-            </button>
-            {uidLookupMessage ? (
-              <p className={`md:col-span-2 text-xs ${verifiedUidSnapshot ? 'text-green-700' : 'text-[#8c4f00]'}`}>{uidLookupMessage}</p>
-            ) : null}
-            {uidLookupRows.length > 0 ? (
-              <div className="md:col-span-2 border border-[#e3e2df] bg-[#faf9f5] p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">UID Verification Results</p>
-                <ul className="mt-2 space-y-2">
-                  {uidLookupRows.map((row) => (
-                    <li key={row.uid} className="text-xs text-[#434651]">
-                      <span className="font-bold text-[#002155]">{row.uid}</span>: {row.found ? `${row.name || 'Unknown'}` : 'Not found'}
-                      {row.found ? ` | ${row.role} | ${row.status} | ${row.isVerified ? 'Verified' : 'Not verified'}` : ''}
-                      {' | '}
-                      <span className={row.eligible ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}>
-                        {row.eligible ? 'Eligible' : 'Non-eligible'}
-                      </span>
-                      {` | ${row.reason}`}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <div className="md:col-span-2 border-2 border-dashed border-[#0b6b2e] bg-[#f2fbf4] p-4">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#0b6b2e] mb-1">Required Upload: Team Presentation</label>
-              <p className="mb-2 text-xs text-[#434651]">Upload PPT/PPTX (or PDF if your deck is exported).</p>
-              <input
-                type="file"
-                accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
-                onChange={(e) => setPptFile(e.target.files?.[0] ?? null)}
-                className="w-full"
-                required
-              />
-              <p className="mt-2 text-[11px] text-[#434651]">{pptFile ? `Selected: ${pptFile.name}` : 'No file selected yet.'}</p>
-            </div>
-            <button type="submit" disabled={busy || uidLookupBusy} className="bg-[#002155] text-white px-4 py-3 text-xs font-bold uppercase tracking-wider md:w-fit disabled:opacity-70">
-              {busy ? 'Submitting…' : 'Register Team'}
-            </button>
-          </form>
-        </section>
-      ) : null}
-
-      {!canShowRegistrationForm && !registrationSummary ? (
-        <p className="mb-8 border border-dashed border-[#c4c6d3] bg-white p-6 text-[#434651]">
-          {viewerRole === null
-            ? 'Login as a student to register for this event.'
-            : viewerRole !== 'STUDENT'
-              ? 'Only student accounts can register for this event.'
-              : !registrationOpen
-                ? 'Event registration is currently closed by faculty/admin.'
-                : registrationClosed
-                  ? 'Event registration is closed.'
-                  : 'Registration will open once event problems are available.'}
-          {viewerRole === null ? (
-            <Link href={`/login?next=${encodeURIComponent(`/innovation/events/${eventId}`)}`} className="ml-2 text-[#002155] font-bold underline uppercase text-xs tracking-wider">
-              Go to Login
-            </Link>
-          ) : null}
-        </p>
-      ) : null}
 
       {status === 'CLOSED' ? (
         <section>

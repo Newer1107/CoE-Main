@@ -1,0 +1,91 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+
+\definecolor{navy}{HTML}{002155}
+\definecolor{gold}{HTML}{FD9923}
+\definecolor{lightnavy}{HTML}{1a438e}
+\definecolor{softgray}{HTML}{f4f6fa}
+
+\titleformat{\section}{\color{navy}\normalfont\Large\bfseries}{}{0em}{}[\vspace{-0.4em}\color{gold}\rule{\textwidth}{1.2pt}]
+\titleformat{\subsection}{\color{navy}\normalfont\large\bfseries}{}{0em}{}
+\pagestyle{empty}
+\setlist{leftmargin=1.2em,itemsep=2pt,topsep=2pt}
+
+\begin{document}
+
+% ===== Header =====
+\begin{tcolorbox}[colback=navy,colframe=navy,boxrule=0pt,arc=0pt,left=14pt,right=14pt,top=10pt,bottom=10pt]
+{\color{white}\LARGE\bfseries TCET Centre of Excellence}\\[2pt]
+{\color{gold}\large Hackathon Ops Workflow --- Features by User}\\[2pt]
+{\color{white}\small Portal module: event operations, judging, results \& wrap-up}
+\end{tcolorbox}
+\vspace{0.6em}
+
+\noindent\textit{Every feature is event-scoped and enabled per hackathon (config toggles).}
+\textit{Existing events are unaffected until the coordinator switches the features on.}
+
+% ===== 1. Department Coordinator =====
+\section{Department Coordinator (Admin)}
+
+\begin{enumerate}
+  \item \textbf{Schedule the hackathon} --- create the event with dates, description, problem statements and department; lifecycle \texttt{UPCOMING $\rightarrow$ ACTIVE $\rightarrow$ JUDGING $\rightarrow$ CLOSED}.
+  \item \textbf{Fill details} --- event page content, rubrics (categories + weights), registration window, featured placement.
+  \item \textbf{Assign students to venues} --- create venues (name, capacity), assign teams individually or in bulk; unassigned-team warnings before judging; capacity enforced.
+  \item \textbf{Add and assign judges} --- add judges (existing faculty roles), assign each to a venue (or all claims); judges only see their venue's teams.
+  \item \textbf{Communicate notices} --- post announcements (title, body, file attachment, pin) visible on the event page; students upload PPT/docs within the submission window (deadline enforced).
+  \item \textbf{Consolidate results} --- per-claim scoreboard across categories and judges, filterable by venue.
+  \item \textbf{Visit the scores --- change if needed} --- override any category score with a reason; category caps enforced; full before/after audit trail; allowed during JUDGING only.
+  \item \textbf{Declare the results openly} --- advance event to CLOSED; results (rankings, final scores, identity-free judge comments) become public on the event page.
+  \item \textbf{Dashboard analytics} --- participants, teams, attendance and insights analytics with CSV export (existing module).
+  \item \textbf{Take feedback from students} --- collect one rating + comment per student after results; review list with CSV export.
+  \item \textbf{Upload final report, photos/videos} --- event gallery: final report (PDF), photos, videos with captions, public on the event page.
+\end{enumerate}
+
+% ===== 2. Student =====
+\section{Student}
+
+\begin{enumerate}
+  \item \textbf{See the general rubrics} --- rubric categories and weights visible on the event page before registering.
+  \item \textbf{Login and register} --- sign in (email/UID, or Google), register the team, add details and select a problem statement.
+  \item \textbf{Upload PPT / docs} --- submit presentation and supporting documents before the submission deadline (window enforced).
+  \item \textbf{See all details on the portal} --- event info, problem statements, notices, venue assignment, team details in one place.
+  \item \textbf{View results and comments} --- after results are declared: ranking, final scores, and judge comments (without judge identities).
+  \item \textbf{Give feedback} --- one rating + comment about the event once results are out.
+\end{enumerate}
+
+% ===== 3. Judge =====
+\section{Judge}
+
+\begin{enumerate}
+  \item \textbf{Get assigned and see the rubrics} --- coordinator assigns you to a venue (or all claims); rubric categories and weights always visible.
+  \item \textbf{Judge and give scores} --- score each assigned team per category (caps enforced); scores saved per round.
+  \item \textbf{2$\times$ revisit} --- multi-round judging: coordinator advances rounds; you can revise scores inside the open round; earlier rounds kept for audit.
+  \item \textbf{Comments} --- optional per-category comment alongside each score; students see them only if the coordinator enables it (identities stripped).
+  \item \textbf{Scoped queue} --- you only ever see the teams assigned to your venue; nothing else is visible.
+\end{enumerate}
+
+% ===== Enablement note =====
+\section{How it is enabled}
+
+\noindent Each capability is a per-event toggle (\texttt{config}): venues, notices, team docs, judge rounds, score review, comments to students, feedback, media/report, public results.\\
+A coordinator turns the required features on when creating the event; every other event keeps today's behavior.
+
+\vspace{1em}
+\begin{tcolorbox}[colback=softgray,colframe=gold,boxrule=1pt,arc=2pt,left=10pt,right=10pt,top=8pt,bottom=8pt]
+{\color{navy}\bfseries Delivery order:}\quad
+Phase 1 --- venues, judges, notices (operations backbone) \textbullet
+Phase 2 --- score review, comments, rounds (judging depth) \textbullet
+Phase 3 --- feedback, media/report, public results (wrap-up)
+\end{tcolorbox}
+
+\end{document}
