@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { deriveStudentInfo, formatStudentInfo } from "@/lib/student-info";
+import { findSimilarProblems } from "@/lib/problem-similarity";
 
 type RegistrationFormProps = {
   eventId: number;
@@ -43,6 +44,14 @@ export default function RegistrationForm({
   const [psQuery, setPsQuery] = useState("");
   const [psOpen, setPsOpen] = useState(false);
   const [selectedPs, setSelectedPs] = useState<{ id: number; title: string } | null>(null);
+  const [psMode, setPsMode] = useState<"catalogue" | "open">("catalogue");
+  const [customTitle, setCustomTitle] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
+  const allowOpenInnovation = !!(config as { registration?: { allowOpenInnovation?: boolean } }).registration?.allowOpenInnovation;
+  const similarMatches = allowOpenInnovation && customTitle.trim().length >= 20
+    ? findSimilarProblems(problems, customTitle)
+    : [];
+  const hardDuplicate = similarMatches.find((s) => s.score >= 75) ?? null;
   const psResults = psQuery.trim()
     ? problems.filter((p) => p.title.toLowerCase().includes(psQuery.trim().toLowerCase())).slice(0, 30)
     : problems.slice(0, 30);
@@ -187,8 +196,16 @@ export default function RegistrationForm({
       setErrorMessage("Please fix the member details below before registering.");
       return;
     }
-    if (requiresProblemSelection && !problemId) {
+    if (requiresProblemSelection && !problemId && psMode === "catalogue") {
       setErrorMessage("Please select a problem statement from the search results.");
+      return;
+    }
+    if (psMode === "open" && customTitle.trim().length < 20) {
+      setErrorMessage("Give your open-innovation problem statement a descriptive title (20+ characters).");
+      return;
+    }
+    if (psMode === "open" && customDescription.trim().length < 50) {
+      setErrorMessage("Describe the problem in at least 50 characters.");
       return;
     }
     setLoading(true);
@@ -207,8 +224,12 @@ export default function RegistrationForm({
       if (uids.length > 0) {
         formData.append("memberUids", uids.join(","));
       }
-      if (requiresProblemSelection && problemId) {
+      if (requiresProblemSelection && psMode === "catalogue" && problemId) {
         formData.append("problemId", problemId);
+      }
+      if (psMode === "open") {
+        formData.append("customProblemTitle", customTitle.trim());
+        formData.append("customProblemDescription", customDescription.trim());
       }
       if (pptFile) {
         formData.append("pptFile", pptFile);
@@ -276,6 +297,70 @@ export default function RegistrationForm({
           <label htmlFor="problem-search" className={labelClass}>
             Problem Statement
           </label>
+          {allowOpenInnovation ? (
+            <label className="mt-2 flex items-start gap-2 text-xs text-[#434651]">
+              <input
+                type="checkbox"
+                checked={psMode === "open"}
+                onChange={(event) => setPsMode(event.target.checked ? "open" : "catalogue")}
+                className="mt-0.5 h-4 w-4 accent-[#002155]"
+              />
+              <span>
+                This is an <span className="font-bold text-[#002155]">Open Innovation</span> submission — I will write
+                my own problem statement. <span className="text-[#747782]">(Check the catalogue first to avoid
+                duplicates.)</span>
+              </span>
+            </label>
+          ) : null}
+
+          {psMode === "open" ? (
+            <div className="mt-3 space-y-3">
+              <div>
+                <input
+                  id="custom-problem-title"
+                  type="text"
+                  value={customTitle}
+                  onChange={(event) => setCustomTitle(event.target.value)}
+                  placeholder="Your problem statement title (20+ characters)"
+                  className={`${inputClass} mt-1`}
+                  maxLength={180}
+                />
+              </div>
+              <div>
+                <textarea
+                  id="custom-problem-description"
+                  value={customDescription}
+                  onChange={(event) => setCustomDescription(event.target.value)}
+                  placeholder="Describe the problem, who it affects, and what a solution should achieve (at least 50 characters)."
+                  className={`${inputClass} mt-1 min-h-24`}
+                  maxLength={2000}
+                />
+              </div>
+
+              {hardDuplicate ? (
+                <div className="border border-[#ba1a1a] bg-[#fdecec] px-3 py-2 text-xs text-[#8c1616]">
+                  <p className="font-bold uppercase tracking-wider">This already exists in the catalogue</p>
+                  <p className="mt-1">It matches: “{hardDuplicate.title}” — please choose it from the catalogue instead.</p>
+                </div>
+              ) : similarMatches.length > 0 ? (
+                <div className="border border-[#b77a2f] bg-[#fdf3e7] px-3 py-2 text-xs text-[#6b4a15]">
+                  <p className="font-bold uppercase tracking-wider">Check the catalogue first</p>
+                  <p className="mt-1">
+                    Your statement looks similar to existing ones:{" "}
+                    {similarMatches.slice(0, 3).map((m) => `“${m.title}”`).join(", ")} — make sure yours is genuinely
+                    different.
+                  </p>
+                </div>
+              ) : customTitle.trim().length >= 20 ? (
+                <p className="text-xs font-semibold text-[#0b6b2e]">No close matches in the catalogue — looks original.</p>
+              ) : (
+                <p className="text-xs text-[#747782]">
+                  We'll check your statement against the catalogue so you don't submit a duplicate.
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
           <div className="relative mt-1">
             <input
               id="problem-search"
@@ -343,6 +428,8 @@ export default function RegistrationForm({
             <p className="mt-1 text-xs text-[#747782]">
               Search by keyword (domain, topic, ministry) — 502 statements available.
             </p>
+          )}
+            </>
           )}
         </div>
       ) : null}

@@ -34,6 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         },
         problems: {
           orderBy: { createdAt: 'asc' },
+          where: { isCustom: false }, // open-innovation submissions stay hidden from the catalogue
           select: {
             id: true,
             title: true,

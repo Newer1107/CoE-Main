@@ -221,6 +221,7 @@ model Problem {
   id                  Int                   @id @default(autoincrement())
   title               String
   description         String                @db.Text
+  isCustom            Boolean               @default(false) // open-innovation submission — hidden from the student catalogue
   tags                String?
   isIndustryProblem   Boolean               @default(false)
   industryName        String?

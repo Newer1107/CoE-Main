@@ -10,6 +10,7 @@ import { logActivity } from '@/lib/activity-log';
 import { getSignedUrl } from '@/lib/minio';
 import { EventDefaultConfig, getEventTypeDefaults } from '@/lib/platform-config';
 import { deriveStudentInfo, DerivedStudentInfo } from '@/lib/student-info';
+import { isDuplicateProblem } from '@/lib/problem-similarity';
 
 const normalizePhone = (raw: string): string | null => {
   const digits = raw.replace(/\D/g, '');
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       teamSize,
       teamLeadUid,
       memberUids,
-      problemId,
+      problemId: problemId > 0 ? problemId : undefined,
     });
 
     let parsedData: z.infer<typeof innovationEventRegisterSchema> | null = null;
@@ -249,15 +250,52 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     let problem: { id: number; title: string } | null;
-    if (!requiresProblemSelection) {
+    // Open Innovation: a custom statement (no catalogue problemId) when the event allows it.
+    const allowOpenInnovation = regCfg ? !!regCfg.allowOpenInnovation : false;
+    const customTitle = ((formData.get('customProblemTitle') as string) || '').trim();
+    const customDescription = ((formData.get('customProblemDescription') as string) || '').trim();
+
+    if (allowOpenInnovation && !parsedData.problemId && customTitle) {
+      // validate
+      if (customTitle.length < 20 || customTitle.length > 180) {
+        return errorRes('Problem title too short', ['Give your problem statement a descriptive title (20–180 characters)'], 400);
+      }
+      if (customDescription.length < 50 || customDescription.length > 2000) {
+        return errorRes('Problem description too short', ['Describe the problem in at least 50 characters (max 2000)'], 400);
+      }
+      // duplicate check vs the event catalogue (incl. other custom submissions)
+      const catalogue = await prisma.problem.findMany({ where: { eventId }, select: { id: true, title: true } });
+      const exact = isDuplicateProblem(catalogue, customTitle);
+      if (exact) {
+        return errorRes(
+          'This problem statement already exists',
+          [`It matches: “${exact.title}” — please pick it from the catalogue instead`],
+          409,
+        );
+      }
+      const custom = await prisma.problem.create({
+        data: {
+          title: customTitle,
+          description: customDescription,
+          eventId,
+          isCustom: true,
+          status: 'OPENED',
+          mode: 'OPEN',
+          problemType: 'OPEN',
+          createdById: user.id,
+        },
+        select: { id: true, title: true },
+      });
+      problem = custom;
+    } else if (!requiresProblemSelection) {
       problem = await prisma.problem.findFirst({
-        where: { eventId },
+        where: { eventId, isCustom: false },
         select: { id: true, title: true },
       });
       if (!problem) return errorRes('This event has no problem statements to register against', [], 400);
     } else {
       problem = await prisma.problem.findFirst({
-        where: { id: parsedData.problemId, eventId },
+        where: { id: parsedData.problemId, eventId, isCustom: false },
         select: { id: true, title: true },
       });
       if (!problem) return errorRes('Invalid problem selection', ['Selected problem is not part of this event'], 400);

@@ -24,6 +24,7 @@ export type EventDefaultConfig = {
     minTeamSize: number;
     maxTeamSize: number;
     allowSolo: boolean;
+    allowOpenInnovation?: boolean; // custom problem statements (SIH open-innovation track)
   };
   submission: {
     allowUrl: boolean;

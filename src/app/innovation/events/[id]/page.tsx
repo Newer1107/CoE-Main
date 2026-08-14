@@ -53,6 +53,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
           id: true,
           title: true,
           description: true,
+          isCustom: true,
           isIndustryProblem: true,
           industryName: true,
           mode: true,
@@ -70,12 +71,14 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
     : null;
 
   const eventProblems = await Promise.all(
-    event.problems.map(async (problem) => ({
-      ...problem,
-      supportDocumentUrl: problem.supportDocumentKey
-        ? await getSignedUrl(problem.supportDocumentKey).catch(() => null)
-        : null,
-    }))
+    event.problems
+      .filter((problem) => !problem.isCustom) // open-innovation submissions stay hidden from the catalogue
+      .map(async (problem) => ({
+        ...problem,
+        supportDocumentUrl: problem.supportDocumentKey
+          ? await getSignedUrl(problem.supportDocumentKey).catch(() => null)
+          : null,
+      }))
   );
 
   let viewerRole: 'STUDENT' | 'FACULTY' | 'ADMIN' | null = null;

@@ -79,6 +79,7 @@ const psData = JSON.parse(
             minTeamSize: 2,
             maxTeamSize: 6,
             allowSolo: false,
+            allowOpenInnovation: true, // SIH open-innovation track — custom problem statements
           },
         },
       },
@@ -99,6 +100,7 @@ const psData = JSON.parse(
             minTeamSize: 2,
             maxTeamSize: 6,
             allowSolo: false,
+            allowOpenInnovation: true, // SIH open-innovation track — custom problem statements
           },
         },
       },

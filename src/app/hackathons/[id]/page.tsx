@@ -71,6 +71,7 @@ export default async function HackathonEventDetailPage({
       _count: { select: { problems: true, interests: true } },
       problems: {
         orderBy: { createdAt: "asc" },
+        where: { isCustom: false }, // open-innovation submissions stay hidden from the catalogue
         select: {
           id: true,
           title: true,

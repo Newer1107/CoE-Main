@@ -516,10 +516,11 @@ export const innovationSessionUploadLockUpdateSchema = z.object({
 
 export const innovationEventRegisterSchema = z.object({
   teamName: z.string().min(2),
-  teamSize: z.coerce.number().int().min(1).max(5),
+  teamSize: z.coerce.number().int().min(1).max(6),
   teamLeadUid: tcetUidSchema,
   memberUids: z.array(tcetUidSchema),
-  problemId: z.coerce.number().int().positive(),
+  // optional: open-innovation submissions register without a catalogue problemId
+  problemId: z.coerce.number().int().positive().optional(),
 });
 
 export const innovationInterestCreateSchema = z.object({
