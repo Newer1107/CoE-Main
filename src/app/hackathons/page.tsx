@@ -58,7 +58,9 @@ export default async function HackathonsLandingPage() {
         take: 3,
       }),
       prisma.hackathonEvent.findMany({
-        where: { status: "UPCOMING", startTime: { gte: new Date() } },
+        // "Open and upcoming": UPCOMING/ACTIVE events with registration still open —
+        // regardless of whether the start date has already passed.
+        where: { status: { in: ["UPCOMING", "ACTIVE"] }, registrationOpen: true },
         include: {
           department: { select: { id: true, name: true } },
           _count: { select: { problems: true, interests: true } },

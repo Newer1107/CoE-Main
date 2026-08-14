@@ -20,7 +20,8 @@ const EVENT_DESCRIPTION = `Smart India Hackathon (SIH) 2026 — Internal Round a
 The internal hackathon is the college-level screening for SIH 2026. Teams select one problem statement from the official SIH catalogue (500+ statements across Cybersecurity, Space Technology, MedTech & BioTech, Robotics & Drones, Smart Automation, Renewable Energy, Smart Education, Agriculture and more), build a working solution, and present it to a judging panel.
 
 How it works:
-• Form a team of up to 6 members (solo participation allowed) with an @tcetmumbai.in student as the team lead.
+• Form a team of 2–6 members (solo participation is not allowed) with an @tcetmumbai.in student as the team lead.
+• Every team MUST include at least one female member — this is mandatory per SIH rules.
 • Choose your problem statement — search the full catalogue right on this page.
 • Upload your team presentation (PPT / PPTX / PDF) during registration — it is required.
 • Presentations lock on Sunday night at 11:59 PM; registration closes with the lock.
@@ -75,9 +76,9 @@ const psData = JSON.parse(
           registration: {
             requiresPpt: true,
             requiresProblemSelection: true,
-            minTeamSize: 1,
+            minTeamSize: 2,
             maxTeamSize: 6,
-            allowSolo: true,
+            allowSolo: false,
           },
         },
       },
@@ -95,9 +96,9 @@ const psData = JSON.parse(
           registration: {
             requiresPpt: true,
             requiresProblemSelection: true,
-            minTeamSize: 1,
+            minTeamSize: 2,
             maxTeamSize: 6,
-            allowSolo: true,
+            allowSolo: false,
           },
         },
       },
