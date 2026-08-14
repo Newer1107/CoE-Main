@@ -159,7 +159,7 @@ export default function MySubmissionsClient() {
 
       {claim.problem.event ? (
         <Link
-          href={`/innovation/events/${claim.problem.event.id}`}
+          href={`/hackathons/${claim.problem.event.id}`}
           className="inline-flex mt-3 border border-[#002155] text-[#002155] px-3 py-2 text-xs font-bold uppercase tracking-wider"
         >
           View Event Page

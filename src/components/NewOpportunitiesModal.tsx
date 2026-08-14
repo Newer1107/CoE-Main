@@ -94,7 +94,7 @@ export default function NewOpportunitiesModal({
                             </h3>
                             <div className="space-y-2">
                                 {hackathons.map((h) => (
-                                    <Link key={h.id} href={`/innovation/events/${h.id}`}>
+                                    <Link key={h.id} href={`/hackathons/${h.id}`}>
                                         <div className="border border-[#c4c6d3] p-3 hover:bg-[#f5f4f0] transition">
                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             <span className="text-sm font-semibold text-[#002155] break-words">
