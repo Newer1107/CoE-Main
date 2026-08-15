@@ -358,23 +358,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const allMemberUids = Array.from(
         new Set([parsedData.teamLeadUid.toUpperCase(), ...parsedData.memberUids.map((uid) => uid.toUpperCase())])
       );
+      // Fetch WITHOUT the verified/active filters so we can tell the difference
+      // between "no account", "account not verified" and "account inactive".
       const foundMembers = await prisma.user.findMany({
-        where: { uid: { in: allMemberUids }, role: 'STUDENT', status: 'ACTIVE', isVerified: true },
-        select: { id: true, uid: true },
+        where: { uid: { in: allMemberUids }, role: 'STUDENT' },
+        select: { id: true, uid: true, name: true, status: true, isVerified: true },
       });
 
       // uid is NOT unique on User (legacy data) — dedupe by uid and compare
       // SETS, never lengths, or duplicate rows break the check.
-      const membersByUid = new Map<string, { id: number; uid: string | null }>();
+      const membersByUid = new Map<string, { id: number; uid: string | null; name: string; status: string; isVerified: boolean }>();
       for (const member of foundMembers) {
         if (member.uid && !membersByUid.has(member.uid)) membersByUid.set(member.uid, member);
       }
-      const foundUids = new Set(membersByUid.keys());
-      const missingUids = allMemberUids.filter((uid) => !foundUids.has(uid));
-      if (missingUids.length > 0) {
-        return errorRes('Invalid team members', [`These UIDs are not registered active students: ${missingUids.join(', ')}. Please register these users first.`], 400);
+
+      const missingUids: string[] = [];
+      const unverifiedNames: string[] = [];
+      const inactiveNames: string[] = [];
+      for (const uid of allMemberUids) {
+        const row = membersByUid.get(uid);
+        if (!row) {
+          missingUids.push(uid);
+        } else if (row.status !== 'ACTIVE') {
+          inactiveNames.push(`${row.name} (${uid})`);
+        } else if (!row.isVerified) {
+          unverifiedNames.push(`${row.name} (${uid})`);
+        }
       }
-      members = [...membersByUid.values()];
+      if (missingUids.length > 0) {
+        return errorRes('Invalid team members', [`These UIDs are not registered on the portal: ${missingUids.join(', ')}. Please ask these students to create an account first.`], 400);
+      }
+      if (unverifiedNames.length > 0) {
+        return errorRes('Members not verified', [`These students haven't verified their email yet: ${unverifiedNames.join(', ')}. They can verify by logging in at tcetcercd.in with their email — the portal will ask them to enter the OTP sent to their inbox.`], 400);
+      }
+      if (inactiveNames.length > 0) {
+        return errorRes('Members account inactive', [`These students' accounts are inactive — contact the coordinator: ${inactiveNames.join(', ')}`], 400);
+      }
+      members = [...membersByUid.values()].map((m) => ({ id: m.id, uid: m.uid }));
     }
 
     const memberIds = members.map((member) => member.id);

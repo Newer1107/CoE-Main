@@ -45,10 +45,16 @@ export async function GET(req: NextRequest) {
     }
 
     const student = await prisma.user.findFirst({
-      where: { uid, role: 'STUDENT', status: 'ACTIVE', isVerified: true },
-      select: { id: true, name: true, uid: true },
+      where: { uid, role: 'STUDENT' },
+      select: { id: true, name: true, uid: true, status: true, isVerified: true },
     });
-    if (!student) return successRes({ found: false, uid });
+    if (!student) return successRes({ found: false, reason: 'not_found', uid });
+    if (student.status !== 'ACTIVE') {
+      return successRes({ found: false, reason: 'inactive', name: student.name, uid });
+    }
+    if (!student.isVerified) {
+      return successRes({ found: false, reason: 'unverified', name: student.name, uid });
+    }
 
     const inTeamForEvent =
       (await prisma.claimMember.count({

@@ -117,7 +117,7 @@ export default function RegistrationForm({
   };
 
   // Live member lookup: resolve name + derived details as the UID is typed.
-  type MemberLookup = { state: "idle" | "loading" | "found" | "missing" | "invalid"; name?: string; derivedText?: string; inTeamForEvent?: boolean };
+  type MemberLookup = { state: "idle" | "loading" | "found" | "missing" | "invalid"; name?: string; derivedText?: string; inTeamForEvent?: boolean; reason?: string };
   const [memberLookups, setMemberLookups] = useState<MemberLookup[]>([]);
   const lookupTimers = useRef<(ReturnType<typeof setTimeout> | null)[]>([]);
 
@@ -149,7 +149,7 @@ export default function RegistrationForm({
         setMemberLookups((prev) => {
           const next = [...prev];
           if (!d?.found) {
-            next[index] = { state: "missing" };
+            next[index] = { state: "missing", name: d?.name, reason: d?.reason };
           } else {
             next[index] = {
               state: "found",
@@ -646,9 +646,20 @@ export default function RegistrationForm({
             ) : lookup?.state === "loading" ? (
               <p className="mt-1 text-xs text-[#747782]">Checking UID…</p>
             ) : lookup?.state === "missing" ? (
-              <p className="mt-1 text-xs font-semibold text-red-600">
-                No registered student with this UID — ask them to create an account first.
-              </p>
+              lookup?.reason === "unverified" ? (
+                <p className="mt-1 text-xs font-semibold text-amber-800">
+                  {lookup.name ?? "This student"} hasn't verified their email yet. They can verify by logging in at
+                  tcetcercd.in with their email — the portal will ask them to enter the OTP sent to their inbox.
+                </p>
+              ) : lookup?.reason === "inactive" ? (
+                <p className="mt-1 text-xs font-semibold text-amber-800">
+                  {lookup.name ?? "This student"}'s account is inactive — contact the coordinator.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs font-semibold text-red-600">
+                  No registered student with this UID — ask them to create an account first.
+                </p>
+              )
             ) : lookup?.state === "invalid" ? (
               <p className="mt-1 text-xs font-semibold text-red-600">That doesn't look like a valid UID (e.g. 24-COMPD13-28).</p>
             ) : lookup?.state === "found" ? (
