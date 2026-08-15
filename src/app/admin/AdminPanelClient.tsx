@@ -4914,6 +4914,7 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button
+                            type="button"
                             onClick={() => handleOpenUserDetails(user.id)}
                             className="bg-[#0b2c5f] text-white px-3 py-1 text-xs hover:bg-[#091f44]"
                           >

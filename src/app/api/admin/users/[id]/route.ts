@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
+import { getStoredFileDisplayName } from '@/lib/innovation';
+import { getSignedUrl } from '@/lib/minio';
 import { logActivity } from '@/lib/activity-log';
 
 const NAME_RE = /^[A-Za-z][A-Za-z .'-]{1,79}$/;
@@ -19,14 +21,59 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        facultyProfile: { select: { isHod: true, department: true } },
-        studentProfile: { select: { skills: true, experience: true, interests: true } },
+        industry: { select: { id: true, name: true } },
+        facultyProfile: true,
+        studentProfile: true,
+        bookings: { select: { id: true, lab: true, timeSlot: true, status: true } },
+        applications: { select: { id: true, status: true, problem: { select: { title: true } } } },
+        problemsCreated: {
+          // claim memberships (User.problemsCreated relation name)
+          select: {
+            id: true,
+            role: true,
+            claim: { select: { id: true, status: true, problem: { select: { title: true } } } },
+          },
+        },
+        tickets: { select: { id: true, ticketId: true, type: true, status: true, subjectName: true } },
+        _count: {
+          select: {
+            bookings: true,
+            applications: true,
+            tickets: true,
+            problemsAuthored: true,
+            problemsCreated: true,
+            hackathonInterests: true,
+          },
+        },
       },
     });
     if (!user) return errorRes('User not found', [], 404);
 
-    const { password: _pw, ...safe } = user;
-    return successRes(safe, 'User details retrieved.');
+    const { password: _pw, problemsCreated: claimMemberships, ...safe } = user;
+    const payload = {
+      ...safe,
+      claimMemberships,
+      facultyProfile: user.facultyProfile
+        ? {
+            ...user.facultyProfile,
+            profileLinks: Array.isArray(user.facultyProfile.profileLinks) ? user.facultyProfile.profileLinks : [],
+            resumeFileName: getStoredFileDisplayName(user.facultyProfile.resumeUrl),
+            resumeDownloadUrl: user.facultyProfile.resumeUrl
+              ? await getSignedUrl(user.facultyProfile.resumeUrl).catch(() => null)
+              : null,
+          }
+        : null,
+      studentProfile: user.studentProfile
+        ? {
+            ...user.studentProfile,
+            resumeFileName: getStoredFileDisplayName(user.studentProfile.resumeUrl),
+            resumeDownloadUrl: user.studentProfile.resumeUrl
+              ? await getSignedUrl(user.studentProfile.resumeUrl).catch(() => null)
+              : null,
+          }
+        : null,
+    };
+    return successRes(payload, 'User details retrieved.');
   } catch (err) {
     console.error('admin user detail error:', err);
     return errorRes('Internal server error', [], 500);
