@@ -19,8 +19,15 @@ export async function GET(req: NextRequest) {
       return errorRes('Profile not found', ['Student profile does not exist. Please create one first.'], 404);
     }
 
+    const userRow = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, nameChangedAt: true },
+    });
+
     const payload = {
       ...profile,
+      name: userRow?.name ?? null,
+      nameChangedAt: userRow?.nameChangedAt?.toISOString() ?? null,
       resumeFileName: getStoredFileDisplayName(profile.resumeUrl),
       resumeUrl: profile.resumeUrl ? await getSignedUrl(profile.resumeUrl).catch(() => null) : null,
     };

@@ -12,6 +12,8 @@ interface StudentProfile {
   resumeFileName: string | null;
   isComplete: boolean;
   updatedAt: string;
+  name: string | null;
+  nameChangedAt: string | null;
 }
 
 // Single profile editor for the portal hub. Lives here so /hackathons/portal
@@ -30,6 +32,35 @@ export default function ProfileEditor() {
     interests: '',
     resume: null as File | null,
   });
+
+  // One-time name change state.
+  const [newName, setNewName] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameMessage, setNameMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  const handleNameChange = async () => {
+    if (!newName.trim()) return;
+    setNameSaving(true);
+    setNameMessage(null);
+    try {
+      const res = await fetch('/api/me/name', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      const body = await res.json();
+      if (body.success) {
+        setNameMessage({ kind: 'ok', text: body.message });
+        setProfile((prev) => (prev ? { ...prev, name: body.data.name, nameChangedAt: body.data.nameChangedAt } : prev));
+      } else {
+        setNameMessage({ kind: 'err', text: body.errors?.[0] ?? body.message ?? 'Failed to update name' });
+      }
+    } catch {
+      setNameMessage({ kind: 'err', text: 'Failed to update name — please try again.' });
+    } finally {
+      setNameSaving(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -141,6 +172,55 @@ export default function ProfileEditor() {
           <p className="font-medium">✓ Profile saved successfully!</p>
         </div>
       )}
+
+      {/* One-time Name Change */}
+      {profile ? (
+        <div className="bg-white border border-outline-variant p-6 md:p-8">
+          <h3 className="font-headline text-lg font-bold text-primary">Your Name</h3>
+          {profile.nameChangedAt ? (
+            <div className="mt-3 rounded border border-outline-variant bg-surface-container p-4">
+              <p className="text-sm font-semibold text-on-surface">{profile.name}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">
+                Name change already used on{" "}
+                {new Date(profile.nameChangedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}{' '}
+                — the one-time name change is locked forever. Contact the coordinator for corrections.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Current name: <span className="font-semibold text-on-surface">{profile.name ?? '—'}</span>
+              </p>
+              <div className="mt-3 flex flex-wrap items-start gap-3">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Enter your correct name"
+                  maxLength={80}
+                  className="w-full max-w-xs border border-outline-variant bg-white px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleNameChange()}
+                  disabled={!newName.trim() || nameSaving}
+                  className="bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {nameSaving ? 'Saving…' : 'Change Name'}
+                </button>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-warning">
+                You can change your name only once — it will be locked forever after.
+              </p>
+              {nameMessage ? (
+                <p className={`mt-2 text-xs font-semibold ${nameMessage.kind === 'ok' ? 'text-success' : 'text-error'}`}>
+                  {nameMessage.text}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6 bg-white border border-outline-variant p-6 md:p-8">

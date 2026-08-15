@@ -149,6 +149,7 @@ enum MemberAttendanceStatus {
 model User {
   id         Int        @id @default(autoincrement())
   name       String
+  nameChangedAt DateTime? // one-time student name change (locked forever after)
   email      String     @unique
   phone      String?
   password   String
