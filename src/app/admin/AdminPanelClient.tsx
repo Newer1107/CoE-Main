@@ -1114,6 +1114,13 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
   const [emailFailedBadgeCount, setEmailFailedBadgeCount] = useState<number | null>(null);
   const [customEmailScope, setCustomEmailScope] = useState<"CUSTOM" | "STUDENTS" | "FACULTY" | "ALL_USERS" | "STUDENTS_BY_BRANCH">("CUSTOM");
   const [newUserForm, setNewUserForm] = useState({ name: "", email: "", role: "FACULTY", password: "", uid: "", phone: "" });
+  const [editingUser, setEditingUser] = useState<FacultyUser | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", uid: "", phone: "", role: "STUDENT", status: "ACTIVE", isVerified: true });
+  const [userSaving, setUserSaving] = useState(false);
+  const [userActionMsg, setUserActionMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [deletingUser, setDeletingUser] = useState<FacultyUser | null>(null);
+  const [deleteResult, setDeleteResult] = useState<{ deleted: boolean; purged: Record<string, number> } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [userCreatedMsg, setUserCreatedMsg] = useState<string | null>(null);
 
@@ -1139,6 +1146,81 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
       if (body.success) setNewUserForm({ name: "", email: "", role: "FACULTY", password: "", uid: "", phone: "" });
     } finally {
       setCreatingUser(false);
+    }
+  };
+
+  const openEditUser = (user: FacultyUser) => {
+    setEditingUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      uid: user.uid ?? "",
+      phone: user.phone ?? "",
+      role: user.role,
+      status: user.status,
+      isVerified: user.isVerified,
+    });
+    setUserActionMsg(null);
+  };
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+    setUserSaving(true);
+    setUserActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name,
+          email: editForm.email,
+          uid: editForm.uid || null,
+          phone: editForm.phone || null,
+          role: editForm.role,
+          status: editForm.status,
+          isVerified: editForm.isVerified,
+        }),
+      });
+      const body = (await res.json()) as { success: boolean; message: string; errors?: string[] };
+      if (body.success) {
+        setUserActionMsg({ kind: "ok", text: "Saved — " + body.message });
+        setEditingUser(null);
+        window.setTimeout(() => window.location.reload(), 700);
+      } else {
+        setUserActionMsg({ kind: "err", text: body.errors?.[0] ?? body.message });
+      }
+    } catch {
+      setUserActionMsg({ kind: "err", text: "Failed to save — try again." });
+    } finally {
+      setUserSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleteBusy(true);
+    setUserActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${deletingUser.id}`, { method: "DELETE", credentials: "include" });
+      const body = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: { deleted: boolean; purged: Record<string, number> };
+      };
+      if (body.success && body.data) {
+        setDeleteResult(body.data);
+        setDeletingUser(null);
+        window.setTimeout(() => window.location.reload(), 900);
+      } else {
+        setUserActionMsg({ kind: "err", text: body.message });
+        setDeletingUser(null);
+      }
+    } catch {
+      setUserActionMsg({ kind: "err", text: "Delete failed — try again." });
+      setDeletingUser(null);
+    } finally {
+      setDeleteBusy(false);
     }
   };
   const [customEmailRecipients, setCustomEmailRecipients] = useState("");
@@ -4830,12 +4912,26 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleOpenUserDetails(user.id)}
-                          className="bg-[#0b2c5f] text-white px-3 py-1 text-xs hover:bg-[#091f44]"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenUserDetails(user.id)}
+                            className="bg-[#0b2c5f] text-white px-3 py-1 text-xs hover:bg-[#091f44]"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => openEditUser(user)}
+                            className="border border-[#0b2c5f] text-[#0b2c5f] px-3 py-1 text-xs hover:bg-[#0b2c5f] hover:text-white"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeletingUser(user)}
+                            className="border border-[#ba1a1a] text-[#ba1a1a] px-3 py-1 text-xs hover:bg-[#ba1a1a] hover:text-white"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -4861,6 +4957,119 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
               Export CSV
             </button>
           </div>
+
+          {/* ── Edit User modal ─────────────────────────────── */}
+          {editingUser ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditingUser(null)}>
+              <div className="w-full max-w-lg bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-headline text-xl text-[#002155]">Edit User — #{editingUser.id}</h3>
+                  <button onClick={() => setEditingUser(null)} className="text-lg text-[#434651] hover:text-[#002155]">✕</button>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                    Name
+                    <input value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} className="mt-1 w-full border border-[#c4c6d3] px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                    Email
+                    <input value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className="mt-1 w-full border border-[#c4c6d3] px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                    UID
+                    <input value={editForm.uid} onChange={(e) => setEditForm((p) => ({ ...p, uid: e.target.value }))} className="mt-1 w-full border border-[#c4c6d3] px-3 py-2 text-sm" placeholder="Empty = remove UID" />
+                  </label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                    Phone
+                    <input value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className="mt-1 w-full border border-[#c4c6d3] px-3 py-2 text-sm" />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                      Role
+                      <select value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))} className="mt-1 w-full border border-[#c4c6d3] px-3 py-2 text-sm">
+                        <option value="STUDENT">Student</option>
+                        <option value="FACULTY">Faculty</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    </label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#434651]">
+                      Status
+                      <select value={editForm.status} onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))} className="mt-1 w-full border border-[#c4c6d3] px-3 py-2 text-sm">
+                        <option value="ACTIVE">Active</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="REJECTED">Rejected</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#434651]">
+                    <input type="checkbox" checked={editForm.isVerified} onChange={(e) => setEditForm((p) => ({ ...p, isVerified: e.target.checked }))} className="h-4 w-4" />
+                    Verified (email OTP completed)
+                  </label>
+                </div>
+                {userActionMsg ? (
+                  <p className={`mt-3 text-sm font-semibold ${userActionMsg.kind === "ok" ? "text-emerald-700" : "text-red-600"}`}>{userActionMsg.text}</p>
+                ) : null}
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setEditingUser(null)} className="border border-[#c4c6d3] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#434651]">Cancel</button>
+                  <button onClick={() => void handleSaveUser()} disabled={userSaving} className="bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-50">
+                    {userSaving ? "Saving…" : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── Delete User modal ───────────────────────────── */}
+          {deletingUser ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeletingUser(null)}>
+              <div className="w-full max-w-lg bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <h3 className="font-headline text-xl text-[#ba1a1a]">Delete User — {deletingUser.name}</h3>
+                <p className="mt-2 text-sm text-[#434651]">
+                  This <span className="font-bold">permanently deletes</span> the user and everything tied to them —
+                  claims, profile, bookings, tickets, certificates, interests, feedback, OTPs and more (in one
+                  transaction). Problems/events they created are reassigned to you, not deleted. The email is freed
+                  instantly, so the person can register again with the same email.
+                </p>
+                <p className="mt-2 text-sm font-bold text-[#ba1a1a]">This cannot be undone.</p>
+                {userActionMsg ? (
+                  <p className={`mt-3 text-sm font-semibold ${userActionMsg.kind === "ok" ? "text-emerald-700" : "text-red-600"}`}>{userActionMsg.text}</p>
+                ) : null}
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setDeletingUser(null)} className="border border-[#c4c6d3] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#434651]">Cancel</button>
+                  <button onClick={() => void handleDeleteUser()} disabled={deleteBusy} className="bg-[#ba1a1a] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-50">
+                    {deleteBusy ? "Checking…" : "Delete User"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── Delete result modal ─────────────────────────── */}
+          {deleteResult ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteResult(null)}>
+              <div className="w-full max-w-lg bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <h3 className="font-headline text-xl text-emerald-700">User permanently deleted</h3>
+                <p className="mt-2 text-sm text-[#434651]">
+                  The account and all related data were removed. The email is freed — the person can register again.
+                </p>
+                <div className="mt-4 max-h-48 overflow-y-auto border border-[#c4c6d3] p-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#434651]">Purged</p>
+                  {Object.entries(deleteResult.purged).filter(([, n]) => n > 0).length === 0 ? (
+                    <p className="mt-1 text-sm text-[#434651]">No related data existed</p>
+                  ) : (
+                    <ul className="mt-1 space-y-0.5 text-sm text-[#434651]">
+                      {Object.entries(deleteResult.purged).filter(([, n]) => n > 0).map(([name, n]) => (
+                        <li key={name} className="flex justify-between"><span>{name}</span><span className="font-bold">{n}</span></li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="mt-5 flex justify-end">
+                  <button onClick={() => setDeleteResult(null)} className="bg-[#002155] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white">Done</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3">
             <select aria-label="Export Year" name="export-year" autoComplete="off"
