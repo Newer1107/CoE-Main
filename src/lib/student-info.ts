@@ -15,6 +15,7 @@ export const BRANCH_CODES: Record<string, string> = {
   CSE: "Computer Science & Engineering",
   IT: "Information Technology",
   "AI&ML": "Artificial Intelligence & Machine Learning",
+  "AIML": "Artificial Intelligence & Machine Learning", // UID variant without the ampersand
   "AI&DS": "Artificial Intelligence & Data Science",
   "E&CS": "Electronics & Computer Science",
   "E&TC": "Electronics & Telecommunication",

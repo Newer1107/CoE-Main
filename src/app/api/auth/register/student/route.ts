@@ -39,6 +39,22 @@ export async function POST(req: NextRequest) {
       return errorRes('An account with this email already exists.', [], 409);
     }
 
+    // UID must be unique — users.uid is NOT unique in legacy data, so enforce it
+    // in application code: one UID = one student account.
+    const uidTaken = uid ? await prisma.user.findFirst({ where: { uid } }) : null;
+    if (uidTaken) {
+      logActivity('AUTH_REGISTER_STUDENT_REJECTED', {
+        email: email.toLowerCase(),
+        uid,
+        reason: 'UID_EXISTS',
+      });
+      return errorRes(
+        'This UID is already registered',
+        ['An account with this UID already exists. If this is yours, try logging in or contact the coordinator.'],
+        409,
+      );
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 

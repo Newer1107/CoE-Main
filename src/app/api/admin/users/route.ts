@@ -59,6 +59,13 @@ export async function POST(req: NextRequest) {
     const existing = await prisma.user.findFirst({ where: { email } });
     if (existing) return errorRes('Email already registered', [`${email} already has an account`], 409);
 
+    if (uid) {
+      const uidTaken = await prisma.user.findFirst({ where: { uid } });
+      if (uidTaken) {
+        return errorRes('UID already registered', [`${uid} already belongs to ${uidTaken.name} (${uidTaken.email})`], 409);
+      }
+    }
+
     const hash = await bcrypt.hash(password, 10);
     const created = await prisma.user.create({
       data: { name, email, password: hash, role: role as 'STUDENT' | 'FACULTY', uid, phone, isVerified: true, status: 'ACTIVE' },

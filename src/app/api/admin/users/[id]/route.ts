@@ -6,6 +6,33 @@ import { logActivity } from '@/lib/activity-log';
 const NAME_RE = /^[A-Za-z][A-Za-z .'-]{1,79}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// GET /api/admin/users/[id] — full user detail for the admin View modal.
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = authenticate(req);
+    if (!admin) return errorRes('Unauthorized', [], 401);
+    if (!authorize(admin, 'ADMIN')) return errorRes('Admins only', [], 403);
+
+    const userId = Number((await params).id);
+    if (!Number.isInteger(userId)) return errorRes('Invalid user id', [], 400);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        facultyProfile: { select: { isHod: true, department: true } },
+        studentProfile: { select: { skills: true, experience: true, interests: true } },
+      },
+    });
+    if (!user) return errorRes('User not found', [], 404);
+
+    const { password: _pw, ...safe } = user;
+    return successRes(safe, 'User details retrieved.');
+  } catch (err) {
+    console.error('admin user detail error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
+
 // PUT /api/admin/users/[id] — admin edits a user's details (corrections/verification).
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -43,7 +70,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (dup) return errorRes('Email already in use by another account', [], 409);
       data.email = email;
     }
-    if (body.uid !== undefined) data.uid = (body.uid ?? '').trim().toUpperCase() || null;
+    if (body.uid !== undefined) {
+      const newUid = (body.uid ?? '').trim().toUpperCase() || null;
+      if (newUid) {
+        const uidTaken = await prisma.user.findFirst({ where: { uid: newUid, id: { not: userId } }, select: { id: true } });
+        if (uidTaken) return errorRes('UID already registered by another account', [], 409);
+      }
+      data.uid = newUid;
+    }
     if (body.phone !== undefined) data.phone = (body.phone ?? '').trim() || null;
     if (body.role !== undefined) {
       if (!['STUDENT', 'FACULTY', 'ADMIN'].includes(body.role)) return errorRes('Invalid role', [], 400);
