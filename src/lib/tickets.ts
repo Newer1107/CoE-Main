@@ -122,10 +122,10 @@ export const buildPdfBuffer = async (payload: {
   // cream paper
   doc.rect(0, 0, W, H).fill(CREAM);
 
-  // watermark CoE logo bottom-left
+  // watermark CoE logo bottom-left (bottom:16mm per the approved mockup)
   doc.save();
   doc.opacity(0.07);
-  doc.image(LOGO_COE, 50, H - 250, { height: 85 });
+  doc.image(LOGO_COE, 50, H - 85 - 45, { height: 85 });
   doc.restore();
 
   // logos top-right
@@ -171,16 +171,16 @@ export const buildPdfBuffer = async (payload: {
     rowY += 34;
   }
 
-  // QR bottom-right
+  // QR bottom-right (paired with the instruction text, per the approved mockup)
   const qrS = 108;
   const qrX = W - 52 - qrS - 14;
-  const qrY = 100;
-  doc.rect(qrX, qrY, qrS + 14, qrS + 14).lineWidth(1).strokeColor(NAVY).stroke();
+  const qrY = 655;
+  doc.rect(qrX, qrY, qrS + 14, qrS + 38).lineWidth(1).strokeColor(NAVY).stroke();
   doc.image(qrBuffer, qrX + 7, qrY + 7, { width: qrS, height: qrS });
   doc.font(FONT_SANS).fontSize(7.5).fillColor(NAVY).text('VERIFY', qrX + 7, qrY + qrS + 20, { width: qrS, characterSpacing: 2.5, align: 'center' });
 
-  // instruction
-  doc.font(FONT_SANS).fontSize(9).fillColor(GRAY).text(payload.instructionText, 51, 680, { width: 260, lineGap: 3 });
+  // instruction (bottom zone, left of the QR)
+  doc.font(FONT_SANS).fontSize(9).fillColor(GRAY).text(payload.instructionText, 51, 742, { width: 260, lineGap: 3 });
 
   // footer
   doc.moveTo(51, 800).lineTo(W - 51, 800).lineWidth(0.6).strokeColor(NAVY).opacity(0.35).stroke();
