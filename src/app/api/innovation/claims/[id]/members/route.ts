@@ -84,17 +84,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const finalMemberIds = allUids.map((uid) => byUid.get(uid)!.id);
 
-    // no member may be on ANOTHER team in this event
-    const otherTeam = await prisma.claimMember.findFirst({
-      where: {
-        userId: { in: finalMemberIds },
-        claimId: { not: claim.id },
-        claim: { problem: { eventId: event.id } },
-      },
-      select: { userId: true },
-    });
-    if (otherTeam) {
-      return errorRes('Member already in another team', ['A selected member already belongs to an existing team for this hackathon event.'], 409);
+    // only NEW members are checked for other-team conflicts — existing members
+    // (incl. the lead) already belong to this claim and may legitimately be on
+    // other claims of the same event (dev/test data), which must not block edits.
+    const existingMemberIds = claim.members.map((m) => m.userId);
+    const newMemberIds = finalMemberIds.filter((id) => !existingMemberIds.includes(id));
+    if (newMemberIds.length > 0) {
+      const otherTeam = await prisma.claimMember.findFirst({
+        where: {
+          userId: { in: newMemberIds },
+          claimId: { not: claim.id },
+          claim: { problem: { eventId: event.id } },
+        },
+        select: { userId: true },
+      });
+      if (otherTeam) {
+        return errorRes('Member already in another team', ['A selected member already belongs to an existing team for this hackathon event.'], 409);
+      }
     }
 
     // apply: remove dropped members (never the lead), upsert new ones
