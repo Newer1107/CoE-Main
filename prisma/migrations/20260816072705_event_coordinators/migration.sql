@@ -19,4 +19,4 @@ ALTER TABLE `EventCoordinator` ADD CONSTRAINT `EventCoordinator_userId_fkey` FOR
 
 -- Backfill: existing single-coordinator assignments become join rows
 INSERT INTO `EventCoordinator` (`eventId`, `userId`, `createdAt`)
-SELECT `id`, `coordinatorId`, NOW() FROM `HackathonEvent` WHERE `coordinatorId` IS NOT NULL;
+SELECT `id`, `coordinatorId`, NOW() FROM `hackathon_events` WHERE `coordinatorId` IS NOT NULL;
