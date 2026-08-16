@@ -738,6 +738,7 @@ type ScoreClaim = {
   id: number;
   teamName: string | null;
   venue: { id: number; name: string } | null;
+  problem: { id: number; title: string } | null;
   presentationScheduledAt: string | null;
   rubricScores: ScoreRow[];
   members: { user: { name: string; email: string; uid: string | null } }[];
@@ -746,20 +747,24 @@ type ScoreClaim = {
 function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
   const [categories, setCategories] = useState<{ id: number; key: string; label: string; weight: number }[]>([]);
   const [claims, setClaims] = useState<ScoreClaim[]>([]);
+  const [problems, setProblems] = useState<{ id: number; title: string }[]>([]);
   const [round, setRound] = useState<number | null>(null);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [slotInputs, setSlotInputs] = useState<Record<string, string>>({});
   const [slotBusy, setSlotBusy] = useState(false);
+  const [problemPick, setProblemPick] = useState<Record<string, string>>({});
+  const [problemBusy, setProblemBusy] = useState(false);
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/scores`, { credentials: "include" })
       .then((r) => r.json())
-      .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number }[]; claims: ScoreClaim[]; round: number }>) => {
+      .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number }[]; claims: ScoreClaim[]; round: number; problems: { id: number; title: string }[] }>) => {
         if (b.success) {
           setCategories(b.data.categories);
           setClaims(b.data.claims);
           setRound(b.data.round);
+          if (b.data.problems) setProblems(b.data.problems);
         }
       });
   }, [eventId]);
@@ -825,6 +830,28 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     }
   };
 
+  const changeProblem = async (claimId: number) => {
+    const problemId = Number(problemPick[claimId]);
+    if (!Number.isInteger(problemId)) {
+      notify("Pick a problem statement first");
+      return;
+    }
+    setProblemBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/problem`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ claimId, problemId }),
+      });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? b.message : b.message);
+      if (b.success) load();
+    } finally {
+      setProblemBusy(false);
+    }
+  };
+
   return (
     <div className="border border-[#c4c6d3] bg-white p-5">
       <h3 className="font-headline text-xl text-[#002155]">
@@ -849,6 +876,27 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
               <p className="mt-0.5 text-xs text-[#747782]">
                 {claim.members.map((m) => m.user.name).join(", ")}
               </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 border border-[#e3e2df] bg-white px-3 py-2">
+                <div className="min-w-40 flex-1">
+                  <p className="text-xs font-semibold text-[#002155]">Problem Statement</p>
+                  <p className="text-[11px] text-[#747782]">{claim.problem?.title ?? "—"}</p>
+                </div>
+                <select
+                  className="max-w-md border border-[#c4c6d3] px-2 py-1 text-xs"
+                  value={problemPick[claim.id] ?? ""}
+                  onChange={(e) => setProblemPick((p) => ({ ...p, [claim.id]: e.target.value }))}
+                >
+                  <option value="">Change to…</option>
+                  {problems.map((pr) => (
+                    <option key={pr.id} value={pr.id}>
+                      #{pr.id} · {pr.title}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => void changeProblem(claim.id)} disabled={problemBusy} className={btnGhost + " px-3 py-1 text-[10px]"}>
+                  Change
+                </button>
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-3 border border-[#e3e2df] bg-white px-3 py-2">
                 <div className="min-w-40 flex-1">
                   <p className="text-xs font-semibold text-[#002155]">Presentation Slot</p>

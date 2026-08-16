@@ -18,19 +18,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const round = currentRound(event);
 
-    const [categories, claims] = await Promise.all([
+    const [categories, claims, problems] = await Promise.all([
       prisma.rubricCategory.findMany({ where: { eventId }, orderBy: { order: 'asc' } }),
       prisma.claim.findMany({
         where: { problem: { eventId }, ...(venueId ? { venueId } : {}) },
         include: {
           venue: { select: { id: true, name: true } },
+          problem: { select: { id: true, title: true } },
           rubricScores: { where: { round }, include: { rubricCategory: true } },
           members: { include: { user: { select: { name: true, email: true, uid: true } } } },
         },
         orderBy: { id: 'asc' },
       }),
+      prisma.problem.findMany({ where: { eventId }, select: { id: true, title: true }, orderBy: { id: 'asc' } }),
     ]);
-    return successRes({ categories, claims, round });
+    return successRes({ categories, claims, round, problems });
   } catch (err) {
     console.error('scores GET error:', err);
     return errorRes('Internal server error', [], 500);
