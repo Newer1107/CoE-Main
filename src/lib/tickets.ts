@@ -1,12 +1,14 @@
 import crypto from 'crypto';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
+import PDFDocument from 'pdfkit';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { deleteFile, uploadFileWithObjectKey } from '@/lib/minio';
 import { logActivity } from '@/lib/activity-log';
 import { sendTicketIssuedEmail } from '@/lib/mailer';
 import { bookingDateTimeFromIST } from '@/lib/time';
+import fs from 'node:fs';
+import path from 'node:path';
 
 type TicketType = 'FACILITY_BOOKING' | 'HACKATHON_SELECTION';
 
@@ -75,7 +77,28 @@ const extractBase64 = (dataUrl: string) => {
   return split.length === 2 ? split[1] : '';
 };
 
-const buildPdfBuffer = async (payload: {
+const FONT_SERIF = path.join(process.cwd(), 'public/fonts/playfair.ttf');
+const FONT_SANS = path.join(process.cwd(), 'public/fonts/manrope.ttf');
+const LOGO_TCET = path.join(process.cwd(), 'public/tcet-logo.png');
+const LOGO_COE = path.join(process.cwd(), 'public/coe-logo-v2.jpeg');
+
+const NAVY = '#002155';
+const GOLD = '#fd9923';
+const GOLD_DEEP = '#d97706';
+const CREAM = '#f5f4f0';
+const INK = '#111827';
+const GRAY = '#6b7280';
+const HAIR = '#b9b4a8';
+
+const fmtTicketDate = (d: Date) => d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
+/**
+ * Editorial ticket (Concept B): cream paper, Playfair serif hero, contents-style
+ * index with dotted leaders, watermarked CoE logo, framed QR. Fully data-driven:
+ * the hero splits the subject on ' — ' (main / sub); without a separator the sub
+ * falls back to the ticket title. QR generation is identical to the legacy design.
+ */
+export const buildPdfBuffer = async (payload: {
   ticketId: string;
   ticketTitle: string;
   userName: string;
@@ -88,145 +111,86 @@ const buildPdfBuffer = async (payload: {
   const qrBase64 = extractBase64(qrDataUrl);
   const qrBuffer = Buffer.from(qrBase64, 'base64');
 
-  const doc = await PDFDocument.create();
-  const page = doc.addPage([595.28, 841.89]);
-  const pageHeight = page.getHeight();
+  const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+  const chunks: Buffer[] = [];
+  doc.on('data', (c: Buffer) => chunks.push(c));
+  const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
 
-  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const qrImage = await doc.embedPng(qrBuffer);
+  const W = doc.page.width; // 595.28
+  const H = doc.page.height; // 841.89
 
-  const topToY = (top: number, fontSize = 0) => pageHeight - top - fontSize;
+  // cream paper
+  doc.rect(0, 0, W, H).fill(CREAM);
 
-  page.drawRectangle({
-    x: 48,
-    y: pageHeight - 48 - 74,
-    width: 499,
-    height: 74,
-    color: rgb(0, 0.129, 0.333),
-  });
+  // watermark CoE logo bottom-left
+  doc.save();
+  doc.opacity(0.07);
+  doc.image(LOGO_COE, 50, H - 250, { height: 85 });
+  doc.restore();
 
-  page.drawText(platformName, {
-    x: 64,
-    y: topToY(72, 20),
-    size: 20,
-    font: fontBold,
-    color: rgb(1, 1, 1),
-  });
+  // logos top-right
+  doc.image(LOGO_TCET, W - 160 - 42, 40, { height: 42 });
+  doc.image(LOGO_COE, W - 160, 40, { height: 42 });
 
-  page.drawText('DIGITAL TICKET', {
-    x: 64,
-    y: topToY(130, 11),
-    size: 11,
-    font: fontBold,
-    color: rgb(0.549, 0.31, 0),
-  });
+  // overline
+  doc.font(FONT_SANS).fontSize(8).fillColor(GRAY).text('TCET CENTRE OF EXCELLENCE — DIGITAL PASS', 51, 108, { characterSpacing: 3.2 });
 
-  page.drawText(payload.ticketTitle, {
-    x: 64,
-    y: topToY(146, 24),
-    size: 24,
-    font: fontBold,
-    color: rgb(0, 0.129, 0.333),
-  });
+  // hero: split subject on ' — '
+  const sep = ' — ';
+  const parts = payload.subjectName.split(sep);
+  const heroMain = parts[0]?.trim() || payload.subjectName;
+  const heroSub = parts.length > 1 ? parts.slice(1).join(sep).trim() : payload.ticketTitle;
 
-  const rowStart = 196;
-  const rowGap = 28;
-  const labelColor = rgb(0.263, 0.275, 0.318);
-  const valueColor = rgb(0, 0.129, 0.333);
+  doc.font(FONT_SERIF).fontSize(50).fillColor(NAVY).text(heroMain, 48, 165);
+  doc.font(FONT_SERIF).fontSize(14).fillColor(GOLD_DEEP).text(heroSub, 51, 228);
+  doc.rect(51, 245, 85, 3.1).fill(GOLD);
 
-  const drawRow = (label: string, value: string, index: number) => {
-    const top = rowStart + rowGap * index;
-    page.drawText(label, {
-      x: 64,
-      y: topToY(top, 11),
-      size: 11,
-      font: fontRegular,
-      color: labelColor,
-    });
-    page.drawText(value, {
-      x: 190,
-      y: topToY(top, 13),
-      size: 13,
-      font: fontBold,
-      color: valueColor,
-    });
-  };
+  // index rows with dotted leaders
+  const rows: [string, string][] = [
+    ['ATTENDEE', payload.userName],
+    ['EVENT', payload.subjectName],
+    ['DATE & TIME', payload.scheduledAt ? fmtTicketDate(payload.scheduledAt) : '—'],
+    ['TICKET NO.', payload.ticketId],
+  ];
+  const labelX = 51;
+  const valueRight = 510;
+  const leaderStart = 175;
+  let rowY = 375;
+  doc.font(FONT_SANS).fontSize(7.5).fillColor(GRAY);
+  for (const [label, value] of rows) {
+    doc.text(label, labelX, rowY, { characterSpacing: 1.8 });
+    // dotted leader
+    let dx = leaderStart;
+    doc.strokeColor(HAIR).lineWidth(0.8);
+    while (dx < valueRight - 4) {
+      doc.moveTo(dx, rowY + 5).lineTo(Math.min(dx + 4, valueRight - 4), rowY + 5).stroke();
+      dx += 9;
+    }
+    doc.font(FONT_SANS).fontSize(11).fillColor(INK).text(value, valueRight - 300, rowY - 1.5, { width: 300, align: 'right' });
+    doc.font(FONT_SANS).fontSize(7.5).fillColor(GRAY);
+    rowY += 34;
+  }
 
-  drawRow('Ticket ID', payload.ticketId, 0);
-  drawRow('User', payload.userName, 1);
-  drawRow('Event / Booking', payload.subjectName, 2);
-  drawRow('Date & Time', formatDateTime(payload.scheduledAt), 3);
+  // QR bottom-right
+  const qrS = 108;
+  const qrX = W - 52 - qrS - 14;
+  const qrY = 100;
+  doc.rect(qrX, qrY, qrS + 14, qrS + 14).lineWidth(1).strokeColor(NAVY).stroke();
+  doc.image(qrBuffer, qrX + 7, qrY + 7, { width: qrS, height: qrS });
+  doc.font(FONT_SANS).fontSize(7.5).fillColor(NAVY).text('VERIFY', qrX + 7, qrY + qrS + 20, { width: qrS, characterSpacing: 2.5, align: 'center' });
 
-  page.drawRectangle({
-    x: 64,
-    y: pageHeight - 330 - 82,
-    width: 300,
-    height: 82,
-    borderWidth: 1,
-    borderColor: rgb(0.769, 0.776, 0.827),
-  });
+  // instruction
+  doc.font(FONT_SANS).fontSize(9).fillColor(GRAY).text(payload.instructionText, 51, 680, { width: 260, lineGap: 3 });
 
-  page.drawText('Instruction', {
-    x: 78,
-    y: topToY(346, 10),
-    size: 10,
-    font: fontRegular,
-    color: labelColor,
-  });
+  // footer
+  doc.moveTo(51, 800).lineTo(W - 51, 800).lineWidth(0.6).strokeColor(NAVY).opacity(0.35).stroke();
+  doc.opacity(1);
+  doc.font(FONT_SANS).fontSize(7.5).fillColor(GRAY).text('Valid only once at check-in', 51, 812);
+  doc.font(FONT_SANS).fontSize(7.5).fillColor(GRAY).text('Issued ' + fmtTicketDate(new Date()), W / 2 - 60, 812, { width: 120, align: 'center' });
+  doc.font(FONT_SANS).fontSize(7.5).fillColor(GRAY).text('tcetcercd.in', W - 51 - 100, 812, { width: 100, align: 'right' });
 
-  page.drawText(payload.instructionText, {
-    x: 78,
-    y: topToY(364, 12),
-    size: 12,
-    font: fontRegular,
-    color: valueColor,
-    maxWidth: 272,
-    lineHeight: 14,
-  });
-
-  page.drawImage(qrImage, {
-    x: 390,
-    y: pageHeight - 326 - 150,
-    width: 150,
-    height: 150,
-  });
-
-  page.drawText('QR contains ticket identifier for verification', {
-    x: 376,
-    y: topToY(486, 9),
-    size: 9,
-    font: fontRegular,
-    color: rgb(0.455, 0.467, 0.51),
-    maxWidth: 180,
-    lineHeight: 11,
-  });
-
-  page.drawLine({
-    start: { x: 64, y: pageHeight - 525 },
-    end: { x: 547, y: pageHeight - 525 },
-    thickness: 1,
-    color: rgb(0.847, 0.855, 0.902),
-  });
-
-  page.drawText('This ticket is system-generated and valid only once at check-in.', {
-    x: 64,
-    y: topToY(538, 10),
-    size: 10,
-    font: fontRegular,
-    color: rgb(0.455, 0.467, 0.51),
-  });
-
-  page.drawText(`Issued at: ${formatDateTime(new Date())}`, {
-    x: 64,
-    y: topToY(555, 10),
-    size: 10,
-    font: fontRegular,
-    color: rgb(0.455, 0.467, 0.51),
-  });
-
-  const bytes = await doc.save();
-  return Buffer.from(bytes);
+  doc.end();
+  return done;
 };
 
 const getDownloadPath = (ticketId: string) => `/api/tickets/${encodeURIComponent(ticketId)}/download`;
