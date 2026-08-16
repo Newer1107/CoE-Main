@@ -107,8 +107,13 @@ export async function POST(req: NextRequest) {
 async function issueLinkLoginResponse(user: {
   id: number; name: string; email: string; role: string;
   uid: string | null; industryId: number | null; status: string;
+  isVerified: boolean;
   facultyProfile?: { isHod: boolean } | null;
 }, sub: string) {
+  // Google proof of email ownership = verification. Flip the flag on link-login.
+  if (!user.isVerified) {
+    await prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
+  }
   const payload: TokenPayload = {
     id: user.id,
     role: user.role,

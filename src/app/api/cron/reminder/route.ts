@@ -73,10 +73,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Step 5: Clean expired OTPs
-    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
 
     await prisma.otp.deleteMany({
-      where: { createdAt: { lt: tenMinutesAgo } },
+      where: { createdAt: { lt: thirtyMinutesAgo } },
     });
 
     return Response.json({

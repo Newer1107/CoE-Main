@@ -71,10 +71,14 @@ const STATUS_FLOW = ["UPCOMING", "ACTIVE", "JUDGING", "CLOSED"] as const;
 
 function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: string) => void; isAdmin?: boolean }) {
   const [status, setStatus] = useState<string | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [submissionLockAt, setSubmissionLockAt] = useState<string | null>(null);
   const [round, setRound] = useState<{ round: number; maxRound: number } | null>(null);
   const [coordinator, setCoordinator] = useState<{ id: number; name: string; email: string } | null>(null);
   const [faculty, setFaculty] = useState<{ id: number; name: string; email: string }[]>([]);
   const [coordPick, setCoordPick] = useState("");
+  const [newLock, setNewLock] = useState("");
+  const [windowBusy, setWindowBusy] = useState(false);
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/rounds`, { credentials: "include" })
@@ -84,8 +88,12 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
       });
     void fetch(`/api/innovation/admin/events/${eventId}/status`, { credentials: "include" })
       .then((r) => r.json())
-      .then((b: Api<{ status: string }>) => {
-        if (b.success) setStatus(b.data.status);
+      .then((b: Api<{ status: string; registrationOpen: boolean; submissionLockAt: string | null }>) => {
+        if (b.success) {
+          setStatus(b.data.status);
+          setRegistrationOpen(b.data.registrationOpen);
+          setSubmissionLockAt(b.data.submissionLockAt);
+        }
       })
       .catch(() => null);
     if (isAdmin) {
@@ -142,6 +150,27 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
     }
   };
 
+  const updateWindow = async (payload: { registrationOpen?: boolean; submissionLockAt?: string | null }) => {
+    setWindowBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/window`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const b = (await res.json()) as Api<{ registrationOpen: boolean; submissionLockAt: string | null }>;
+      notify(b.message);
+      if (b.success) {
+        setRegistrationOpen(b.data.registrationOpen);
+        setSubmissionLockAt(b.data.submissionLockAt);
+        setNewLock("");
+      }
+    } finally {
+      setWindowBusy(false);
+    }
+  };
+
   const advance = async () => {
     const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds`, {
       method: "POST",
@@ -176,6 +205,68 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
           UPCOMING → ACTIVE (registration open) → JUDGING (scoring open) → CLOSED (terminal). Closing requires every
           team to have rubric scores; final scores are computed from the last round automatically.
         </p>
+      </div>
+
+      <div className="border border-[#c4c6d3] bg-white p-5">
+        <h3 className="font-headline text-xl text-[#002155]">Registration Window</h3>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <p className="text-sm">
+            Registration:{" "}
+            <span className={`font-bold ${registrationOpen ? "text-[#0b6b2e]" : "text-[#ba1a1a]"}`}>
+              {registrationOpen === null ? "…" : registrationOpen ? "OPEN" : "CLOSED"}
+            </span>
+          </p>
+          {status && status !== "CLOSED" && registrationOpen !== null ? (
+            <button
+              type="button"
+              onClick={() => void updateWindow({ registrationOpen: !registrationOpen })}
+              disabled={windowBusy}
+              className={btnCls}
+            >
+              {registrationOpen ? "Close Registration" : "Open Registration"}
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-3 border-t border-[#e3e2df] pt-3">
+          <p className="text-sm">
+            Submission (PPT) lock:{" "}
+            <span className="font-bold text-[#002155]">
+              {submissionLockAt ? new Date(submissionLockAt).toLocaleString("en-IN") : "No lock set"}
+            </span>
+          </p>
+          {status && status !== "CLOSED" ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <input
+                type="datetime-local"
+                value={newLock}
+                onChange={(e) => setNewLock(e.target.value)}
+                className="border border-[#c4c6d3] px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => newLock && void updateWindow({ submissionLockAt: new Date(newLock).toISOString() })}
+                disabled={windowBusy || !newLock}
+                className={btnCls}
+              >
+                Set New Deadline
+              </button>
+              {submissionLockAt ? (
+                <button
+                  type="button"
+                  onClick={() => void updateWindow({ submissionLockAt: null })}
+                  disabled={windowBusy}
+                  className="border border-[#ba1a1a] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#ba1a1a] hover:bg-[#ba1a1a] hover:text-white"
+                >
+                  Remove Lock
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="mt-2 text-xs text-[#747782]">
+            A late student? Open registration and set a new deadline (e.g. after the Sunday lock) — the form accepts
+            them again immediately. Note: registration only works while the event is UPCOMING or ACTIVE.
+          </p>
+        </div>
       </div>
 
       <div className="border border-[#c4c6d3] bg-white p-5">

@@ -35,8 +35,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check 10-minute TTL
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    if (otpRecord.createdAt < tenMinutesAgo) {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    if (otpRecord.createdAt < thirtyMinutesAgo) {
       await prisma.otp.delete({ where: { id: otpRecord.id } });
       return errorRes('OTP expired. Please request a new one.', [], 400);
     }

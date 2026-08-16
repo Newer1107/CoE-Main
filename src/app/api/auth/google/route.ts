@@ -164,8 +164,14 @@ export async function POST(req: NextRequest) {
 async function issueLoginResponse(user: {
   id: number; name: string; email: string; role: string;
   uid: string | null; industryId: number | null; status: string;
+  isVerified: boolean;
   facultyProfile?: { isHod: boolean } | null;
 }, sub: string) {
+  // Google already proved email ownership — that IS the verification. Auto-verify
+  // so Google-login users never hit the OTP wall (heals legacy unverified users too).
+  if (!user.isVerified) {
+    await prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
+  }
   const payload: TokenPayload = {
     id: user.id,
     role: user.role,
