@@ -215,6 +215,26 @@ export const sendFacultyRejectionEmail = async (email: string, name: string) => 
   });
 };
 
+// ─── 7b. Presentation slot scheduled (to the team lead) ───
+export const sendPresentationScheduledEmail = async (
+  email: string,
+  details: { teamName: string | null; eventTitle: string; scheduledAt: Date; venueName: string | null }
+) => {
+  const when = details.scheduledAt.toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'short' });
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Your Presentation Slot — ${details.eventTitle}</h2>
+    <p style="color:#434651;font-size:14px;">Dear <strong>${details.teamName ?? 'Team'}</strong>,</p>
+    <p style="color:#434651;font-size:14px;">Your team's presentation has been scheduled:</p>
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:14px 20px;margin:14px 0;font-size:15px;color:#002155;">
+      <strong>${when}</strong>${details.venueName ? `<br/>Venue: ${details.venueName}` : ''}
+    </div>
+    <p style="color:#434651;font-size:14px;">Reach the venue 15 minutes early with your team. Check the event page on the CoE portal for any updates.</p>`;
+  await send(email, `Presentation Slot Scheduled — ${details.eventTitle}`, body, {
+    mode: 'immediate',
+    category: 'EVENT_UPDATE',
+  });
+};
+
 // ─── 8. Innovation: Problem Claimed ───
 export const sendInnovationProblemClaimedEmail = async (
   facultyEmail: string,

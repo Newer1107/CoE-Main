@@ -738,6 +738,7 @@ type ScoreClaim = {
   id: number;
   teamName: string | null;
   venue: { id: number; name: string } | null;
+  presentationScheduledAt: string | null;
   rubricScores: ScoreRow[];
   members: { user: { name: string; email: string; uid: string | null } }[];
 };
@@ -748,6 +749,8 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [round, setRound] = useState<number | null>(null);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [slotInputs, setSlotInputs] = useState<Record<string, string>>({});
+  const [slotBusy, setSlotBusy] = useState(false);
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/scores`, { credentials: "include" })
@@ -783,6 +786,45 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     if (b.success) load();
   };
 
+  const saveSlot = async (claimId: number) => {
+    const raw = slotInputs[claimId] ?? "";
+    if (!raw) {
+      notify("Pick a date & time first");
+      return;
+    }
+    setSlotBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/presentations`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ claimId, scheduledAt: new Date(raw).toISOString() }),
+      });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? b.message : b.message);
+      if (b.success) load();
+    } finally {
+      setSlotBusy(false);
+    }
+  };
+
+  const clearSlot = async (claimId: number) => {
+    setSlotBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/presentations`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ claimId, scheduledAt: null }),
+      });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? b.message : b.message);
+      if (b.success) load();
+    } finally {
+      setSlotBusy(false);
+    }
+  };
+
   return (
     <div className="border border-[#c4c6d3] bg-white p-5">
       <h3 className="font-headline text-xl text-[#002155]">
@@ -807,6 +849,30 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
               <p className="mt-0.5 text-xs text-[#747782]">
                 {claim.members.map((m) => m.user.name).join(", ")}
               </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 border border-[#e3e2df] bg-white px-3 py-2">
+                <div className="min-w-40 flex-1">
+                  <p className="text-xs font-semibold text-[#002155]">Presentation Slot</p>
+                  <p className="text-[11px] text-[#747782]">
+                    {claim.presentationScheduledAt
+                      ? new Date(claim.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" })
+                      : "Not scheduled yet"}
+                  </p>
+                </div>
+                <input
+                  type="datetime-local"
+                  className="border border-[#c4c6d3] px-2 py-1 text-sm"
+                  value={slotInputs[claim.id] ?? ""}
+                  onChange={(e) => setSlotInputs((p) => ({ ...p, [claim.id]: e.target.value }))}
+                />
+                <button type="button" onClick={() => void saveSlot(claim.id)} disabled={slotBusy} className={btnGhost + " px-3 py-1 text-[10px]"}>
+                  Set Slot
+                </button>
+                {claim.presentationScheduledAt ? (
+                  <button type="button" onClick={() => void clearSlot(claim.id)} disabled={slotBusy} className="text-[10px] font-bold text-[#ba1a1a] underline">
+                    Clear
+                  </button>
+                ) : null}
+              </div>
               <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                 {categories.map((cat) => {
                   const scoreRow = claim.rubricScores.find((s) => s.rubricCategory.id === cat.id);

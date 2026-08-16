@@ -113,6 +113,7 @@ enum NotificationType {
   MEETING_SCHEDULED
   DOCUMENT_UPLOADED
   HOSTING_REQUEST
+  EVENT_UPDATE
 }
 
 enum HostingRequestStatus {
@@ -289,6 +290,7 @@ model Claim {
   derivedInfo       Json?              // snapshot: { lead: StudentInfo|manual, members: {uid: StudentInfo} }
   venueId           Int?
   venue             Venue?             @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  presentationScheduledAt DateTime?    // coordinator-set presentation slot for this team
   tickets           Ticket[]
   attendanceRecords TicketAttendance[]
   rubricScores      RubricScore[]

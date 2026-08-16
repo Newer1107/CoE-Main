@@ -301,6 +301,14 @@ export default function EventDetailClient({
                   {myClaim.pptUploaded ? "Uploaded" : "Not uploaded"}
                 </dd>
               </div>
+              {myClaim.presentationScheduledAt ? (
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="font-semibold text-on-surface">Presentation slot:</dt>
+                  <dd className="font-semibold text-[#002155]">
+                    {new Date(myClaim.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" })}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
 
             <div className="mt-3 border-t border-outline-variant/60 pt-3">
