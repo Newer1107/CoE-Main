@@ -474,7 +474,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let fileKey: string | null = null;
     if (pptFile) {
       const buffer = Buffer.from(await pptFile.arrayBuffer());
-      const objectKey = `innovation/events/${eventId}/registration/${Date.now()}-${currentStudent.uid}-${sanitizeFilename(pptFile.name)}`;
+      // Cap the filename in the key: the submissionFileKey column is VARCHAR(191)
+      // and long PPT names (60+ chars) overflow it, failing the whole register.
+      const safe = sanitizeFilename(pptFile.name);
+      const dot = safe.lastIndexOf('.');
+      const base = (dot > 0 ? safe.slice(0, dot) : safe).slice(0, 90);
+      const ext = dot > 0 ? safe.slice(dot) : '';
+      const objectKey = `innovation/events/${eventId}/registration/${Date.now()}-${currentStudent.uid}-${base}${ext}`;
       fileKey = await uploadFileWithObjectKey(objectKey, {
         buffer,
         mimetype: pptFile.type || 'application/octet-stream',

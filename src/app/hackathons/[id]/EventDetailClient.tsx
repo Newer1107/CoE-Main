@@ -234,6 +234,13 @@ export default function EventDetailClient({
   const [pptUploading, setPptUploading] = useState(false);
   const [pptMessage, setPptMessage] = useState<string | null>(null);
 
+  // Team member editing (leader only, while the window is open)
+  const [memberUids, setMemberUids] = useState<string[]>(() => (myClaim?.members ?? []).filter((m) => m.role !== "LEAD").map((m) => m.uid ?? ""));
+  const [addQuery, setAddQuery] = useState("");
+  const [addSuggestions, setAddSuggestions] = useState<{ id: number; name: string; uid: string; derivedText?: string }[]>([]);
+  const [memberSaving, setMemberSaving] = useState(false);
+  const [memberMsg, setMemberMsg] = useState<string | null>(null);
+
   const handlePptReupload = async () => {
     if (!pptFile || !myClaim) return;
     setPptUploading(true);
@@ -258,6 +265,40 @@ export default function EventDetailClient({
       setPptMessage("Upload failed — please try again.");
     } finally {
       setPptUploading(false);
+    }
+  };
+
+  // ── Team member editing (leader only, while the window is open) ──
+  const fetchMemberSuggestions = (q: string) => {
+    if (q.trim().length < 4) {
+      setAddSuggestions([]);
+      return;
+    }
+    void fetch(`/api/innovation/students/lookup?q=${encodeURIComponent(q.trim())}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((b) => {
+        const items = (b?.data?.suggestions ?? []) as { id: number; name: string; uid: string; derivedText?: string }[];
+        setAddSuggestions(items.filter((s) => !memberUids.includes(s.uid)));
+      })
+      .catch(() => setAddSuggestions([]));
+  };
+
+  const saveMembers = async () => {
+    if (!myClaim) return;
+    setMemberSaving(true);
+    setMemberMsg(null);
+    try {
+      const res = await fetch(`/api/innovation/claims/${myClaim.claimId}/members`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberUids }),
+      });
+      const b = (await res.json().catch(() => null)) as { success?: boolean; message?: string; errors?: string[] } | null;
+      setMemberMsg(b?.errors?.[0] ?? b?.message ?? "Failed to update members.");
+      if (b?.success) setTimeout(() => window.location.reload(), 800);
+    } finally {
+      setMemberSaving(false);
     }
   };
 
@@ -362,14 +403,87 @@ export default function EventDetailClient({
                       {pptMessage}
                     </p>
                   ) : null}
-                </>
-              )}
-              <p className="mt-3 text-xs text-on-surface-variant">
-                For any other changes to your team, contact{" "}
-                <span className="font-bold text-on-surface">Raunak Singh — 9372499047</span>.
-              </p>
-            </div>
-          ) : (
+                  </>
+                  )}
+                  {!pptLocked ? (
+                  <div className="mt-3 border-t border-outline-variant/60 pt-3">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted">Manage members</p>
+                  <p className="mt-1 text-xs text-on-surface-variant">
+                    Add or remove team members. Changes apply to everyone — only possible before the submission deadline.
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {myClaim.members
+                      .filter((m) => m.role !== "LEAD")
+                      .map((member) => (
+                        <li key={member.uid ?? member.email} className="flex items-center justify-between gap-2 text-sm">
+                          <span>
+                            <span className="font-semibold text-on-surface">{member.name}</span>{" "}
+                            <span className="text-xs text-muted">{member.uid ?? member.email}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setMemberUids((prev) => prev.filter((u) => u !== member.uid))}
+                            className="text-xs font-bold text-red-600 underline hover:opacity-70"
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  <div className="relative mt-2">
+                    <input
+                      type="text"
+                      className="w-full border border-outline-variant px-3 py-2 text-sm"
+                      placeholder="Add member by UID (type to search)…"
+                      value={addQuery}
+                      onChange={(e) => {
+                        setAddQuery(e.target.value);
+                        fetchMemberSuggestions(e.target.value);
+                      }}
+                    />
+                    {addSuggestions.length > 0 ? (
+                      <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto border border-outline-variant bg-white shadow-lg">
+                        {addSuggestions.slice(0, 8).map((s) => (
+                          <li key={s.id}>
+                            <button
+                              type="button"
+                              className="block w-full px-3 py-2 text-left text-xs text-on-surface hover:bg-surface-container"
+                              onClick={() => {
+                                setMemberUids((prev) => (prev.includes(s.uid) ? prev : [...prev, s.uid]));
+                                setAddQuery("");
+                                setAddSuggestions([]);
+                              }}
+                            >
+                              <span className="font-semibold">{s.name}</span>{" "}
+                              <span className="text-muted">{s.uid}</span>
+                              {s.derivedText ? <span className="ml-1 text-muted">· {s.derivedText}</span> : null}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                  {memberMsg ? (
+                    <p className={`mt-2 text-xs font-semibold ${memberMsg.startsWith("Team members updated") || memberMsg.includes("updated") ? "text-emerald-700" : "text-red-600"}`}>
+                      {memberMsg}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void saveMembers()}
+                    disabled={memberSaving}
+                    className="mt-3 bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {memberSaving ? "Saving…" : "Save Members"}
+                  </button>
+                  </div>
+                  ) : null}
+                  <p className="mt-3 text-xs text-on-surface-variant">
+                  For any other changes to your team, contact{" "}
+                  <span className="font-bold text-on-surface">Raunak Singh — 9372499047</span>.
+                  </p>
+                  </div>
+                  ) : (
             <p className="border border-outline-variant bg-surface-container p-4 text-xs text-on-surface-variant">
               You're a team member on this registration — details are view-only. For any changes, ask your team lead
               (or contact Raunak Singh — 9372499047).
