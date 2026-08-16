@@ -52,7 +52,9 @@ export function canJudgeClaim(assignment: { venueId: number | null }, claimVenue
  */
 export function canManageEvent(
   user: { id: number; role: string },
-  event: { coordinatorId: number | null },
+  event: { coordinatorId: number | null; coordinators?: { userId: number }[] },
 ): boolean {
-  return user.role === 'ADMIN' || event.coordinatorId === user.id;
+  if (user.role === 'ADMIN') return true;
+  if (event.coordinatorId === user.id) return true; // legacy single-coordinator path
+  return !!event.coordinators?.some((c) => c.userId === user.id);
 }

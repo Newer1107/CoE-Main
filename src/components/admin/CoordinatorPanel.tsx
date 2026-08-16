@@ -74,7 +74,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
   const [submissionLockAt, setSubmissionLockAt] = useState<string | null>(null);
   const [round, setRound] = useState<{ round: number; maxRound: number } | null>(null);
-  const [coordinator, setCoordinator] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [coordinators, setCoordinators] = useState<{ id: number; name: string; email: string }[]>([]);
   const [faculty, setFaculty] = useState<{ id: number; name: string; email: string }[]>([]);
   const [coordPick, setCoordPick] = useState("");
   const [newLock, setNewLock] = useState("");
@@ -96,24 +96,15 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
         }
       })
       .catch(() => null);
-    if (isAdmin) {
-      void fetch(`/api/innovation/events/${eventId}/ops/coordinator`, { credentials: "include" })
-        .then((r) => r.json())
-        .then((b: Api<{ coordinator: { id: number; name: string; email: string } | null; faculty: { id: number; name: string; email: string }[] }>) => {
-          if (b.success) {
-            setCoordinator(b.data.coordinator);
-            setFaculty(b.data.faculty);
-          }
-        })
-        .catch(() => null);
-    } else {
-      void fetch(`/api/innovation/events/${eventId}/ops/coordinator`, { credentials: "include" })
-        .then((r) => r.json())
-        .then((b: Api<{ coordinator: { id: number; name: string; email: string } | null }>) => {
-          if (b.success) setCoordinator(b.data.coordinator);
-        })
-        .catch(() => null);
-    }
+    void fetch(`/api/innovation/events/${eventId}/ops/coordinator`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((b: Api<{ coordinators: { id: number; name: string; email: string }[]; faculty: { id: number; name: string; email: string }[] }>) => {
+        if (b.success) {
+          setCoordinators(b.data.coordinators);
+          setFaculty(b.data.faculty);
+        }
+      })
+      .catch(() => null);
   }, [eventId, isAdmin]);
 
   useEffect(load, [load]);
@@ -148,6 +139,18 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
       setCoordPick("");
       load();
     }
+  };
+
+  const removeCoordinator = async (userId: number) => {
+    const res = await fetch(`/api/innovation/events/${eventId}/ops/coordinator`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ coordinatorId: userId }),
+    });
+    const b = (await res.json()) as Api<unknown>;
+    notify(b.success ? b.message : b.message);
+    if (b.success) load();
   };
 
   const updateWindow = async (payload: { registrationOpen?: boolean; submissionLockAt?: string | null }) => {
@@ -270,30 +273,49 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
       </div>
 
       <div className="border border-[#c4c6d3] bg-white p-5">
-        <h3 className="font-headline text-xl text-[#002155]">Event Coordinator</h3>
-        {coordinator ? (
-          <p className="mt-2 text-sm text-[#434651]">
-            <span className="font-bold text-[#002155]">{coordinator.name}</span> ({coordinator.email}) runs this event's
-            panel.
-          </p>
+        <h3 className="font-headline text-xl text-[#002155]">Event Coordinators</h3>
+        {coordinators.length > 0 ? (
+          <ul className="mt-2 space-y-1.5">
+            {coordinators.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 border-b border-[#e3e2df] py-1.5 text-sm">
+                <span className="text-[#434651]">
+                  <span className="font-bold text-[#002155]">{c.name}</span> ({c.email})
+                </span>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => void removeCoordinator(c.id)}
+                    className="text-xs font-bold text-[#ba1a1a] underline hover:opacity-70"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p className="mt-2 text-sm text-[#747782]">No coordinator assigned — an admin can assign a teacher below.</p>
+          <p className="mt-2 text-sm text-[#747782]">No coordinator assigned — an admin can assign teachers below.</p>
         )}
         {isAdmin ? (
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <select className={inputCls + " md:w-80"} value={coordPick} onChange={(e) => setCoordPick(e.target.value)}>
-              <option value="">Assign a teacher as coordinator…</option>
-              {faculty.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} ({f.email})
-                </option>
-              ))}
+              <option value="">Add a teacher as coordinator…</option>
+              {faculty
+                .filter((f) => !coordinators.some((c) => c.id === f.id))
+                .map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.email})
+                  </option>
+                ))}
             </select>
             <button type="button" onClick={() => void saveCoordinator()} className={btnCls} disabled={!coordPick}>
-              Assign Coordinator
+              Add Coordinator
             </button>
           </div>
         ) : null}
+        <p className="mt-2 text-xs text-[#747782]">
+          Every coordinator gets full access to this event's panel. Non-coordinators are denied.
+        </p>
       </div>
 
       <div className="border border-[#c4c6d3] bg-white p-5">

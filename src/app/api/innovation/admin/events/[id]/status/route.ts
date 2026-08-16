@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const eventId = Number((await params).id);
     const event = await prisma.hackathonEvent.findUnique({
       where: { id: eventId },
-      select: { id: true, status: true, registrationOpen: true, title: true, coordinatorId: true, submissionLockAt: true },
+      select: { id: true, status: true, registrationOpen: true, title: true, coordinatorId: true, coordinators: { select: { userId: true } }, submissionLockAt: true },
     });
     if (!event) return errorRes('Hackathon event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);

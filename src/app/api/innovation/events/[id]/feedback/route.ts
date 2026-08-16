@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
 
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } } } });
     if (!event) return errorRes('Event not found', [], 404);
     if (canManageEvent(user, event)) {
       const rows = await prisma.eventFeedback.findMany({
