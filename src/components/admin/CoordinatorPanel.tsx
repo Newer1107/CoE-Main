@@ -754,6 +754,8 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [slotInputs, setSlotInputs] = useState<Record<string, string>>({});
   const [slotBusy, setSlotBusy] = useState(false);
   const [problemPick, setProblemPick] = useState<Record<string, string>>({});
+  const [problemQuery, setProblemQuery] = useState<Record<string, string>>({});
+  const [problemOpen, setProblemOpen] = useState<Record<string, boolean>>({});
   const [problemBusy, setProblemBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -881,18 +883,45 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                   <p className="text-xs font-semibold text-[#002155]">Problem Statement</p>
                   <p className="text-[11px] text-[#747782]">{claim.problem?.title ?? "—"}</p>
                 </div>
-                <select
-                  className="max-w-md border border-[#c4c6d3] px-2 py-1 text-xs"
-                  value={problemPick[claim.id] ?? ""}
-                  onChange={(e) => setProblemPick((p) => ({ ...p, [claim.id]: e.target.value }))}
-                >
-                  <option value="">Change to…</option>
-                  {problems.map((pr) => (
-                    <option key={pr.id} value={pr.id}>
-                      #{pr.id} · {pr.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-64 flex-1">
+                  <input
+                    type="text"
+                    className="w-full border border-[#c4c6d3] px-2 py-1 text-xs"
+                    placeholder="Search problem statements…"
+                    value={problemQuery[claim.id] ?? ""}
+                    onFocus={() => setProblemOpen((p) => ({ ...p, [claim.id]: true }))}
+                    onChange={(e) => {
+                      setProblemQuery((p) => ({ ...p, [claim.id]: e.target.value }));
+                      setProblemPick((p) => ({ ...p, [claim.id]: "" }));
+                      setProblemOpen((p) => ({ ...p, [claim.id]: true }));
+                    }}
+                  />
+                  {problemOpen[claim.id] && (problemQuery[claim.id] ?? "").trim().length > 0 ? (
+                    <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto border border-[#c4c6d3] bg-white shadow-lg">
+                      {problems
+                        .filter((pr) => pr.title.toLowerCase().includes((problemQuery[claim.id] ?? "").trim().toLowerCase()))
+                        .slice(0, 30)
+                        .map((pr) => (
+                          <li key={pr.id}>
+                            <button
+                              type="button"
+                              className="block w-full px-2 py-1.5 text-left text-xs text-[#434651] hover:bg-[#f5f4f0]"
+                              onClick={() => {
+                                setProblemPick((p) => ({ ...p, [claim.id]: String(pr.id) }));
+                                setProblemQuery((p) => ({ ...p, [claim.id]: pr.title }));
+                                setProblemOpen((p) => ({ ...p, [claim.id]: false }));
+                              }}
+                            >
+                              <span className="text-[#9ca3af]">#{pr.id}</span> · {pr.title}
+                            </button>
+                          </li>
+                        ))}
+                      {problems.filter((pr) => pr.title.toLowerCase().includes((problemQuery[claim.id] ?? "").trim().toLowerCase())).length === 0 ? (
+                        <li className="px-2 py-1.5 text-xs text-[#9ca3af]">No problem statements match</li>
+                      ) : null}
+                    </ul>
+                  ) : null}
+                </div>
                 <button type="button" onClick={() => void changeProblem(claim.id)} disabled={problemBusy} className={btnGhost + " px-3 py-1 text-[10px]"}>
                   Change
                 </button>
