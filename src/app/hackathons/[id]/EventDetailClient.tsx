@@ -339,7 +339,7 @@ export default function EventDetailClient({
               <div className="flex flex-wrap gap-x-2">
                 <dt className="font-semibold text-on-surface">Presentation:</dt>
                 <dd className={myClaim.pptUploaded ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
-                  {myClaim.pptUploaded ? "Uploaded" : "Not uploaded"}
+                  {myClaim.pptUploaded ? (<a href={myClaim.submissionFileUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">Download PPT</a>) : "Not uploaded"}
                 </dd>
               </div>
               {myClaim.presentationScheduledAt ? (
