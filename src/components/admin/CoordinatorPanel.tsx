@@ -359,6 +359,8 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [name, setName] = useState("");
   const [capacity, setCapacity] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [venueSlotInputs, setVenueSlotInputs] = useState<Record<string, string>>({});
+  const [venueSlotBusy, setVenueSlotBusy] = useState(false);
   const [targetVenue, setTargetVenue] = useState("");
 
   const load = useCallback(() => {
@@ -398,6 +400,19 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     const body = (await res.json()) as Api<unknown>;
     notify(body.success ? `${venueName} deleted` : body.message);
     if (body.success) load();
+  };
+
+    const setVenueSlot = async (claimId: number) => {
+    const raw = venueSlotInputs[claimId] ?? "";
+    setVenueSlotBusy(true);
+    try {
+      const res = raw
+        ? await fetch(`/api/innovation/events/${eventId}/ops/presentations`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimId, scheduledAt: new Date(raw).toISOString() }) })
+        : await fetch(`/api/innovation/events/${eventId}/ops/presentations`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimId, scheduledAt: null }) });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? b.message : b.message);
+      if (b.success) load();
+    } finally { setVenueSlotBusy(false); }
   };
 
   const assign = async () => {
