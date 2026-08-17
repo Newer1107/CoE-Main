@@ -49,9 +49,12 @@ export function canJudgeClaim(assignment: { venueId: number | null }, claimVenue
 // ── Department helpers (UID-derived) ─────────────────────────────────────
 
 const DEPT_FROM_BRANCH: Record<string, string> = {
+  // longest prefixes first (checked in insertion order) — prevents stale shadowing
+  CSECSA: 'CSE', CSECSB: 'CSE', CSECSC: 'CSE', CSECS: 'CSE', CSEIOT: 'CSE', CSEA: 'CSE', CSEB: 'CSE', CSEC: 'CSE',
   COMP: 'COMP', IT: 'IT', CSE: 'CSE',
   AIML: 'AIML', AIDS: 'AIDS', ECSA: 'ECSA', ECS: 'ECS',
   EXTC: 'ENTC', ENTC: 'ENTC', EXT: 'ENTC', MME: 'MME', MECH: 'MECH',
+  CIVIL: 'CIVIL', BVOC: 'BVOC', MCA: 'MCA',
   BCA: 'BCA', IOT: 'IOT',
 };
 
@@ -59,15 +62,16 @@ export function deptFromUid(uid: string | null | undefined): string | null {
   if (!uid) return null;
   const m = uid.trim().toUpperCase().match(/^(\d{2})-([A-Z&]+)/);
   if (!m) return null;
-  const raw = m[2];
-  // normalize: e.g. AI&ML -> AIML, A&DS -> AIDS, E&CS -> ECSA etc happens via prefix match
+  let raw = m[2];
+  // strip '&' so AI&ML -> AIML
+  raw = raw.replace(/&/g, '');
   for (const [k, code] of Object.entries(DEPT_FROM_BRANCH)) {
     if (raw.startsWith(k)) return code;
   }
   return raw; // fallback: raw branch string
 }
 
-export const DEPARTMENT_CODES = ['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MME','MECH','BCA','IOT'] as const;
+export const DEPARTMENT_CODES = ['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MME','MECH','CIVIL','BVOC','MCA','BCA','IOT'] as const;
 export type DepartmentCode = typeof DEPARTMENT_CODES[number];
 
 /** Normalize a coordinator's departmentCode from DB (null/empty = global = all depts). */
@@ -76,7 +80,9 @@ export function normalizeDeptCode(v: string | null | undefined): string | null {
   const up = v.trim().toUpperCase();
   if (!up) return null;
   if (up === 'EXTC' || up === 'EXT') return 'ENTC';
-  return up;
+  // also handle any stray CSE variant codes passed explicitly
+  if (up.startsWith('CSE')) return 'CSE';
+  return up.replace(/&/g, '');
 }
 
 /**
