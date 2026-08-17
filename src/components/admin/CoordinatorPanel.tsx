@@ -513,10 +513,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
             Assign {selected.size > 0 ? `${selected.size} team${selected.size === 1 ? "" : "s"}` : "…"}
           </button>
         </div>
-        {filteredUnassigned.length === 0 ? (
-          <p className="mt-3 text-sm text-[#0b6b2e]">All teams are assigned. ✓</p>
-        ) : (
-          <div className="mb-3 flex items-center gap-3">
+        <div className="mb-3 flex items-center gap-3">
                     <select className="border border-[#c4c6d3] px-3 py-2 text-sm" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
                       <option value="">All Departments</option>
                       {departments.map((d) => (
@@ -525,7 +522,10 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                     </select>
                     <span className="text-xs text-[#747782]">{filteredUnassigned.length} team{filteredUnassigned.length === 1 ? "" : "s"}</span>
                   </div>
-                  <div className="mt-3 max-h-72 overflow-auto border border-[#e3e2df]">
+        {filteredUnassigned.length === 0 ? (
+          <p className="mt-3 text-sm text-[#0b6b2e]">All teams are assigned. ✓</p>
+        ) : (
+          <div className="mt-3 max-h-72 overflow-auto border border-[#e3e2df]">
             <table className="w-full text-sm">
               <thead className="bg-[#f4f6fa] text-left text-xs uppercase tracking-wider text-[#434651]">
                 <tr>
