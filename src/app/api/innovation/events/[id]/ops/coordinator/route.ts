@@ -5,6 +5,7 @@ import { canManageEvent, normalizeDeptCode, DEPARTMENT_CODES } from '@/lib/hacka
 
 // GET  /ops/coordinator — event coordinators (with departmentCode) + candidate teachers
 // PUT  /ops/coordinator — add a coordinator { coordinatorId: number, departmentCode?: string|null } (admin only)
+// PATCH /ops/coordinator — change a coordinator's department { coordinatorId, fromDepartmentCode, toDepartmentCode } (admin only)
 // DELETE /ops/coordinator — remove a coordinator { coordinatorId: number, departmentCode?: string|null } (admin only)
 // departmentCode: null/"" = global (all depts), otherwise e.g. "COMP", "AIML"
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -95,6 +96,33 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return successRes({ coordinatorId, departmentCode }, 'Coordinator added');
   } catch (err) {
     console.error('coordinator PUT error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
+
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+    if (user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    const eventId = Number((await params).id);
+    const body = await req.json().catch(() => null);
+    const coordinatorId = Number(body?.coordinatorId);
+    if (!Number.isInteger(coordinatorId)) return errorRes('coordinatorId is required', [], 400);
+    const from = normalizeDeptCode(body?.fromDepartmentCode ?? undefined);
+    const to = normalizeDeptCode(body?.toDepartmentCode ?? undefined);
+    if (from === to) return errorRes('No change', ['Pick a different department'], 400);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
+    if (!event) return errorRes('Event not found', [], 404);
+    const existing = await prisma.eventCoordinator.findFirst({ where: { eventId, userId: coordinatorId, departmentCode: from } });
+    if (!existing) return errorRes('Coordinator not found for that department', [], 404);
+    const clash = await prisma.eventCoordinator.findFirst({ where: { eventId, userId: coordinatorId, departmentCode: to } });
+    if (clash) return errorRes('Already assigned to that department', [], 409);
+    await prisma.eventCoordinator.update({ where: { id: existing.id }, data: { departmentCode: to } });
+    return successRes({ coordinatorId, fromDepartmentCode: from, toDepartmentCode: to }, 'Department updated');
+  } catch (err) {
+    console.error('coordinator PATCH error:', err);
     return errorRes('Internal server error', [], 500);
   }
 }

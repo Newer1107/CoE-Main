@@ -283,18 +283,44 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
             {coordinators.map((c) => (
               <li key={`${c.userId}-${c.departmentCode ?? 'all'}`} className="flex items-center justify-between gap-3 border-b border-[#e3e2df] py-1.5 text-sm">
                 <span className="text-[#434651]">
-                  <span className="font-bold text-[#002155]">{c.user.name}</span> ({c.user.email}){" "}
-                  <span className="ml-2 inline-flex rounded bg-[#002155]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#002155]">{c.departmentCode ?? 'All depts'}</span>
+                  <span className="font-bold text-[#002155]">{c.user.name}</span> ({c.user.email})
                 </span>
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => void removeCoordinator(c.userId, c.departmentCode)}
-                    className="text-xs font-bold text-[#ba1a1a] underline hover:opacity-70"
-                  >
-                    Remove
-                  </button>
-                ) : null}
+                <span className="flex items-center gap-2">
+                  {isAdmin ? (
+                    <select
+                      className="border border-[#c4c6d3] bg-white px-2 py-1 text-xs"
+                      value={c.departmentCode ?? ""}
+                      onChange={(e) => {
+                        const to = e.target.value || null;
+                        void (async () => {
+                          const res = await fetch(`/api/innovation/events/${eventId}/ops/coordinator`, {
+                            method: "PATCH",
+                            credentials: "include",
+                            headers: { "content-type": "application/json" },
+                            body: JSON.stringify({ coordinatorId: c.userId, fromDepartmentCode: c.departmentCode, toDepartmentCode: to }),
+                          });
+                          const b = (await res.json()) as Api<unknown>;
+                          notify(b.success ? (b.message as string) : b.message);
+                          if (b.success) load();
+                        })();
+                      }}
+                    >
+                      <option value="">All depts</option>
+                      {deptCodes.map((d) => (<option key={d} value={d}>{d}</option>))}
+                    </select>
+                  ) : (
+                    <span className="inline-flex rounded bg-[#002155]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#002155]">{c.departmentCode ?? 'All depts'}</span>
+                  )}
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => void removeCoordinator(c.userId, c.departmentCode)}
+                      className="text-xs font-bold text-[#ba1a1a] underline hover:opacity-70"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>
