@@ -351,7 +351,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
 
 /* ── Venues ────────────────────────────────────────────────────────────── */
 type VenueRow = { id: number; name: string; capacity: number | null; order: number; _count: { claims: number } };
-type ClaimLite = { id: number; teamName: string | null; status: string };
+type ClaimLite = { id: number; teamName: string | null; status: string; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
 
 function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
   const [venues, setVenues] = useState<VenueRow[]>([]);
@@ -741,7 +741,7 @@ type ScoreClaim = {
   problem: { id: number; title: string } | null;
   presentationScheduledAt: string | null;
   rubricScores: ScoreRow[];
-  members: { user: { name: string; email: string; uid: string | null } }[];
+  members: { role: string; user: { name: string; email: string; uid: string | null } }[];
 };
 
 function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
@@ -895,7 +895,19 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                 </p>
               </div>
               <p className="mt-0.5 text-xs text-[#747782]">
-                {claim.members.map((m) => m.user.name).join(", ")}
+                {claim.members.map((m) => (
+                  <span key={m.user.uid ?? m.user.email} className="mr-2">
+                    <span className={m.role === "LEAD" ? "font-bold text-[#002155]" : ""}>
+                      {m.user.name}
+                    </span>
+                    <span className="ml-1 text-[10px] text-[#9ca3af]">
+                      {m.user.uid ?? ""}
+                    </span>
+                    {m.role === "LEAD" ? (
+                      <span className="ml-1 rounded bg-[#002155]/10 px-1 py-0.5 text-[8px] font-bold uppercase text-[#002155]">Lead</span>
+                    ) : null}
+                  </span>
+                ))}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3 border border-[#e3e2df] bg-white px-3 py-2">
                 <div className="min-w-40 flex-1">
