@@ -361,6 +361,31 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [venueSlotInputs, setVenueSlotInputs] = useState<Record<string, string>>({});
   const [venueSlotBusy, setVenueSlotBusy] = useState(false);
+  const [deptFilter, setDeptFilter] = useState("");
+
+  const deptFromUid = (uid: string): string => {
+    const m = uid.match(/^\d{2}-([A-Z&]+)/);
+    if (!m) return "Other";
+    const b = m[1];
+    const map: Record<string, string> = {
+      COMP: "Computer Engg", IT: "Information Tech", CSE: "CSE",
+      AIML: "AI & ML", "AI&ML": "AI & ML", AIDS: "AI & DS", "A&DS": "AI & DS",
+      ECSA: "E&CS", ECS: "E&CS", EXT: "E&TC", ENTC: "E&TC",
+      MME: "Mechanical", MECH: "Mechanical", BCA: "BCA", IOT: "IoT",
+    };
+    for (const [k, v] of Object.entries(map)) { if (b.startsWith(k)) return v; }
+    return b;
+  };
+
+  const filteredUnassigned = deptFilter ? unassigned.filter((c) => {
+    const lead = c.members.find((m) => m.role === "LEAD");
+    return lead && deptFromUid(lead.user.uid ?? "") === deptFilter;
+  }) : unassigned;
+
+  const departments = [...new Set(unassigned.map((c) => {
+    const lead = c.members.find((m) => m.role === "LEAD");
+    return lead ? deptFromUid(lead.user.uid ?? "") : "Other";
+  }))].sort();
   const [targetVenue, setTargetVenue] = useState("");
 
   const load = useCallback(() => {
@@ -488,7 +513,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
             Assign {selected.size > 0 ? `${selected.size} team${selected.size === 1 ? "" : "s"}` : "…"}
           </button>
         </div>
-        {unassigned.length === 0 ? (
+        {filteredUnassigned.length === 0 ? (
           <p className="mt-3 text-sm text-[#0b6b2e]">All teams are assigned. ✓</p>
         ) : (
           <div className="mt-3 max-h-72 overflow-auto border border-[#e3e2df]">
@@ -503,7 +528,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                 </tr>
               </thead>
               <tbody>
-                {unassigned.map((c) => (
+                {filteredUnassigned.map((c) => (
                   <tr key={c.id} className="border-t border-[#e3e2df]">
                     <td className="px-3 py-2">
                       <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
