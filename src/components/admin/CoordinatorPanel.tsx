@@ -510,7 +510,17 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                     </td>
                     <td className="px-3 py-2 font-semibold text-[#002155]">{c.teamName ?? `Team #${c.id}`}</td>
                     <td className="px-3 py-2 text-xs text-[#434651]">{c.members.find((m) => m.role === "LEAD")?.user.uid ?? "—"}</td>
-                    <td className="px-3 py-2 text-[11px] text-[#747782]">{c.members.map((m) => m.user.name + " (" + (m.user.uid || "") + ")").join(", ")}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{c.presentationScheduledAt ? (
+                        <span>
+                          <span className="text-[#002155] font-semibold">{new Date(c.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                          <button type="button" onClick={() => void setVenueSlot(c.id)} disabled={venueSlotBusy} className="ml-2 text-[10px] font-bold text-[#ba1a1a] underline hover:opacity-70">Clear</button>
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <input type="datetime-local" className="w-[160px] border border-[#c4c6d3] px-1.5 py-1 text-xs" value={venueSlotInputs[c.id] ?? ""} onChange={(e) => setVenueSlotInputs((p) => ({ ...p, [c.id]: e.target.value }))} />
+                          <button type="button" onClick={() => void setVenueSlot(c.id)} disabled={venueSlotBusy || !venueSlotInputs[c.id]} className="text-[10px] font-bold text-[#002155] underline hover:opacity-70">Set</button>
+                        </div>
+                      )}</td>
                     <td className="px-3 py-2 text-xs">{c.status}</td>
                   </tr>
                 ))}
