@@ -8,7 +8,7 @@ type Assignment = {
   venue: { id: number; name: string } | null;
 };
 
-type Category = { id: number; key: string; label: string; weight: number };
+type Category = { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null };
 type JudgeClaim = {
   id: number;
   teamName: string | null;
@@ -33,7 +33,7 @@ export default function JudgePortal() {
     categories: Category[];
     claims: JudgeClaim[];
   } | null>(null);
-  const [values, setValues] = useState<Record<string, Record<string, string>>>({});
+  const [values, setValues] = useState<Record<string, Record<string, string | number>>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<string | null>(null);
@@ -181,26 +181,51 @@ export default function JudgePortal() {
                   <p className="text-xs font-semibold text-[#0b6b2e]">Saved {saved[claim.id]}</p>
                 ) : null}
               </div>
-              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                {data.categories.map((cat) => (
-                  <div key={cat.id} className="border border-[#e3e2df] bg-[#faf9f5] p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">{cat.label}</p>
-                      <span className="text-[11px] text-[#747782]">/ {cat.weight}</span>
-                    </div>
-                    <input
-                      type="number"
-                      min={0}
-                      max={cat.weight}
-                      className={inputCls + " mt-2 w-full"}
-                      value={values[claim.id]?.[cat.id] ?? ""}
-                      onChange={(e) =>
-                        setValues((p) => ({ ...p, [claim.id]: { ...(p[claim.id] ?? {}), [cat.id]: e.target.value } }))
-                      }
-                      placeholder={`Score 0–${cat.weight}`}
-                    />
-                  </div>
-                ))}
+              <div className="mt-4 space-y-4">
+                {data.categories
+                  .filter((c) => c.parentCategoryId === null)
+                  .map((parent) => {
+                    const children = data.categories.filter((c) => c.parentCategoryId === parent.id);
+                    return (
+                      <div key={parent.id} className="border border-[#e3e2df] bg-[#faf9f5] p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">{parent.label}</p>
+                          <span className="text-[11px] text-[#747782]">Weight {parent.weight}</span>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {children.map((child) => {
+                            const cur = values[claim.id]?.[child.id];
+                            const isYes = cur === 1;
+                            const isNo = cur === 0;
+                            return (
+                              <div key={child.id} className="flex items-center gap-3">
+                                <span className="text-xs text-[#434651] min-w-0 flex-1">
+                                  {child.label}
+                                  {child.isCritical ? (
+                                    <span className="ml-1 text-[#8c4f00] font-bold" title="Critical">★</span>
+                                  ) : null}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setValues((p) => ({ ...p, [claim.id]: { ...(p[claim.id] ?? {}), [child.id]: isYes ? undefined : 1 } }))}
+                                  className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border transition-colors ${isYes ? "border-[#0b6b2e] bg-[#0b6b2e] text-white" : "border-[#c4c6d3] bg-white text-[#434651] hover:bg-[#f0f0ee]"}`}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setValues((p) => ({ ...p, [claim.id]: { ...(p[claim.id] ?? {}), [child.id]: isNo ? undefined : 0 } }))}
+                                  className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border transition-colors ${isNo ? "border-[#8b0000] bg-[#8b0000] text-white" : "border-[#c4c6d3] bg-white text-[#434651] hover:bg-[#f0f0ee]"}`}
+                                >
+                                  No
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
               <textarea
                 className={inputCls + " mt-3 w-full min-h-20"}

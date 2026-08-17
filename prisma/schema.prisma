@@ -917,17 +917,22 @@ model SiteSetting {
 }
 
 model RubricCategory {
-  id      Int            @id @default(autoincrement())
-  eventId Int
-  event   HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  key     String
-  label   String
-  weight  Int            @default(10)
-  order   Int            @default(0)
-  scores  RubricScore[]
+  id               Int            @id @default(autoincrement())
+  eventId          Int
+  event            HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  key              String
+  label            String
+  weight           Int            @default(10)
+  order            Int            @default(0)
+  isCritical       Boolean        @default(false)
+  parentCategoryId Int?
+  parentCategory   RubricCategory? @relation("RubricParent", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  childCategories  RubricCategory[] @relation("RubricParent")
+  scores           RubricScore[]
 
   @@unique([eventId, key])
   @@index([eventId])
+  @@index([parentCategoryId])
   @@map("rubric_categories")
 }
 

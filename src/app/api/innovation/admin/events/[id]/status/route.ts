@@ -85,21 +85,51 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           data: { status: 'SUBMITTED' },
         });
 
-        // Finalize rubric totals: finalScore = sum of the LAST judging round per claim,
-        // so results, leaderboard and certificates all read one source of truth.
+        // Finalize rubric totals using binary weight calculation (SIH 5-param model).
+        // Binary: each question is 0 or 1. Parent weight determines contribution.
+        // finalScore = sum( (YES count / 5) * parentWeight ) → 0–100.
+        const categories = await tx.rubricCategory.findMany({
+          where: { eventId },
+          select: { id: true, weight: true, parentCategoryId: true },
+        });
+        const parents = categories.filter((c) => c.parentCategoryId === null);
+        const parentMap = new Map(parents.map((p) => [p.id, p.weight]));
+        const childToParent = new Map<number, number>();
+        for (const c of categories) {
+          if (c.parentCategoryId !== null) childToParent.set(c.id, c.parentCategoryId);
+        }
+
         const claimsWithScores = await tx.claim.findMany({
           where: { problem: { eventId }, rubricScores: { some: {} } },
-          select: { id: true, rubricScores: { select: { round: true, score: true } } },
+          select: { id: true, rubricScores: { select: { round: true, score: true, rubricCategoryId: true } } },
         });
         for (const claim of claimsWithScores) {
-          const byRound = new Map<number, number>();
-          for (const s of claim.rubricScores) {
-            byRound.set(s.round, (byRound.get(s.round) ?? 0) + s.score);
+          // Get the last round's scores
+          const lastRound = Math.max(...claim.rubricScores.map((s) => s.round));
+          const lastRoundScores = claim.rubricScores.filter((s) => s.round === lastRound);
+
+          // Binary: YES count per parent category
+          const parentYesCount = new Map<number, number>();
+          const parentTotal = new Map<number, number>();
+          for (const s of lastRoundScores) {
+            const parentId = childToParent.get(s.rubricCategoryId);
+            if (parentId !== undefined) {
+              parentYesCount.set(parentId, (parentYesCount.get(parentId) ?? 0) + (s.score > 0 ? 1 : 0));
+              parentTotal.set(parentId, (parentTotal.get(parentId) ?? 0) + 1);
+            }
           }
-          const lastRound = Math.max(...byRound.keys());
+
+          // Weighted binary score: each parent contributes (YES/total) * weight
+          let finalScore = 0;
+          for (const [parentId, weight] of parentMap) {
+            const yesCount = parentYesCount.get(parentId) ?? 0;
+            const total = parentTotal.get(parentId) ?? 1;
+            finalScore += (yesCount / total) * weight;
+          }
+
           await tx.claim.update({
             where: { id: claim.id },
-            data: { finalScore: byRound.get(lastRound) ?? 0 },
+            data: { finalScore: Math.round(finalScore), score: Math.round(finalScore) },
           });
         }
       }
