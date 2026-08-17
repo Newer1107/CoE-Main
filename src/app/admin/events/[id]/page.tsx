@@ -20,7 +20,7 @@ export default async function EventOpsPage({ params }: { params: Promise<{ id: s
   const user = token ? authenticate(fakeReq) : null;
   if (!user) redirect('/login?next=' + encodeURIComponent(`/admin/events/${eventId}`));
 
-  const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
+  const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, include: { coordinators: { select: { userId: true } } } });
   if (!event) redirect('/admin');
   if (!canManageEvent(user, event)) redirect('/login?next=' + encodeURIComponent(`/admin/events/${eventId}`));
 
