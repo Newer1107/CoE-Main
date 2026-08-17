@@ -531,7 +531,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                 <tr>
                   <th className="px-3 py-2">#</th>
                   <th className="px-3 py-2">Team</th>
-                  <th className="px-3 py-2">Lead UID</th>
+                  <th className="px-3 py-2">Lead</th>
                   <th className="px-3 py-2">Presentation Slot</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
@@ -543,7 +543,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                       <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                     </td>
                     <td className="px-3 py-2 font-semibold text-[#002155]">{c.teamName ?? `Team #${c.id}`}</td>
-                    <td className="px-3 py-2 text-xs text-[#434651]">{c.members.find((m) => m.role === "LEAD")?.user.uid ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs text-[#434651]">{(() => { const ld = c.members.find((m) => m.role === "LEAD")?.user; return ld ? `${ld.name} (${ld.uid ?? ""})` : "—"; })()}</td>
                     <td className="px-3 py-2 text-xs whitespace-nowrap">{c.presentationScheduledAt ? (
                         <span>
                           <span className="text-[#002155] font-semibold">{new Date(c.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
