@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { canManageEvent, coordinatorDepartments, deptFromUid } from '@/lib/hackathon-ops';
+import { canManageEvent, coordinatorDepartments, deptFromUid, normalizeDeptCode } from '@/lib/hackathon-ops';
 
 // GET /api/innovation/events/[id]/ops/venues — venues + counts + unassigned claims
 // POST — create venue { name, capacity?, order? }
@@ -41,7 +41,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ]);
     const filterByDept = (claims: { members: { role: string; user: { uid: string | null } }[] }[]) =>
       allowedDepts === null ? claims : claims.filter((c) => { const lead = c.members.find((m) => m.role === 'LEAD'); return lead && allowedDepts.includes(deptFromUid(lead.user.uid) ?? ''); });
-    const venuesFiltered = allowedDepts === null ? venues : venues.map((v: typeof venues[number]) => ({ ...v, claims: filterByDept(v.claims as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) }));
+    // venue visibility: null = shared (visible to all), otherwise must be in allowedDepts
+    const venuesVisible = allowedDepts === null ? venues : venues.filter((v: typeof venues[number]) => (v as unknown as { departmentCode: string | null }).departmentCode === null || allowedDepts.includes((v as unknown as { departmentCode: string | null }).departmentCode as string));
+    const venuesFiltered = venuesVisible.map((v: typeof venues[number]) => ({ ...v, claims: filterByDept(v.claims as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) }));
     const unassignedClaims = filterByDept(unassignedClaimsAll as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) as typeof unassignedClaimsAll;
     return successRes({ venues: venuesFiltered, unassignedClaims });
   } catch (err) {
@@ -61,6 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json().catch(() => null);
     const name = ((body?.name ?? '') as string).trim().slice(0, 120);
     if (!name) return errorRes('Venue name is required', [], 400);
+    const departmentCode = normalizeDeptCode(body?.departmentCode ?? null);
+    if (user.role !== 'ADMIN' && departmentCode !== null) {
+      const allowed = coordinatorDepartments(user.id, event);
+      if (allowed !== null && !allowed.includes(departmentCode)) return errorRes('Not allowed for this department', ['You can only create venues for your department'], 403);
+    }
     const capacity = body?.capacity == null || body.capacity === '' ? null : Number(body.capacity);
     if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) {
       return errorRes('Invalid capacity', ['Capacity must be a positive number'], 400);
@@ -70,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (existing) return errorRes('Venue already exists', [`A venue named “${name}” already exists`], 409);
 
     const venue = await prisma.venue.create({
-      data: { eventId, name, capacity, order: body?.order ?? 0 },
+      data: { eventId, name, capacity, order: body?.order ?? 0, departmentCode },
     });
     return successRes({ venue }, 'Venue created', 201);
   } catch (err) {

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { canManageEvent } from '@/lib/hackathon-ops';
+import { canManageEvent, coordinatorDepartments } from '@/lib/hackathon-ops';
 
 // PUT — move judge to another venue (null = all claims)
 // DELETE — remove assignment (scores are kept)
@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
     const assignmentId = Number((await params).assignmentId);
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } }, config: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } }, config: true } });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
@@ -23,6 +23,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (venueId !== null) {
       const venue = await prisma.venue.findFirst({ where: { id: venueId, eventId } });
       if (!venue) return errorRes('Venue not found', [], 404);
+      if (user.role !== 'ADMIN') {
+        const allowed = coordinatorDepartments(user.id, event);
+        if (allowed !== null && venue.departmentCode !== null && !allowed.includes(venue.departmentCode)) return errorRes('Not allowed for this department', [], 403);
+      }
     }
 
     const updated = await prisma.judgeAssignment.update({ where: { id: assignmentId }, data: { venueId } });

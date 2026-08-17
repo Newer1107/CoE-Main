@@ -383,7 +383,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
 }
 
 /* ── Venues ────────────────────────────────────────────────────────────── */
-type VenueRow = { id: number; name: string; capacity: number | null; order: number; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
+type VenueRow = { id: number; name: string; capacity: number | null; order: number; departmentCode: string | null; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
 type ClaimLite = { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
 
 function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
@@ -391,6 +391,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [unassigned, setUnassigned] = useState<ClaimLite[]>([]);
   const [name, setName] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [venueDept, setVenueDept] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [venueSlotInputs, setVenueSlotInputs] = useState<Record<string, string>>({});
   const [venueSlotBusy, setVenueSlotBusy] = useState(false);
@@ -426,7 +427,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
       .then((r) => r.json())
       .then((b: Api<{ venues: VenueRow[]; unassignedClaims: ClaimLite[] }>) => {
         if (b.success) {
-          setVenues(b.data.venues);
+          setVenues(b.data.venues as VenueRow[]);
           setUnassigned(b.data.unassignedClaims);
         }
       });
@@ -439,13 +440,14 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), capacity: capacity ? Number(capacity) : null }),
+      body: JSON.stringify({ name: name.trim(), capacity: capacity ? Number(capacity) : null, departmentCode: venueDept || null }),
     });
     const body = (await res.json()) as Api<unknown>;
     notify(body.message);
     if (body.success) {
       setName("");
       setCapacity("");
+      setVenueDept("");
       load();
     }
   };
@@ -502,30 +504,47 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     <div className="space-y-6">
       <div className="border border-[#c4c6d3] bg-white p-5">
         <h3 className="font-headline text-xl text-[#002155]">Venues</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px_auto]">
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px_160px_auto]">
           <input className={inputCls} placeholder="Venue name (e.g. Seminar Hall 1)" value={name} onChange={(e) => setName(e.target.value)} />
           <input className={inputCls} placeholder="Capacity (optional)" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+          <select className={inputCls} value={venueDept} onChange={(e) => setVenueDept(e.target.value)} title="Department">
+            <option value="">All depts (shared)</option>
+            <option value="COMP">COMP</option><option value="IT">IT</option><option value="CSE">CSE</option><option value="AIML">AIML</option><option value="AIDS">AIDS</option><option value="ECSA">ECSA</option><option value="ENTC">ENTC</option><option value="MME">MME</option><option value="MECH">MECH</option><option value="CIVIL">CIVIL</option><option value="BVOC">BVOC</option><option value="MCA">MCA</option><option value="BCA">BCA</option><option value="IOT">IOT</option>
+          </select>
           <button type="button" onClick={() => void create()} className={btnCls}>
             Add Venue
           </button>
         </div>
+        <p className="mt-1 text-xs text-[#747782]">Pick a department to make the venue visible only to that dept's coordinators. Leave as “All depts” to share.</p>
         {venues.length === 0 ? (
           <p className="mt-3 text-sm text-[#747782]">No venues yet — add them before assigning teams.</p>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             {venues.map((v) => (
               <div key={v.id} className="border border-[#e3e2df] bg-[#faf9f5] px-4 py-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-[#002155]">{v.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-[#002155]">{v.name}</p>
+                      <span className="inline-flex rounded bg-[#002155]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#002155]">{v.departmentCode ?? 'All'}</span>
+                    </div>
                     <p className="text-xs text-[#434651]">
                       {v._count.claims} team{v._count.claims === 1 ? "" : "s"}
                       {v.capacity !== null ? ` / capacity ${v.capacity}` : " · no capacity limit"}
                     </p>
                   </div>
-                  <button type="button" onClick={() => void remove(v.id, v.name)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <select className="border border-[#c4c6d3] bg-white px-1.5 py-1 text-xs" value={v.departmentCode ?? ""} onChange={(e) => {
+                      const to = e.target.value || null;
+                      void fetch(`/api/innovation/events/${eventId}/ops/venues/${v.id}`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ departmentCode: to }) }).then((r) => r.json()).then((b: Api<unknown>) => { notify((b as Api<unknown>).message); if ((b as Api<unknown>).success) load(); });
+                    }}>
+                      <option value="">All</option>
+                      <option value="COMP">COMP</option><option value="IT">IT</option><option value="CSE">CSE</option><option value="AIML">AIML</option><option value="AIDS">AIDS</option><option value="ECSA">ECSA</option><option value="ENTC">ENTC</option><option value="MME">MME</option><option value="MECH">MECH</option><option value="CIVIL">CIVIL</option><option value="BVOC">BVOC</option><option value="MCA">MCA</option><option value="BCA">BCA</option><option value="IOT">IOT</option>
+                    </select>
+                    <button type="button" onClick={() => void remove(v.id, v.name)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
+                      Delete
+                    </button>
+                  </div>
                 </div>
                 {v.claims.length > 0 ? (
                   <ul className="mt-2 divide-y divide-[#e3e2df] border-t border-[#e3e2df]">
@@ -617,11 +636,11 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
 }
 
 /* ── Judges ────────────────────────────────────────────────────────────── */
-type JudgeRow = { id: number; judge: { id: number; name: string; email: string; role: string }; venue: { id: number; name: string } | null };
+type JudgeRow = { id: number; judge: { id: number; name: string; email: string; role: string }; venue: { id: number; name: string; departmentCode: string | null } | null };
 
 function JudgesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
   const [rows, setRows] = useState<JudgeRow[]>([]);
-  const [venues, setVenues] = useState<{ id: number; name: string }[]>([]);
+  const [venues, setVenues] = useState<{ id: number; name: string; departmentCode: string | null }[]>([]);
   const [faculty, setFaculty] = useState<{ id: number; name: string; email: string; role: string }[]>([]);
   const [judgeId, setJudgeId] = useState("");
   const [venueId, setVenueId] = useState("");
@@ -629,7 +648,7 @@ function JudgesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/judges`, { credentials: "include" })
       .then((r) => r.json())
-      .then((b: Api<{ assignments: JudgeRow[]; venues: { id: number; name: string }[]; faculty: { id: number; name: string; email: string; role: string }[] }>) => {
+      .then((b: Api<{ assignments: JudgeRow[]; venues: { id: number; name: string; departmentCode: string | null }[]; faculty: { id: number; name: string; email: string; role: string }[] }>) => {
         if (b.success) {
           setRows(b.data.assignments);
           setVenues(b.data.venues);

@@ -1076,17 +1076,19 @@ model EventCoordinator {
 }
 
 model Venue {
-  id        Int     @id @default(autoincrement())
-  eventId   Int
-  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  name      String  @db.VarChar(120)
-  capacity  Int?
-  order     Int     @default(0)
-  claims    Claim[]
+  id             Int     @id @default(autoincrement())
+  eventId        Int
+  event          HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name           String  @db.VarChar(120)
+  capacity       Int?
+  order          Int     @default(0)
+  departmentCode String? @db.VarChar(32) // null = shared/legacy; e.g. COMP, CIVIL
+  claims         Claim[]
   judgeAssignments JudgeAssignment[]
 
   @@unique([eventId, name])
   @@index([eventId])
+  @@index([eventId, departmentCode])
   @@map("venues")
 }
 

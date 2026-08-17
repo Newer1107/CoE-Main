@@ -20,6 +20,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const venue = await prisma.venue.findFirst({ where: { id: venueId, eventId } });
     if (!venue) return errorRes('Venue not found', [], 404);
+    if (user.role !== 'ADMIN' && venue.departmentCode !== null) {
+      const allowed = coordinatorDepartments(user.id, event);
+      if (allowed !== null && !allowed.includes(venue.departmentCode)) return errorRes('Not allowed for this department', ['You can only assign to your department venues'], 403);
+    }
 
     const claims = await prisma.claim.findMany({ where: { id: { in: claimIds }, problem: { eventId } }, include: { members: { include: { user: { select: { uid: true } } } } } });
     if (claims.length !== claimIds.length) return errorRes('Some teams are not part of this event', [], 400);
