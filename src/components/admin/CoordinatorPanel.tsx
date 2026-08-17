@@ -350,7 +350,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
 }
 
 /* ── Venues ────────────────────────────────────────────────────────────── */
-type VenueRow = { id: number; name: string; capacity: number | null; order: number; _count: { claims: number } };
+type VenueRow = { id: number; name: string; capacity: number | null; order: number; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
 type ClaimLite = { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
 
 function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
@@ -481,17 +481,33 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             {venues.map((v) => (
-              <div key={v.id} className="flex items-center justify-between border border-[#e3e2df] bg-[#faf9f5] px-4 py-3">
-                <div>
-                  <p className="font-semibold text-[#002155]">{v.name}</p>
-                  <p className="text-xs text-[#434651]">
-                    {v._count.claims} team{v._count.claims === 1 ? "" : "s"}
-                    {v.capacity !== null ? ` / capacity ${v.capacity}` : " · no capacity limit"}
-                  </p>
+              <div key={v.id} className="border border-[#e3e2df] bg-[#faf9f5] px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-[#002155]">{v.name}</p>
+                    <p className="text-xs text-[#434651]">
+                      {v._count.claims} team{v._count.claims === 1 ? "" : "s"}
+                      {v.capacity !== null ? ` / capacity ${v.capacity}` : " · no capacity limit"}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => void remove(v.id, v.name)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
+                    Delete
+                  </button>
                 </div>
-                <button type="button" onClick={() => void remove(v.id, v.name)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
-                  Delete
-                </button>
+                {v.claims.length > 0 ? (
+                  <ul className="mt-2 divide-y divide-[#e3e2df] border-t border-[#e3e2df]">
+                    {v.claims.map((c) => {
+                      const lead = c.members.find((m) => m.role === "LEAD")?.user;
+                      return (
+                        <li key={c.id} className="flex flex-wrap items-center gap-x-3 py-1.5 text-xs text-[#434651]">
+                          <span className="font-semibold text-[#002155]">{c.teamName ?? `Team #${c.id}`}</span>
+                          <span className="text-[#747782]">·</span>
+                          <span>{lead ? `${lead.name} · ${lead.uid ?? "—"}` : "—"}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
               </div>
             ))}
           </div>

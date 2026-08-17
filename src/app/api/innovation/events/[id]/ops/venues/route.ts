@@ -19,7 +19,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       prisma.venue.findMany({
         where: { eventId },
         orderBy: [{ order: 'asc' }, { id: 'asc' }],
-        include: { _count: { select: { claims: true } } },
+        include: {
+          _count: { select: { claims: true } },
+          claims: {
+            select: {
+              id: true,
+              teamName: true,
+              status: true,
+              members: { select: { role: true, user: { select: { name: true, uid: true } } } },
+            },
+            orderBy: { id: 'asc' },
+          },
+        },
       }),
       prisma.claim.findMany({
         where: { problem: { eventId }, venueId: null },
