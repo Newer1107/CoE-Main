@@ -482,6 +482,8 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                 <tr>
                   <th className="px-3 py-2">#</th>
                   <th className="px-3 py-2">Team</th>
+                  <th className="px-3 py-2">Lead UID</th>
+                  <th className="px-3 py-2">Members</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
@@ -492,6 +494,8 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                       <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                     </td>
                     <td className="px-3 py-2 font-semibold text-[#002155]">{c.teamName ?? `Team #${c.id}`}</td>
+                    <td className="px-3 py-2 text-xs text-[#434651]">{c.members.find((m) => m.role === "LEAD")?.user.uid ?? "—"}</td>
+                    <td className="px-3 py-2 text-[11px] text-[#747782]">{c.members.map((m) => m.user.name + " (" + (m.user.uid || "") + ")").join(", ")}</td>
                     <td className="px-3 py-2 text-xs">{c.status}</td>
                   </tr>
                 ))}
