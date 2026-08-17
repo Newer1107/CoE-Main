@@ -424,6 +424,12 @@ export default function FacultyPortalClient() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/faculty/profile"
+            className="px-4 py-2 text-xs font-bold uppercase tracking-wider border bg-[#002155] text-white border-[#002155] hover:opacity-90 transition-opacity"
+          >
+            My Profile
+          </Link>
+          <Link
+            href="/faculty/profile"
             className="px-4 py-2 text-xs font-bold uppercase tracking-wider border border-[#002155] text-[#002155]"
           >
             Manage Profile

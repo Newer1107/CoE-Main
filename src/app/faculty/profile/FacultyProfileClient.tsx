@@ -29,8 +29,21 @@ const validateLinks = (links: string[]) => {
   return invalid;
 };
 
+interface MentoredProject {
+  claimId: number;
+  teamName: string | null;
+  status: string;
+  hasPpt: boolean;
+  presentationScheduledAt: string | null;
+  problemTitle: string;
+  eventId: number;
+  eventTitle: string;
+  memberCount: number;
+}
+
 export default function FacultyProfileClient() {
   const [profile, setProfile] = useState<FacultyProfile | null>(null);
+  const [mentoredProjects, setMentoredProjects] = useState<MentoredProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +75,13 @@ export default function FacultyProfileClient() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch("/api/faculty/profile");
-        if (res.ok) {
-          const data = await res.json();
+        const [profileRes, projectsRes] = await Promise.all([
+          fetch("/api/faculty/profile"),
+          fetch("/api/faculty/mentored-projects"),
+        ]);
+
+        if (profileRes.ok) {
+          const data = await profileRes.json();
           const profileData = data.data as FacultyProfile;
           setProfile(profileData);
           setFormData({
@@ -74,10 +91,16 @@ export default function FacultyProfileClient() {
             resume: null,
             links: profileData.profileLinks?.length ? profileData.profileLinks : [""],
           });
-        } else if (res.status === 404) {
+        } else if (profileRes.status === 404) {
           setProfile(null);
         } else {
           setError("Failed to load profile");
+        }
+
+        if (projectsRes.ok) {
+          const pjData = await projectsRes.json();
+          const projects = Array.isArray(pjData.data) ? pjData.data as MentoredProject[] : [];
+          setMentoredProjects(projects);
         }
       } catch (err) {
         setError("Error loading profile");
@@ -326,6 +349,40 @@ export default function FacultyProfileClient() {
             </p>
           </div>
         )}
+
+        {/* Mentored Projects */}
+        <div className="bg-white border border-[#c4c6d3] p-6 md:p-8">
+          <h2 className="font-headline text-xl font-bold text-[#002155]">Mentored Projects</h2>
+          <p className="mt-1 text-sm text-[#434651]">Teams where you are listed as the faculty mentor.</p>
+          {mentoredProjects.length === 0 ? (
+            <p className="mt-4 text-sm text-[#747782]">No teams are assigned to you yet.</p>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              {mentoredProjects.map((p) => (
+                <a
+                  key={p.claimId}
+                  href={`/hackathons/${p.eventId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block border border-[#c4c6d3] p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-[#002155] text-sm">{p.eventTitle}</p>
+                      <p className="text-[11px] text-[#747782]">Team: {p.teamName ?? `#${p.claimId}`} · {p.memberCount} member{p.memberCount === 1 ? "" : "s"} · {p.hasPpt ? "PPT ✓" : "No PPT"}</p>
+                    </div>
+                    <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${p.status === "SUBMITTED" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{p.status}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-[#434651] line-clamp-2">{p.problemTitle}</p>
+                  {p.presentationScheduledAt ? (
+                    <p className="mt-1 text-[11px] text-[#002155]">Slot: {new Date(p.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</p>
+                  ) : null}
+                  <span className="mt-2 inline-block text-[11px] font-bold text-[#002155] underline">View event →</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

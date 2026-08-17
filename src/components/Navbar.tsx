@@ -128,6 +128,7 @@ export default function Navbar({ user }: NavbarProps) {
   ];
 
   const portalLinks: NavLinkItem[] = [
+    ...(canSeeFacultyProfile ? [{ label: "My Profile", href: "/faculty/profile" }] : []),
     ...(canSeeFacultyPortal
       ? [{ label: userRole === "INDUSTRY_PARTNER" ? "Industry Workspace" : "Faculty Portal", href: userRole === "INDUSTRY_PARTNER" ? "/innovation/faculty" : "/faculty" }]
       : []),
