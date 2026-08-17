@@ -91,7 +91,7 @@ const formatIstDateTime = (value: string) => {
 
 export default function FacultyPortalClient() {
   const { pushToast } = useToast();
-  const [activeTab, setActiveTab] = useState<"news" | "events" | "grants" | "announcements">("news");
+  const [activeTab, setActiveTab] = useState<"news" | "events" | "grants" | "announcements" | "projects">("news");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
@@ -100,6 +100,7 @@ export default function FacultyPortalClient() {
   const [eventList, setEventList] = useState<EventItem[]>([]);
   const [grantList, setGrantList] = useState<GrantItem[]>([]);
   const [announcementList, setAnnouncementList] = useState<AnnouncementItem[]>([]);
+  const [projectList, setProjectList] = useState<{ claimId: number; teamName: string | null; status: string; hasPpt: boolean; presentationScheduledAt: string | null; problemTitle: string; eventId: number; eventTitle: string; eventStatus: string; members: { name: string; uid: string | null; role: string }[]; memberCount: number }[]>([]);
 
   const [newsTitle, setNewsTitle] = useState("");
   const [newsCaption, setNewsCaption] = useState("");
@@ -383,6 +384,34 @@ export default function FacultyPortalClient() {
     );
   };
 
+  const renderProjects = () => {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {projectList.length === 0 && <p className="text-sm text-[#434651]">No mentored projects yet.</p>}
+        {projectList.map((p) => (
+          <a key={p.claimId} href={`/hackathons/${p.eventId}`} target="_blank" rel="noopener noreferrer"
+            className="block border border-[#c4c6d3] bg-white p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-headline text-[#002155] text-lg font-bold">{p.eventTitle}</p>
+                <p className="text-xs text-[#747782]">{p.eventStatus}</p>
+              </div>
+              <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${p.status === "SUBMITTED" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{p.status}</span>
+            </div>
+            <div className="mt-3">
+              <p className="text-sm font-semibold text-[#002155]">Team: {p.teamName ?? `#${p.claimId}`}</p>
+              <p className="text-xs text-[#434651] mt-1 line-clamp-2">{p.problemTitle}</p>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-[#747782]">{p.memberCount} member{p.memberCount === 1 ? "" : "s"} · {p.hasPpt ? "PPT ✓" : "No PPT"}{p.presentationScheduledAt ? ` · Slot: ${new Date(p.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}` : ""}</p>
+              <span className="text-[10px] font-bold text-[#002155] underline">View →</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <main className="max-w-7xl mx-auto mt-10 px-4 md:px-8 pt-[120px] pb-14 min-h-screen">
       <header className="mb-8 border-l-4 border-[#002155] pl-4 md:pl-6">
@@ -408,6 +437,7 @@ export default function FacultyPortalClient() {
         <button className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === "events" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"}`} onClick={() => setActiveTab("events")}>Events</button>
         <button className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === "grants" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"}`} onClick={() => setActiveTab("grants")}>Grants</button>
         <button className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === "announcements" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"}`} onClick={() => setActiveTab("announcements")}>Announcements</button>
+        <button className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border ${activeTab === "projects" ? "bg-[#002155] text-white border-[#002155]" : "bg-white text-[#002155] border-[#c4c6d3]"}`} onClick={() => setActiveTab("projects")}>Projects</button>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
