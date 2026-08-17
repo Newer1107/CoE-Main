@@ -26,16 +26,16 @@ export async function GET(req: NextRequest) {
       orderBy: { id: 'desc' },
     });
 
-    const projects = claims.filter((c) => c.problem?.event).map((c) => ({
+    const projects = claims.filter((c): c is typeof c & { problem: NonNullable<typeof c.problem> } => !!c.problem).map((c) => ({
       claimId: c.id,
       teamName: c.teamName,
       status: c.status,
       hasPpt: !!c.submissionFileKey,
       presentationScheduledAt: c.presentationScheduledAt?.toISOString() ?? null,
       problemTitle: c.problem.title,
-      eventId: c.problem.event.id,
-      eventTitle: c.problem.event.title,
-      eventStatus: c.problem.event.status,
+      eventId: c.problem!.event!.id,
+      eventTitle: c.problem!.event!.title,
+      eventStatus: c.problem!.event!.status,
       members: c.members.map((m) => ({
         name: m.user.name,
         uid: m.user.uid,
