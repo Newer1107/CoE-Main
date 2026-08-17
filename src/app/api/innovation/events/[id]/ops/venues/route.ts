@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { canManageEvent } from '@/lib/hackathon-ops';
+import { canManageEvent, coordinatorDepartments, deptFromUid } from '@/lib/hackathon-ops';
 
 // GET /api/innovation/events/[id]/ops/venues — venues + counts + unassigned claims
 // POST — create venue { name, capacity?, order? }
@@ -11,11 +11,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
     if (!Number.isInteger(eventId)) return errorRes('Invalid event', [], 400);
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } }, config: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } }, config: true } });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
+    const allowedDepts = user.role === 'ADMIN' ? null : coordinatorDepartments(user.id, event);
 
-    const [venues, unassignedClaims] = await Promise.all([
+    const [venues, unassignedClaimsAll] = await Promise.all([
       prisma.venue.findMany({
         where: { eventId },
         orderBy: [{ order: 'asc' }, { id: 'asc' }],
@@ -38,7 +39,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         orderBy: { id: 'asc' },
       }),
     ]);
-    return successRes({ venues, unassignedClaims });
+    const filterByDept = (claims: { members: { role: string; user: { uid: string | null } }[] }[]) =>
+      allowedDepts === null ? claims : claims.filter((c) => { const lead = c.members.find((m) => m.role === 'LEAD'); return lead && allowedDepts.includes(deptFromUid(lead.user.uid) ?? ''); });
+    const venuesFiltered = allowedDepts === null ? venues : venues.map((v: typeof venues[number]) => ({ ...v, claims: filterByDept(v.claims as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) }));
+    const unassignedClaims = filterByDept(unassignedClaimsAll as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) as typeof unassignedClaimsAll;
+    return successRes({ venues: venuesFiltered, unassignedClaims });
   } catch (err) {
     console.error('venues GET error:', err);
     return errorRes('Internal server error', [], 500);
@@ -50,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } }, config: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } }, config: true } });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);

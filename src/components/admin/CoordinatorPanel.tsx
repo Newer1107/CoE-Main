@@ -74,9 +74,11 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
   const [submissionLockAt, setSubmissionLockAt] = useState<string | null>(null);
   const [round, setRound] = useState<{ round: number; maxRound: number } | null>(null);
-  const [coordinators, setCoordinators] = useState<{ id: number; name: string; email: string }[]>([]);
+  const [coordinators, setCoordinators] = useState<{ userId: number; departmentCode: string | null; user: { id: number; name: string; email: string } }[]>([]);
   const [faculty, setFaculty] = useState<{ id: number; name: string; email: string }[]>([]);
   const [coordPick, setCoordPick] = useState("");
+  const [coordDept, setCoordDept] = useState("");
+  const [deptCodes, setDeptCodes] = useState<string[]>([]);
   const [newLock, setNewLock] = useState("");
   const [windowBusy, setWindowBusy] = useState(false);
 
@@ -98,10 +100,11 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
       .catch(() => null);
     void fetch(`/api/innovation/events/${eventId}/ops/coordinator`, { credentials: "include" })
       .then((r) => r.json())
-      .then((b: Api<{ coordinators: { id: number; name: string; email: string }[]; faculty: { id: number; name: string; email: string }[] }>) => {
+      .then((b: Api<{ coordinators: { userId: number; departmentCode: string | null; user: { id: number; name: string; email: string } }[]; faculty: { id: number; name: string; email: string }[]; departmentCodes: string[] }>) => {
         if (b.success) {
           setCoordinators(b.data.coordinators);
           setFaculty(b.data.faculty);
+          if (b.data.departmentCodes) setDeptCodes(b.data.departmentCodes);
         }
       })
       .catch(() => null);
@@ -131,22 +134,23 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
       method: "PUT",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ coordinatorId: Number(coordPick) }),
+      body: JSON.stringify({ coordinatorId: Number(coordPick), departmentCode: coordDept || null }),
     });
     const b = (await res.json()) as Api<unknown>;
     notify(b.success ? b.message : b.message);
     if (b.success) {
       setCoordPick("");
+      setCoordDept("");
       load();
     }
   };
 
-  const removeCoordinator = async (userId: number) => {
+  const removeCoordinator = async (userId: number, departmentCode: string | null) => {
     const res = await fetch(`/api/innovation/events/${eventId}/ops/coordinator`, {
       method: "DELETE",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ coordinatorId: userId }),
+      body: JSON.stringify({ coordinatorId: userId, departmentCode }),
     });
     const b = (await res.json()) as Api<unknown>;
     notify(b.success ? b.message : b.message);
@@ -277,14 +281,15 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
         {coordinators.length > 0 ? (
           <ul className="mt-2 space-y-1.5">
             {coordinators.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 border-b border-[#e3e2df] py-1.5 text-sm">
+              <li key={`${c.userId}-${c.departmentCode ?? 'all'}`} className="flex items-center justify-between gap-3 border-b border-[#e3e2df] py-1.5 text-sm">
                 <span className="text-[#434651]">
-                  <span className="font-bold text-[#002155]">{c.name}</span> ({c.email})
+                  <span className="font-bold text-[#002155]">{c.user.name}</span> ({c.user.email}){" "}
+                  <span className="ml-2 inline-flex rounded bg-[#002155]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#002155]">{c.departmentCode ?? 'All depts'}</span>
                 </span>
                 {isAdmin ? (
                   <button
                     type="button"
-                    onClick={() => void removeCoordinator(c.id)}
+                    onClick={() => void removeCoordinator(c.userId, c.departmentCode)}
                     className="text-xs font-bold text-[#ba1a1a] underline hover:opacity-70"
                   >
                     Remove
@@ -298,15 +303,17 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
         )}
         {isAdmin ? (
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <select className={inputCls + " md:w-80"} value={coordPick} onChange={(e) => setCoordPick(e.target.value)}>
+            <select className={inputCls + " md:w-64"} value={coordPick} onChange={(e) => setCoordPick(e.target.value)}>
               <option value="">Add a teacher as coordinator…</option>
-              {faculty
-                .filter((f) => !coordinators.some((c) => c.id === f.id))
-                .map((f) => (
+              {faculty.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name} ({f.email})
                   </option>
                 ))}
+            </select>
+            <select className={inputCls + " w-40"} value={coordDept} onChange={(e) => setCoordDept(e.target.value)}>
+              <option value="">All departments</option>
+              {deptCodes.map((d) => (<option key={d} value={d}>{d}</option>))}
             </select>
             <button type="button" onClick={() => void saveCoordinator()} className={btnCls} disabled={!coordPick}>
               Add Coordinator
@@ -314,7 +321,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
           </div>
         ) : null}
         <p className="mt-2 text-xs text-[#747782]">
-          Every coordinator gets full access to this event's panel. Non-coordinators are denied.
+          Dept coordinators only see and manage teams whose lead UID matches their department (e.g. COMP). “All departments” = global access.
         </p>
       </div>
 

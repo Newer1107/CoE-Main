@@ -1062,15 +1062,17 @@ model AttendanceSyncJob {
 
 // ── Hackathon ops: venues, judges, notices, feedback, media ──────────────
 model EventCoordinator {
-  id        Int            @id @default(autoincrement())
-  eventId   Int
-  event     HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId    Int
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime       @default(now())
+  id             Int            @id @default(autoincrement())
+  eventId        Int
+  event          HackathonEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId         Int
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentCode String?        @db.VarChar(32) // null = all departments (global); e.g. "COMP", "AIML"
+  createdAt      DateTime       @default(now())
 
-  @@unique([eventId, userId])
+  @@unique([eventId, userId, departmentCode])
   @@index([userId])
+  @@index([eventId, departmentCode])
 }
 
 model Venue {

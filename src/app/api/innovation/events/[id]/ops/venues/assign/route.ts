@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { canManageEvent } from '@/lib/hackathon-ops';
+import { canManageEvent, coordinatorDepartments, deptFromUid } from '@/lib/hackathon-ops';
 
 // POST  /ops/venues/assign  { claimIds: number[], venueId: number } — bulk assign w/ capacity check
 // DELETE /ops/venues/assign  { claimIds: number[] } — unassign
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } }, config: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } }, config: true } });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
@@ -21,8 +21,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const venue = await prisma.venue.findFirst({ where: { id: venueId, eventId } });
     if (!venue) return errorRes('Venue not found', [], 404);
 
-    const claims = await prisma.claim.findMany({ where: { id: { in: claimIds }, problem: { eventId } } });
+    const claims = await prisma.claim.findMany({ where: { id: { in: claimIds }, problem: { eventId } }, include: { members: { include: { user: { select: { uid: true } } } } } });
     if (claims.length !== claimIds.length) return errorRes('Some teams are not part of this event', [], 400);
+    if (user.role !== 'ADMIN') {
+      const allowedDepts = coordinatorDepartments(user.id, event);
+      if (allowedDepts !== null) {
+        for (const c of claims as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) {
+          const lead = c.members.find((m) => m.role === 'LEAD');
+          if (!lead || !allowedDepts.includes(deptFromUid(lead.user.uid) ?? '')) return errorRes('Not allowed for this department', ['You can only manage teams from your department'], 403);
+        }
+      }
+    }
 
     const currentlyAssigned = await prisma.claim.count({ where: { venueId } });
     if (venue.capacity !== null && currentlyAssigned + claimIds.length > venue.capacity) {

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { canManageEvent, currentRound } from '@/lib/hackathon-ops';
+import { canManageEvent, coordinatorDepartments, currentRound, deptFromUid } from '@/lib/hackathon-ops';
 
 // GET — scoreboard: claims + per-category scores + totals (ADMIN, venue filter optional)
 // PUT — coordinator override { claimId, categoryId, score, reason } (JUDGING only, cap = weight)
@@ -10,9 +10,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } }, config: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } }, config: true } });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
+    const allowedDeptsScores = user.role === 'ADMIN' ? null : coordinatorDepartments(user.id, event);
     const venueIdParam = req.nextUrl.searchParams.get('venueId');
     const venueId = venueIdParam ? Number(venueIdParam) : null;
 
@@ -32,9 +33,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }),
       prisma.problem.findMany({ where: { eventId }, select: { id: true, title: true }, orderBy: { id: 'asc' } }),
     ]);
+    const filteredClaims = allowedDeptsScores === null ? claims : claims.filter((c: { members: { role: string; user: { uid: string | null } }[] }) => { const lead = c.members.find((m) => m.role === 'LEAD'); return lead && allowedDeptsScores.includes(deptFromUid(lead.user.uid) ?? ''); });
     const cfg = (event.config as { registration?: Record<string, unknown> } | null)?.registration ?? {};
     const allowOpenInnovation = cfg.allowOpenInnovation === true;
-    return successRes({ categories, claims, round, problems, allowOpenInnovation });
+    return successRes({ categories, claims: filteredClaims, round, problems, allowOpenInnovation });
   } catch (err) {
     console.error('scores GET error:', err);
     return errorRes('Internal server error', [], 500);
@@ -46,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = authenticate(req);
     if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
-    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true } }, config: true } });
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } }, config: true } });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
@@ -63,6 +65,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       prisma.claim.findFirst({ where: { id: claimId, problem: { eventId } } }),
     ]);
     if (!category || !claim) return errorRes('Claim or category not found', [], 404);
+    if (user.role !== 'ADMIN') {
+      const allowedDeptsPut = coordinatorDepartments(user.id, event);
+      if (allowedDeptsPut !== null) {
+        const leadUid = await prisma.claimMember.findFirst({ where: { claimId, role: 'LEAD' }, select: { user: { select: { uid: true } } } }).then((r) => (r as unknown as { user: { uid: string | null } } | null)?.user.uid ?? null);
+        if (!leadUid || !allowedDeptsPut.includes(deptFromUid(leadUid) ?? '')) return errorRes('Not allowed for this department', ['You can only score teams from your department'], 403);
+      }
+    }
 
     const statusCheck = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { status: true } });
     if (statusCheck?.status !== 'JUDGING') return errorRes('Scoring is locked', ['Overrides are only allowed while judging is open'], 403);

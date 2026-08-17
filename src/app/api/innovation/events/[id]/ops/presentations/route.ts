@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
-import { canManageEvent } from '@/lib/hackathon-ops';
+import { canManageEvent, coordinatorDepartments, deptFromUid } from '@/lib/hackathon-ops';
 import { createNotifications } from '@/lib/notifications';
 import { sendPresentationScheduledEmail } from '@/lib/mailer';
 
@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       select: {
         title: true,
         coordinatorId: true,
-        coordinators: { select: { userId: true } },
+        coordinators: { select: { userId: true, departmentCode: true } },
       },
     });
     if (!event) return errorRes('Event not found', [], 404);
@@ -33,12 +33,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id: body.claimId },
       include: {
         problem: { select: { eventId: true } },
-        members: { select: { userId: true, role: true, user: { select: { email: true, name: true } } } },
+        members: { select: { userId: true, role: true, user: { select: { email: true, name: true, uid: true } } } },
         venue: { select: { name: true } },
       },
     });
     if (!claim || claim.problem?.eventId !== eventId) {
       return errorRes('Claim not found for this event', [], 404);
+    }
+    if (user.role !== 'ADMIN') {
+      const allowedDepts = coordinatorDepartments(user.id, event);
+      if (allowedDepts !== null) {
+        const lead = (claim as unknown as { members: { role: string; user: { uid: string | null } }[] }).members.find((m) => m.role === 'LEAD');
+        if (!lead || !allowedDepts.includes(deptFromUid(lead.user.uid) ?? '')) return errorRes('Not allowed for this department', ['You can only manage teams from your department'], 403);
+      }
     }
 
     let scheduledAt: Date | null = null;
