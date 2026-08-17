@@ -228,8 +228,11 @@ export default async function AdminPage() {
   }
 
   if (payload.role !== "ADMIN") {
-    if (payload.role === "FACULTY") redirect("/faculty");
-    redirect("/facility-booking");
+    // Allow FACULTY through for /admin/events/[id] (coordinator panel);
+    // redirect to /faculty for the general admin dashboard.
+    const path = headerStore.get("next-url") || "";
+    if (payload.role === "FACULTY" && !path.startsWith("/admin/events/")) redirect("/faculty");
+    if (payload.role !== "FACULTY") redirect("/facility-booking");
   }
 
   let stats: Stats;
