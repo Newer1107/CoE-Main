@@ -51,7 +51,7 @@ export function canJudgeClaim(assignment: { venueId: number | null }, claimVenue
 const DEPT_FROM_BRANCH: Record<string, string> = {
   COMP: 'COMP', IT: 'IT', CSE: 'CSE',
   AIML: 'AIML', AIDS: 'AIDS', ECSA: 'ECSA', ECS: 'ECS',
-  EXTC: 'EXTC', ENTC: 'ENTC', EXT: 'EXTC', MME: 'MME', MECH: 'MECH',
+  EXTC: 'ENTC', ENTC: 'ENTC', EXT: 'ENTC', MME: 'MME', MECH: 'MECH',
   BCA: 'BCA', IOT: 'IOT',
 };
 
@@ -67,14 +67,16 @@ export function deptFromUid(uid: string | null | undefined): string | null {
   return raw; // fallback: raw branch string
 }
 
-export const DEPARTMENT_CODES = ['COMP','IT','CSE','AIML','AIDS','ECSA','EXTC','ENTC','MME','MECH','BCA','IOT'] as const;
+export const DEPARTMENT_CODES = ['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MME','MECH','BCA','IOT'] as const;
 export type DepartmentCode = typeof DEPARTMENT_CODES[number];
 
 /** Normalize a coordinator's departmentCode from DB (null/empty = global = all depts). */
 export function normalizeDeptCode(v: string | null | undefined): string | null {
   if (!v) return null;
   const up = v.trim().toUpperCase();
-  return up || null;
+  if (!up) return null;
+  if (up === 'EXTC' || up === 'EXT') return 'ENTC';
+  return up;
 }
 
 /**
@@ -104,7 +106,7 @@ export function coordinatorDepartments(
   const rows = (event.coordinators ?? []).filter((c) => c.userId === userId);
   if (rows.length === 0) return null; // not a coordinator — caller should have already denied
   if (rows.some((r) => !r.departmentCode)) return null; // at least one global row
-  return rows.map((r) => r.departmentCode as string).filter(Boolean);
+  return rows.map((r) => normalizeDeptCode(r.departmentCode as string)).filter(Boolean) as string[];
 }
 
 /** Whether a claim (via its lead UID) belongs to one of the coordinator's departments. */
