@@ -102,6 +102,8 @@ type ExistingRegistrationSummary = {
       uid: string | null;
     };
   }>;
+  venue: { id: number; name: string } | null;
+  presentationScheduledAt: string | null;
   submissionFileUrl: string | null;
   submittedAt: string;
   createdAt: string;
@@ -1058,6 +1060,16 @@ export default function InnovationEventClient({
               {registrationSummary.teamLeader
                 ? `${registrationSummary.teamLeader.name} (${registrationSummary.teamLeader.email})${registrationSummary.teamLeader.uid ? ` - UID: ${registrationSummary.teamLeader.uid}` : ''}`
                 : 'Not available'}
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-[#434651]">
+            Venue:{" "}
+            <span className="font-semibold text-[#002155]">{registrationSummary.venue ? registrationSummary.venue.name : "Not assigned yet"}</span>
+          </p>
+          <p className="mt-1 text-sm text-[#434651]">
+            Presentation slot:{" "}
+            <span className="font-semibold text-[#002155]">
+              {registrationSummary.presentationScheduledAt ? formatIstDateTime(registrationSummary.presentationScheduledAt) : "Not scheduled yet"}
             </span>
           </p>
           <p className="mt-1 text-xs text-[#434651]">Registered on: {formatIstDateTime(registrationSummary.submittedAt)}</p>

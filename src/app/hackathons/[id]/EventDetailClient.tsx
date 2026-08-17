@@ -337,19 +337,23 @@ export default function EventDetailClient({
                 <dd className="text-on-surface-variant">{myClaim.mentor ?? "—"}</dd>
               </div>
               <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-on-surface">Venue:</dt>
+                <dd className="text-on-surface-variant">{myClaim.venue ? myClaim.venue.name : "Not assigned yet"}</dd>
+              </div>
+              <div className="flex flex-wrap gap-x-2">
                 <dt className="font-semibold text-on-surface">Presentation:</dt>
                 <dd className={myClaim.pptUploaded ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
                   {myClaim.pptUploaded ? (<a href={myClaim.submissionFileUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">Download PPT</a>) : "Not uploaded"}
                 </dd>
               </div>
-              {myClaim.presentationScheduledAt ? (
-                <div className="flex flex-wrap gap-x-2">
-                  <dt className="font-semibold text-on-surface">Presentation slot:</dt>
-                  <dd className="font-semibold text-[#002155]">
-                    {new Date(myClaim.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" })}
-                  </dd>
-                </div>
-              ) : null}
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-on-surface">Presentation slot:</dt>
+                <dd className="font-semibold text-[#002155]">
+                  {myClaim.presentationScheduledAt
+                    ? new Date(myClaim.presentationScheduledAt).toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" })
+                    : "Not scheduled yet"}
+                </dd>
+              </div>
             </dl>
 
             <div className="mt-3 border-t border-outline-variant/60 pt-3">

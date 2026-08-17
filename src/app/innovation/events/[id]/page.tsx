@@ -27,6 +27,8 @@ type ExistingRegistrationSummary = {
       uid: string | null;
     };
   }>;
+  venue: { id: number; name: string } | null;
+  presentationScheduledAt: string | null;
   submissionFileUrl: string | null;
   submittedAt: string;
   createdAt: string;
@@ -120,6 +122,7 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
                   title: true,
                 },
               },
+              venue: { select: { id: true, name: true } },
               members: {
                 include: {
                   user: {
@@ -163,6 +166,10 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
 
     if (existingClaimMember) {
       const leader = existingClaimMember.claim.members.find((member) => member.role === 'LEAD') || existingClaimMember.claim.members[0] || null;
+      const venue = existingClaimMember.claim.venue ?? null;
+      const presentationScheduledAt = existingClaimMember.claim.presentationScheduledAt
+        ? existingClaimMember.claim.presentationScheduledAt.toISOString()
+        : null;
       const submissionFileUrl = existingClaimMember.claim.submissionFileKey
         ? await getSignedUrl(existingClaimMember.claim.submissionFileKey).catch(() => null)
         : null;
@@ -191,6 +198,8 @@ export default async function InnovationEventDetailPage({ params }: { params: Pr
             uid: member.user.uid,
           },
         })),
+        venue,
+        presentationScheduledAt,
         submissionFileUrl,
         submittedAt: existingClaimMember.claim.updatedAt.toISOString(),
         createdAt: existingClaimMember.claim.createdAt.toISOString(),
