@@ -351,7 +351,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
 
 /* ── Venues ────────────────────────────────────────────────────────────── */
 type VenueRow = { id: number; name: string; capacity: number | null; order: number; _count: { claims: number } };
-type ClaimLite = { id: number; teamName: string | null; status: string; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
+type ClaimLite = { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
 
 function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
   const [venues, setVenues] = useState<VenueRow[]>([]);
@@ -483,7 +483,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                   <th className="px-3 py-2">#</th>
                   <th className="px-3 py-2">Team</th>
                   <th className="px-3 py-2">Lead UID</th>
-                  <th className="px-3 py-2">Members</th>
+                  <th className="px-3 py-2">Presentation Slot</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
