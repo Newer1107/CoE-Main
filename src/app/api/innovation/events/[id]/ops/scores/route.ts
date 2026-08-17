@@ -32,7 +32,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }),
       prisma.problem.findMany({ where: { eventId }, select: { id: true, title: true }, orderBy: { id: 'asc' } }),
     ]);
-    return successRes({ categories, claims, round, problems });
+    const cfg = (event.config as { registration?: Record<string, unknown> } | null)?.registration ?? {};
+    const allowOpenInnovation = cfg.allowOpenInnovation === true;
+    return successRes({ categories, claims, round, problems, allowOpenInnovation });
   } catch (err) {
     console.error('scores GET error:', err);
     return errorRes('Internal server error', [], 500);

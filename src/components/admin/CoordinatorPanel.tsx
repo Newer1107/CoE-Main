@@ -756,23 +756,42 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [problemPick, setProblemPick] = useState<Record<string, string>>({});
   const [problemQuery, setProblemQuery] = useState<Record<string, string>>({});
   const [problemOpen, setProblemOpen] = useState<Record<string, boolean>>({});
+  const [allowOI, setAllowOI] = useState(false);
+  const [oiOpen, setOiOpen] = useState<Record<string, boolean>>({});
+  const [oiTitle, setOiTitle] = useState<Record<string, string>>({});
+  const [oiDesc, setOiDesc] = useState<Record<string, string>>({});
   const [problemBusy, setProblemBusy] = useState(false);
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/scores`, { credentials: "include" })
       .then((r) => r.json())
-      .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number }[]; claims: ScoreClaim[]; round: number; problems: { id: number; title: string }[] }>) => {
+      .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number }[]; claims: ScoreClaim[]; round: number; problems: { id: number; title: string }[]; allowOpenInnovation: boolean }>) => {
         if (b.success) {
           setCategories(b.data.categories);
           setClaims(b.data.claims);
           setRound(b.data.round);
           if (b.data.problems) setProblems(b.data.problems);
+          setAllowOI(b.data.allowOpenInnovation);
         }
       });
   }, [eventId]);
   useEffect(load, [load]);
 
   const totalFor = (claim: ScoreClaim) => claim.rubricScores.reduce((sum, s) => sum + s.score, 0);
+
+  const createOIPS = async (claimId: number) => {
+    const title = (oiTitle[claimId] ?? "").trim();
+    const description = (oiDesc[claimId] ?? "").trim();
+    if (title.length < 20 || title.length > 180) { notify("Title must be 20-180 characters"); return; }
+    if (description.length < 50 || description.length > 2000) { notify("Description must be 50-2000 characters"); return; }
+    setProblemBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/problem`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimId, customTitle: title, customDescription: description }) });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? b.message : b.message);
+      if (b.success) { setOiTitle(p => ({ ...p, [claimId]: "" })); setOiDesc(p => ({ ...p, [claimId]: "" })); setOiOpen(p => ({ ...p, [claimId]: false })); load(); }
+    } finally { setProblemBusy(false); }
+  };
 
   const override = async (claimId: number, categoryId: number) => {
     const key = `${claimId}:${categoryId}`;
@@ -925,7 +944,21 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                 <button type="button" onClick={() => void changeProblem(claim.id)} disabled={problemBusy} className={btnGhost + " px-3 py-1 text-[10px]"}>
                   Change
                 </button>
+                {allowOI ? (
+                  <button type="button" onClick={() => setOiOpen(p => ({ ...p, [claim.id]: !p[claim.id] }))} className="text-[10px] font-bold text-[#002155] underline hover:opacity-70">
+                    {oiOpen[claim.id] ? "Close" : "Open Innovation"}
+                  </button>
+                ) : null}
               </div>
+              {oiOpen[claim.id] ? (
+                <div className="mt-3 space-y-2 border border-[#e3e2df] bg-[#faf9f5] px-4 py-3">
+                  <p className="text-[11px] font-semibold text-[#002155]">Create Custom Problem Statement for this team</p>
+                  <input type="text" className="w-full border border-[#c4c6d3] px-3 py-1.5 text-xs" placeholder="Problem title (20-180 characters)" value={oiTitle[claim.id] ?? ""} onChange={e => setOiTitle(p => ({ ...p, [claim.id]: e.target.value }))} />
+                  <textarea className="w-full border border-[#c4c6d3] px-3 py-1.5 text-xs" placeholder="Problem description (50-2000 characters)" rows={4} value={oiDesc[claim.id] ?? ""} onChange={e => setOiDesc(p => ({ ...p, [claim.id]: e.target.value }))} />
+                  <p className="text-[10px] text-[#747782]">This creates a new isCustom problem and assigns it to the team immediately.</p>
+                  <button type="button" onClick={() => void createOIPS(claim.id)} disabled={problemBusy} className={btnGhost + " px-3 py-1 text-[10px]"}>Create &amp; Assign</button>
+                </div>
+              ) : null}
               <div className="mt-3 flex flex-wrap items-center gap-3 border border-[#e3e2df] bg-white px-3 py-2">
                 <div className="min-w-40 flex-1">
                   <p className="text-xs font-semibold text-[#002155]">Presentation Slot</p>

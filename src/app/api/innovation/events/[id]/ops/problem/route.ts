@@ -21,16 +21,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         status: true,
         coordinatorId: true,
         coordinators: { select: { userId: true } },
+        config: true,
       },
     });
     if (!event) return errorRes('Event not found', [], 404);
     if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     if (event.status === 'CLOSED') return errorRes('Event is closed', ['Problem statements cannot change after close'], 400);
 
-    const body = (await req.json().catch(() => null)) as { claimId?: number; problemId?: number } | null;
-    if (!body || !Number.isInteger(body.claimId) || !Number.isInteger(body.problemId)) {
-      return errorRes('claimId and problemId are required', [], 400);
-    }
+    const body = (await req.json().catch(() => null)) as { claimId?: number; problemId?: number; customTitle?: string; customDescription?: string } | null;
+    if (!body || !Number.isInteger(body.claimId)) return errorRes('claimId is required', [], 400);
+    if (!body.problemId && !body.customTitle) return errorRes('Provide problemId or a custom Open Innovation title+description', [], 400);
+    if (body.problemId && body.customTitle) return errorRes('Provide either problemId or custom fields, not both', [], 400);
 
     const claim = await prisma.claim.findUnique({
       where: { id: body.claimId },
@@ -39,29 +40,49 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         members: { select: { userId: true } },
       },
     });
-    if (!claim || claim.problem?.eventId !== eventId) {
-      return errorRes('Claim not found for this event', [], 404);
+    if (!claim || claim.problem?.eventId !== eventId) return errorRes('Claim not found for this event', [], 404);
+
+    let targetProblemId: number;
+
+    if (body.problemId) {
+      const problem = await prisma.problem.findFirst({ where: { id: body.problemId, eventId } });
+      if (!problem) return errorRes('Problem statement not found for this event', [], 404);
+      targetProblemId = problem.id;
+    } else {
+      // Open Innovation: create an isCustom problem
+      const cfg = (event.config as { registration?: Record<string, unknown> } | null)?.registration ?? {};
+      if (!cfg.allowOpenInnovation) return errorRes('Open Innovation not enabled', ['This event does not allow custom problem statements'], 400);
+      const title = (body.customTitle ?? '').trim();
+      const description = (body.customDescription ?? '').trim();
+      if (title.length < 20 || title.length > 180) return errorRes('Title must be 20–180 characters', [], 400);
+      if (description.length < 50 || description.length > 2000) return errorRes('Description must be 50–2000 characters', [], 400);
+
+      const newProblem = await prisma.problem.create({
+        data: { eventId, title, description, isCustom: true, createdById: user.id },
+      });
+      targetProblemId = newProblem.id;
     }
 
-    const newProblem = await prisma.problem.findFirst({ where: { id: body.problemId, eventId } });
-    if (!newProblem) return errorRes('Problem statement not found for this event', [], 404);
+    await prisma.claim.update({ where: { id: claim.id }, data: { problemId: targetProblemId } });
 
-    await prisma.claim.update({ where: { id: claim.id }, data: { problemId: newProblem.id } });
-
-    if (claim.members.length > 0) {
+    const memberIds = claim.members.map((m) => m.userId);
+    const newTitle = body.problemId ? undefined : body.customTitle!.trim();
+    if (memberIds.length > 0) {
       await createNotifications(
-        claim.members.map((m) => ({
-          userId: m.userId,
+        memberIds.map((userId) => ({
+          userId,
           type: 'EVENT_UPDATE' as const,
           title: `Problem statement changed — ${event.title}`,
-          body: `Your team's problem statement is now: ${newProblem.title}`,
+          body: newTitle
+            ? `Your team has been assigned an Open Innovation problem: ${newTitle}`
+            : `Your team's problem statement has been updated.`,
         }))
       );
     }
 
     return successRes(
-      { claimId: claim.id, problemId: newProblem.id, title: newProblem.title },
-      `Problem statement changed — team notified`
+      { claimId: claim.id, problemId: targetProblemId, title: newTitle ?? null },
+      body.problemId ? 'Problem statement changed — team notified' : 'Open Innovation PS created and assigned — team notified'
     );
   } catch (err) {
     console.error('problem change error:', err);
