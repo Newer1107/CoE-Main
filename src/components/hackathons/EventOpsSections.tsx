@@ -33,7 +33,7 @@ export default function EventOpsSections({
   };
 
   const load = useCallback(() => {
-    if (ops.notices) {
+    if (ops.notices !== false) {
       void fetch(`/api/innovation/events/${eventId}/ops/notices`, { credentials: "include" })
         .then((r) => r.json())
         .then((b: Api<{ notices: NoticeRow[] }>) => {
