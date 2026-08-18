@@ -32,7 +32,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }),
     ]);
     const venues = allowedDepts === null ? allVenues : allVenues.filter((v: { departmentCode: string | null }) => (v as unknown as { departmentCode: string | null }).departmentCode === null || allowedDepts.includes((v as unknown as { departmentCode: string | null }).departmentCode as string));
-    return successRes({ assignments, venues, faculty });
+    const assignmentsOut = allowedDepts === null
+      ? assignments
+      : assignments.filter((a: { venueId: number | null }) => {
+          if (a.venueId === null) return false;
+          const v = (allVenues as { id: number; departmentCode: string | null }[]).find((x) => x.id === a.venueId);
+          if (!v) return false;
+          return v.departmentCode !== null && allowedDepts.includes(v.departmentCode);
+        });
+    return successRes({ assignments: assignmentsOut, venues, faculty });
   } catch (err) {
     console.error('judges GET error:', err);
     return errorRes('Internal server error', [], 500);
