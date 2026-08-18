@@ -86,7 +86,7 @@ export default function EventOpsSections({
         </div>
       ) : null}
 
-      {ops.notices && visibleNotices.length > 0 ? (
+      {visibleNotices.length > 0 ? (
         <section className={sectionCls}>
           <h3 className="font-headline text-xl text-[#002155]">Notices</h3>
           <div className="mt-3 space-y-3">
