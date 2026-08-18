@@ -558,6 +558,12 @@ export default function EventDetailClient({
 
   return (
     <div className="py-8 md:py-10">
+      <EventOpsSections
+        eventId={event.id}
+        status={event.status}
+        ops={(((event.config ?? {}) as { ops?: { notices?: boolean; feedback?: boolean; mediaReport?: boolean } }).ops ?? {})}
+      />
+
       {/* ── Meta grid ─────────────────────────────────────── */}
       <section className="grid grid-cols-2 gap-px border border-outline-variant bg-outline-variant md:grid-cols-4">
         {metaItems.map((item) => (
@@ -849,11 +855,7 @@ export default function EventDetailClient({
         <EventStatusPill status={event.status} /> {eventTypeLabel(event.eventType)} · Event #{event.id}
       </p>
 
-      <EventOpsSections
-        eventId={event.id}
-        status={event.status}
-        ops={(((event.config ?? {}) as { ops?: { notices?: boolean; feedback?: boolean; mediaReport?: boolean } }).ops ?? {})}
-      />
+
     </div>
   );
 }
