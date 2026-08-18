@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticate, errorRes, successRes } from '@/lib/api-helpers';
 import { canManageEvent, coordinatorDepartments, currentRound, deptFromUid } from '@/lib/hackathon-ops';
+import { ensureSihBinaryRubrics } from '@/lib/sih-binary-rubrics';
 
 // GET — scoreboard: claims + per-category scores + totals (ADMIN, venue filter optional)
 // PUT — coordinator override { claimId, categoryId, score, reason } (JUDGING only, cap = weight)
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const venueId = venueIdParam ? Number(venueIdParam) : null;
 
     const round = currentRound(event);
+    // auto-seed binary rubrics on live SIH events still on legacy weights (prod event 3, dev event 7 already seeded)
+    await ensureSihBinaryRubrics(prisma, eventId);
 
     const [categories, claims, problems] = await Promise.all([
       prisma.rubricCategory.findMany({ where: { eventId }, orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }] }),

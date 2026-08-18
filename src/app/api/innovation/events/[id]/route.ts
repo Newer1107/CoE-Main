@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
+import { ensureSihBinaryRubrics } from '@/lib/sih-binary-rubrics';
 import { authenticate, authorize, errorRes, successRes } from '@/lib/api-helpers';
 import { innovationEventUpdateSchema } from '@/lib/validators';
 import { canTransitionEventStatus } from '@/lib/innovation';
@@ -60,6 +61,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
 
     if (!event) return errorRes('Hackathon event not found', [], 404);
+
+	await ensureSihBinaryRubrics(prisma, eventId);
+    // re-read rubrics after ensure (binary seed may have replaced legacy rows)
+	event.rubrics = await prisma.rubricCategory.findMany({ where: { eventId }, orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }], select: { id: true, key: true, label: true, weight: true, isCritical: true, parentCategoryId: true, order: true } });
 
     const { interests, problems, rubrics, config, pptFileKey, createdById, ...eventData } = event;
     const totalWithDetails = interests.reduce(
