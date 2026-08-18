@@ -26,7 +26,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       prisma.rubricCategory.findMany({ where: { eventId }, orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }] }),
       prisma.claim.findMany({
         where: { problem: { eventId }, ...(venueId ? { venueId } : {}) },
-        include: {
+        select: {
+          id: true,
+          teamName: true,
+          status: true,
+          presentationScheduledAt: true,
+          submissionFileKey: true,
           venue: { select: { id: true, name: true } },
           problem: { select: { id: true, title: true } },
           rubricScores: { where: { round }, include: { rubricCategory: true, judge: { select: { id: true, name: true } } } },

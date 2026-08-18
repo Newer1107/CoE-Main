@@ -58,7 +58,7 @@ export default function CoordinatorPanel({ eventId, eventTitle, isAdmin }: { eve
         {tab === "venues" ? <VenuesTab eventId={eventId} notify={notify} /> : null}
         {tab === "judges" ? <JudgesTab eventId={eventId} notify={notify} /> : null}
         {tab === "notices" ? <NoticesTab eventId={eventId} notify={notify} /> : null}
-        {tab === "scores" ? <ScoresTab eventId={eventId} notify={notify} /> : null}
+        {tab === "scores" ? <ScoresTab eventId={eventId} notify={notify} isAdmin={isAdmin} /> : null}
         {tab === "feedback" ? <FeedbackTab eventId={eventId} /> : null}
         {tab === "media" ? <MediaTab eventId={eventId} notify={notify} /> : null}
       </div>
@@ -935,11 +935,12 @@ type ScoreClaim = {
   venue: { id: number; name: string } | null;
   problem: { id: number; title: string } | null;
   presentationScheduledAt: string | null;
+  submissionFileKey: string | null;
   rubricScores: ScoreRow[];
   members: { role: string; user: { name: string; email: string; uid: string | null } }[];
 };
 
-function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
+function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: string) => void; isAdmin?: boolean }) {
   const [categories, setCategories] = useState<{ id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null }[]>([]);
   const [claims, setClaims] = useState<ScoreClaim[]>([]);
   const [problems, setProblems] = useState<{ id: number; title: string }[]>([]);
@@ -956,6 +957,7 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const [oiTitle, setOiTitle] = useState<Record<string, string>>({});
   const [oiDesc, setOiDesc] = useState<Record<string, string>>({});
   const [problemBusy, setProblemBusy] = useState(false);
+  const [pptBusy, setPptBusy] = useState<Record<number, boolean>>({});
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/scores`, { credentials: "include" })
@@ -1084,6 +1086,23 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     }
   };
 
+  const uploadPpt = async (claimId: number, file: File | null) => {
+    if (!file || !isAdmin) return;
+    setPptBusy((m) => ({ ...m, [claimId]: true }));
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/claims/${claimId}/ppt`, { method: "PUT", credentials: "include", body: fd });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? "PPT updated" : (b.message ?? "Upload failed"));
+      if (b.success) load();
+    } catch {
+      notify("Upload failed");
+    } finally {
+      setPptBusy((m) => ({ ...m, [claimId]: false }));
+    }
+  };
+
   return (
     <div className="border border-[#c4c6d3] bg-white p-5">
       <h3 className="font-headline text-xl text-[#002155]">
@@ -1171,6 +1190,18 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                   <button type="button" onClick={() => setOiOpen(p => ({ ...p, [claim.id]: !p[claim.id] }))} className="text-[10px] font-bold text-[#002155] underline hover:opacity-70">
                     {oiOpen[claim.id] ? "Close" : "Open Innovation"}
                   </button>
+                ) : null}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3 border border-[#e3e2df] bg-white px-3 py-2">
+                <div className="min-w-40 flex-1">
+                  <p className="text-xs font-semibold text-[#002155]">Team PPT</p>
+                  <p className="w-64 truncate text-[11px] text-[#747782]" title={(claim as unknown as { submissionFileKey?: string | null }).submissionFileKey ?? ""}>{(claim as unknown as { submissionFileKey?: string | null }).submissionFileKey ? (claim as unknown as { submissionFileKey: string }).submissionFileKey.split("/").pop() : "No PPT uploaded yet"}</p>
+                </div>
+                {isAdmin ? (
+                  <div className="flex items-center gap-2">
+                    <input type="file" accept=".pdf,.ppt,.pptx" className="text-xs" onChange={(e) => { const f = e.target.files?.[0] ?? null; if (f) void uploadPpt(claim.id, f); e.currentTarget.value = ""; }} disabled={!!pptBusy[claim.id]} />
+                    {pptBusy[claim.id] ? <span className="text-[10px] text-[#747782]">Uploading…</span> : null}
+                  </div>
                 ) : null}
               </div>
               {oiOpen[claim.id] ? (
