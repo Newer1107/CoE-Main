@@ -74,31 +74,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const teacher = await prisma.user.findFirst({ where: { id: coordinatorId, role: { in: ['FACULTY', 'ADMIN'] } } });
     if (!teacher) return errorRes('Teacher not found', ['Pick a FACULTY or ADMIN user'], 400);
 
-    const isBranch = departmentCode !== null;
-    // For branch assignments, create both rows: All Depts + branch.
-    // For global assignments, create only the global row.
-    const codes: (string | null)[] = isBranch ? [null, departmentCode as string] : [null];
-    let created = 0;
-    for (const code of codes) {
-      const exists = await prisma.eventCoordinator.findFirst({ where: { eventId, userId: coordinatorId, departmentCode: code } });
-      if (exists) continue;
-      try {
-        await prisma.eventCoordinator.create({ data: { eventId, userId: coordinatorId, departmentCode: code } });
-        created++;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '';
-        if (msg.includes('Duplicate') || msg.includes('UNIQUE') || msg.includes('EventCoordinator_eventId_userId')) {
-          // already handled via findFirst, but safe fallback
-        } else {
-          throw e;
-        }
+    const existing = await prisma.eventCoordinator.findFirst({
+      where: { eventId, userId: coordinatorId, departmentCode },
+    });
+    if (existing) return successRes({ coordinatorId, departmentCode }, 'Coordinator already assigned');
+    try {
+      await prisma.eventCoordinator.create({ data: { eventId, userId: coordinatorId, departmentCode } });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg.includes('Duplicate') || msg.includes('UNIQUE') || msg.includes('EventCoordinator_eventId_userId')) {
+        return errorRes('Coordinator already exists', ['Remove the existing entry first'], 409);
       }
+      throw e;
     }
-    if (created === 0) return successRes({ coordinatorId, departmentCode }, 'Coordinator already assigned');
     if (!event.coordinatorId) {
       await prisma.hackathonEvent.update({ where: { id: eventId }, data: { coordinatorId } });
     }
-    return successRes({ coordinatorId, departmentCode }, isBranch ? 'Coordinator added (All Depts + ' + departmentCode + ')' : 'Coordinator added');
+    return successRes({ coordinatorId, departmentCode }, 'Coordinator added');
   } catch (err) {
     console.error('coordinator PUT error:', err);
     return errorRes('Internal server error', [], 500);
