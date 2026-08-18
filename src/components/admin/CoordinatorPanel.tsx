@@ -864,7 +864,7 @@ function NoticesTab({ eventId, notify }: { eventId: number; notify: (m: string) 
 }
 
 /* ── Scores ────────────────────────────────────────────────────────────── */
-type ScoreRow = { id: number; score: number; comment: string | null; rubricCategory: { id: number; key: string; label: string; weight: number } };
+type ScoreRow = { id: number; score: number; comment: string | null; rubricCategory: { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null } };
 type ScoreClaim = {
   id: number;
   teamName: string | null;
@@ -876,7 +876,7 @@ type ScoreClaim = {
 };
 
 function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
-  const [categories, setCategories] = useState<{ id: number; key: string; label: string; weight: number }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null }[]>([]);
   const [claims, setClaims] = useState<ScoreClaim[]>([]);
   const [problems, setProblems] = useState<{ id: number; title: string }[]>([]);
   const [round, setRound] = useState<number | null>(null);
@@ -896,7 +896,7 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/scores`, { credentials: "include" })
       .then((r) => r.json())
-      .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number }[]; claims: ScoreClaim[]; round: number; problems: { id: number; title: string }[]; allowOpenInnovation: boolean }>) => {
+      .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null }[]; claims: ScoreClaim[]; round: number; problems: { id: number; title: string }[]; allowOpenInnovation: boolean }>) => {
         if (b.success) {
           setCategories(b.data.categories);
           setClaims(b.data.claims);
@@ -1126,41 +1126,90 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                   </button>
                 ) : null}
               </div>
-              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                {categories.map((cat) => {
-                  const scoreRow = claim.rubricScores.find((s) => s.rubricCategory.id === cat.id);
-                  const key = `${claim.id}:${cat.id}`;
+              <div className="mt-3 space-y-3">
+                {(() => {
+                  const isBinary = categories.some((c) => c.parentCategoryId !== null);
+                  if (isBinary) {
+                    const parents = categories.filter((c) => c.parentCategoryId === null);
+                    let yes = 0;
+                    return (
+                      <>
+                        {parents.map((parent) => {
+                          const children = categories.filter((c) => c.parentCategoryId === parent.id);
+                          const yesInParam = children.filter((ch) => (claim.rubricScores.find((s) => s.rubricCategory.id === ch.id)?.score ?? 0) > 0).length;
+                          const paramScore = ((yesInParam / Math.max(children.length, 1)) * parent.weight).toFixed(1);
+                          yes += yesInParam;
+                          return (
+                            <div key={parent.id} className="border border-[#e3e2df] bg-white px-3 py-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs font-bold uppercase tracking-wider text-[#002155]">{parent.label}</p>
+                                <span className="text-[11px] text-[#747782]">{yesInParam}/{children.length} YES — {paramScore}/{parent.weight}</span>
+                              </div>
+                              <div className="mt-2 space-y-1.5">
+                                {children.map((child) => {
+                                  const row = claim.rubricScores.find((s) => s.rubricCategory.id === child.id);
+                                  const key = `${claim.id}:${child.id}`;
+                                  const val = row?.score;
+                                  return (
+                                    <div key={child.id} className="flex flex-wrap items-center gap-2 border border-[#e3e2df] bg-[#faf9f5] px-2 py-1.5">
+                                      <span className="text-xs text-[#434651] min-w-0 flex-1">{child.label} {child.isCritical ? <span className="ml-1 font-bold text-[#8c4f00]">★</span> : null}</span>
+                                      <span className={`px-2 py-1 text-[11px] font-bold uppercase tracking-wider border ${val === 1 ? "border-[#0b6b2e] bg-[#0b6b2e] text-white" : val === 0 ? "border-[#8b0000] bg-[#8b0000] text-white" : "border-[#c4c6d3] bg-white text-[#747782]"}`}>{val === 1 ? "YES" : val === 0 ? "NO" : "—"}</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={1}
+                                        placeholder="0/1"
+                                        className="w-14 border border-[#c4c6d3] px-2 py-1 text-sm"
+                                        value={overrides[key] ?? ""}
+                                        onChange={(e) => setOverrides((p) => ({ ...p, [key]: e.target.value }))}
+                                      />
+                                      <input placeholder="reason" className="w-28 border border-[#c4c6d3] px-2 py-1 text-xs" value={reasons[key] ?? ""} onChange={(e) => setReasons((p) => ({ ...p, [key]: e.target.value }))} />
+                                      <button type="button" onClick={() => void override(claim.id, child.id)} className={btnGhost + " px-2 py-1 text-[10px]"}>Override</button>
+                                      {row?.comment?.startsWith("[OVERRIDE]") ? <span className="text-[10px] text-[#8c4f00]">(override)</span> : null}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="flex justify-end border-t border-[#e3e2df] pt-2">
+                          <span className="text-xs font-bold text-[#002155]">Total: {yes}/25 YES — {claim.rubricScores.filter((s) => s.score > 0).length}/{claim.rubricScores.length} answered</span>
+                        </div>
+                      </>
+                    );
+                  }
+                  // Legacy flat categories fallback
                   return (
-                    <div key={cat.id} className="flex flex-wrap items-center gap-2 border border-[#e3e2df] bg-white px-3 py-2">
-                      <div className="min-w-40 flex-1">
-                        <p className="text-xs font-semibold text-[#002155]">{cat.label}</p>
-                        <p className="text-[11px] text-[#747782]">
-                          Judge score: {scoreRow ? scoreRow.score : "—"} / {cat.weight}
-                          {scoreRow?.comment?.startsWith("[OVERRIDE]") ? " (override)" : ""}
-                        </p>
-                      </div>
-                      <input
-                        type="number"
-                        min={0}
-                        max={cat.weight}
-                        placeholder={String(cat.weight)}
-                        className="w-20 border border-[#c4c6d3] px-2 py-1 text-sm"
-                        value={overrides[key] ?? ""}
-                        onChange={(e) => setOverrides((p) => ({ ...p, [key]: e.target.value }))}
-                      />
-                      <input
-                        placeholder="reason"
-                        className="w-36 border border-[#c4c6d3] px-2 py-1 text-xs"
-                        value={reasons[key] ?? ""}
-                        onChange={(e) => setReasons((p) => ({ ...p, [key]: e.target.value }))}
-                      />
-                      <button type="button" onClick={() => void override(claim.id, cat.id)} className={btnGhost + " px-3 py-1 text-[10px]"}>
-                        Override
-                      </button>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {categories.map((cat) => {
+                        const scoreRow = claim.rubricScores.find((s) => s.rubricCategory.id === cat.id);
+                        const key = `${claim.id}:${cat.id}`;
+                        return (
+                          <div key={cat.id} className="flex flex-wrap items-center gap-2 border border-[#e3e2df] bg-white px-3 py-2">
+                            <div className="min-w-40 flex-1">
+                              <p className="text-xs font-semibold text-[#002155]">{cat.label}</p>
+                              <p className="text-[11px] text-[#747782]">Judge score: {scoreRow ? scoreRow.score : "—"} / {cat.weight}{scoreRow?.comment?.startsWith("[OVERRIDE]") ? " (override)" : ""}</p>
+                            </div>
+                            <input type="number" min={0} max={cat.weight} placeholder={String(cat.weight)} className="w-20 border border-[#c4c6d3] px-2 py-1 text-sm" value={overrides[key] ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [key]: e.target.value }))} />
+                            <input placeholder="reason" className="w-36 border border-[#c4c6d3] px-2 py-1 text-xs" value={reasons[key] ?? ""} onChange={(e) => setReasons((p) => ({ ...p, [key]: e.target.value }))} />
+                            <button type="button" onClick={() => void override(claim.id, cat.id)} className={btnGhost + " px-3 py-1 text-[10px]"}>Override</button>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
-                })}
+                })()}
               </div>
+              {(() => {
+                const c = claim.rubricScores.find((s) => (s.comment ?? "").trim().length > 0 && !(s.comment ?? "").startsWith("[OVERRIDE]")) ;
+                return c?.comment ? (
+                  <div className="mt-3 border border-[#e3e2df] bg-white px-3 py-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#002155]">Judge comment</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-[#434651] ">{c.comment}</p>
+                  </div>
+                ) : null;
+              })()}
             </div>
           ))}
         </div>

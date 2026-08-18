@@ -74,26 +74,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const teacher = await prisma.user.findFirst({ where: { id: coordinatorId, role: { in: ['FACULTY', 'ADMIN'] } } });
     if (!teacher) return errorRes('Teacher not found', ['Pick a FACULTY or ADMIN user'], 400);
 
-    // check duplicate (old unique still blocks same user global; handle via findFirst)
-    const existing = await prisma.eventCoordinator.findFirst({
-      where: { eventId, userId: coordinatorId, departmentCode },
-    });
-    if (!existing) {
-      // try upsert with new composite key; fall back to create if old unique blocks
+    const isBranch = departmentCode !== null;
+    // For branch assignments, create both rows: All Depts + branch.
+    // For global assignments, create only the global row.
+    const codes: (string | null)[] = isBranch ? [null, departmentCode as string] : [null];
+    let created = 0;
+    for (const code of codes) {
+      const exists = await prisma.eventCoordinator.findFirst({ where: { eventId, userId: coordinatorId, departmentCode: code } });
+      if (exists) continue;
       try {
-        await prisma.eventCoordinator.create({ data: { eventId, userId: coordinatorId, departmentCode } });
+        await prisma.eventCoordinator.create({ data: { eventId, userId: coordinatorId, departmentCode: code } });
+        created++;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : '';
         if (msg.includes('Duplicate') || msg.includes('UNIQUE') || msg.includes('EventCoordinator_eventId_userId')) {
-          return errorRes('Coordinator already exists globally', ['Remove the existing global entry first, or use a department-specific assignment'], 409);
+          // already handled via findFirst, but safe fallback
+        } else {
+          throw e;
         }
-        throw e;
       }
     }
+    if (created === 0) return successRes({ coordinatorId, departmentCode }, 'Coordinator already assigned');
     if (!event.coordinatorId) {
       await prisma.hackathonEvent.update({ where: { id: eventId }, data: { coordinatorId } });
     }
-    return successRes({ coordinatorId, departmentCode }, 'Coordinator added');
+    return successRes({ coordinatorId, departmentCode }, isBranch ? 'Coordinator added (All Depts + ' + departmentCode + ')' : 'Coordinator added');
   } catch (err) {
     console.error('coordinator PUT error:', err);
     return errorRes('Internal server error', [], 500);
@@ -137,7 +142,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const coordinatorId = Number(body?.coordinatorId);
     if (!Number.isInteger(coordinatorId)) return errorRes('coordinatorId is required', [], 400);
     const departmentCode = normalizeDeptCode(body?.departmentCode ?? undefined);
-    // if departmentCode is provided, delete only that row; otherwise delete all rows for that user (backward-compat)
+    // if departmentCode is provided, delete exactly that row; removing All Depts does not affect branch rows
     const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
     if (!event) return errorRes('Event not found', [], 404);
 
