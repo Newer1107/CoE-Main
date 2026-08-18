@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         orderBy: { name: 'asc' },
       }),
     ]);
-    const venues = allowedDepts === null ? allVenues : allVenues.filter((v: { departmentCode: string | null }) => (v as unknown as { departmentCode: string | null }).departmentCode === null || allowedDepts.includes((v as unknown as { departmentCode: string | null }).departmentCode as string));
+    const venues = allowedDepts === null ? allVenues : allVenues.filter((v: { departmentCode: string | null }) => v.departmentCode !== null && allowedDepts.includes(v.departmentCode));
     const assignmentsOut = allowedDepts === null
       ? assignments
       : assignments.filter((a: { venueId: number | null }) => {
@@ -67,8 +67,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (!venue) return errorRes('Venue not found', [], 404);
       if (user.role !== 'ADMIN') {
         const allowed = coordinatorDepartments(user.id, event);
-        if (allowed !== null && venue.departmentCode !== null && !allowed.includes(venue.departmentCode)) return errorRes('Not allowed for this department', ['You can only assign judges to your department venues'], 403);
+        if (allowed !== null) {
+          if (venue.departmentCode === null || !allowed.includes(venue.departmentCode)) return errorRes('Not allowed for this department', ['You can only assign judges to your department venues'], 403);
+        }
       }
+    } else if (user.role !== 'ADMIN') {
+      const allowed = coordinatorDepartments(user.id, event);
+      if (allowed !== null) return errorRes('Not allowed', ['Branch coordinators cannot assign judges to All dept venues — pick a venue in your department'], 403);
     }
 
     const assignment = await prisma.judgeAssignment.upsert({
