@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const file = formData.get('file');
     if (!(file instanceof File) || file.size <= 0) return errorRes('File is required', ['Pick a PPT/PDF file'], 400);
     const err = validateUploadFile(file as File, 'submission');
-    if (err) return errorRes('Invalid upload', [err], 400);
+    if (err) return errorRes('Invalid upload', [err, `received: ${(file as File).type || 'unknown type'}, size: ${(file as File).size} bytes`], 400);
 
     const buffer = Buffer.from(await (file as File).arrayBuffer());
     const key = `innovation/submission/${cid}/${Date.now()}-${sanitizeFilename((file as File).name)}`;

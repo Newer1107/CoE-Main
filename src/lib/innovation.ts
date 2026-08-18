@@ -26,6 +26,7 @@ const DECK_ALLOWED_TYPES = [
 ];
 
 const SUBMISSION_ALLOWED_TYPES = [
+  'application/octet-stream',
   'application/pdf',
   'application/zip',
   'application/vnd.ms-powerpoint',
