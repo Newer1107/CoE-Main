@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         include: {
           venue: { select: { id: true, name: true } },
           problem: { select: { id: true, title: true } },
-          rubricScores: { where: { round }, include: { rubricCategory: true } },
+          rubricScores: { where: { round }, include: { rubricCategory: true, judge: { select: { id: true, name: true } } } },
           members: { include: { user: { select: { name: true, email: true, uid: true } } } },
         },
         orderBy: { id: 'asc' },
@@ -83,10 +83,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const round = currentRound(event);
+    // Coordinator override: record against the coordinator's own judgeId so per-judge averaging keeps it.
+    const overrideJudgeId = user.id;
     const updated = await prisma.rubricScore.upsert({
-      where: { claimId_rubricCategoryId_round: { claimId, rubricCategoryId: categoryId, round } },
+      where: { claimId_rubricCategoryId_round_judgeId: { claimId, rubricCategoryId: categoryId, round, judgeId: overrideJudgeId } },
       update: { score, comment: `[OVERRIDE] ${reason}` },
-      create: { claimId, rubricCategoryId: categoryId, score, round, comment: `[OVERRIDE] ${reason}` },
+      create: { claimId, rubricCategoryId: categoryId, score, round, judgeId: overrideJudgeId, comment: `[OVERRIDE] ${reason}` },
     });
     return successRes({ score: updated }, 'Score updated');
   } catch (err) {

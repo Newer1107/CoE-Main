@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await prisma.$transaction(
       categories.map((category) =>
         prisma.rubricScore.upsert({
-          where: { claimId_rubricCategoryId_round: { claimId, rubricCategoryId: category.id, round } },
+          where: { claimId_rubricCategoryId_round_judgeId: { claimId, rubricCategoryId: category.id, round, judgeId: user.id } },
           update: { score: Number(rubricValues[category.id]), comment },
           create: {
             claimId,
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             score: Number(rubricValues[category.id]),
             comment,
             round,
+            judgeId: user.id,
           },
         }),
       ),

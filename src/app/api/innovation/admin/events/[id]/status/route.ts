@@ -101,30 +101,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
         const claimsWithScores = await tx.claim.findMany({
           where: { problem: { eventId }, rubricScores: { some: {} } },
-          select: { id: true, rubricScores: { select: { round: true, score: true, rubricCategoryId: true } } },
+          select: { id: true, rubricScores: { select: { round: true, score: true, rubricCategoryId: true, judgeId: true } } },
         });
         for (const claim of claimsWithScores) {
-          // Get the last round's scores
           const lastRound = Math.max(...claim.rubricScores.map((s) => s.round));
           const lastRoundScores = claim.rubricScores.filter((s) => s.round === lastRound);
 
-          // Binary: YES count per parent category
-          const parentYesCount = new Map<number, number>();
-          const parentTotal = new Map<number, number>();
-          for (const s of lastRoundScores) {
-            const parentId = childToParent.get(s.rubricCategoryId);
-            if (parentId !== undefined) {
-              parentYesCount.set(parentId, (parentYesCount.get(parentId) ?? 0) + (s.score > 0 ? 1 : 0));
-              parentTotal.set(parentId, (parentTotal.get(parentId) ?? 0) + 1);
-            }
-          }
-
-          // Weighted binary score: each parent contributes (YES/total) * weight
+          // Per-judge, per-parent YES rate. With 1 judge this degrades to the old formula.
+          // judgeId may be null for legacy rows -> treat as a distinct judge "legacy".
+          const judgeIds = new Set((lastRoundScores as { judgeId?: number | null }[]).map((s) => (s as { judgeId?: number | null }).judgeId ?? 0));
+          const numJudges = judgeIds.size || 1;
           let finalScore = 0;
           for (const [parentId, weight] of parentMap) {
-            const yesCount = parentYesCount.get(parentId) ?? 0;
-            const total = parentTotal.get(parentId) ?? 1;
-            finalScore += (yesCount / total) * weight;
+            let sumYesRate = 0;
+            for (const jid of judgeIds) {
+              const rows = lastRoundScores.filter((s) => ((s as { judgeId?: number | null }).judgeId ?? 0) === jid && childToParent.get(s.rubricCategoryId) === parentId);
+              // if a judge didn't score this parent at all, skip (don't dilute average)
+              if (rows.length === 0) continue;
+              const yes = rows.filter((r: { score: number }) => r.score > 0).length;
+              // rows.length should be 5 (binary questions per param); normalize to 5
+              const denom = 5;
+              sumYesRate += yes / denom;
+            }
+            // average across judges who actually scored this parent
+            const scoredJudges = Array.from(judgeIds).filter((jid) => lastRoundScores.some((s) => ((s as { judgeId?: number | null }).judgeId ?? 0) === jid && childToParent.get(s.rubricCategoryId) === parentId)).length;
+            const avgYesRate = scoredJudges === 0 ? 0 : sumYesRate / scoredJudges;
+            finalScore += avgYesRate * weight;
           }
 
           await tx.claim.update({

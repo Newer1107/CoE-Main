@@ -928,7 +928,7 @@ function NoticesTab({ eventId, notify }: { eventId: number; notify: (m: string) 
 }
 
 /* ── Scores ────────────────────────────────────────────────────────────── */
-type ScoreRow = { id: number; score: number; comment: string | null; rubricCategory: { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null } };
+type ScoreRow = { id: number; score: number; comment: string | null; judgeId: number | null; judge?: { id: number; name: string } | null; rubricCategory: { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null } };
 type ScoreClaim = {
   id: number;
   teamName: string | null;
@@ -972,7 +972,23 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
   }, [eventId]);
   useEffect(load, [load]);
 
-  const totalFor = (claim: ScoreClaim) => claim.rubricScores.reduce((sum, s) => sum + s.score, 0);
+  const totalFor = (claim: ScoreClaim) => {
+    // When multiple judges scored the same question, average per category across judges, then weight by parent.
+    // Falls back to simple sum when no judgeId present (legacy single-judge rows).
+    if (claim.rubricScores.length === 0) return 0;
+    const hasJudgeId = claim.rubricScores.some((s) => (s as any).judgeId != null);
+    if (!hasJudgeId) return claim.rubricScores.reduce((sum, s) => sum + s.score, 0);
+    const byCat = new Map<number, number[]>();
+    for (const s of claim.rubricScores) {
+      const k = s.rubricCategory.id;
+      if (!byCat.has(k)) byCat.set(k, []);
+      byCat.get(k)!.push(s.score);
+    }
+    // per-category average (0 or 1) -> sum
+    let sum = 0;
+    for (const scores of byCat.values()) sum += scores.reduce((a,b)=>a+b,0) / scores.length;
+    return sum;
+  };
 
   const createOIPS = async (claimId: number) => {
     const title = (oiTitle[claimId] ?? "").trim();
@@ -1200,7 +1216,7 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                       <>
                         {parents.map((parent) => {
                           const children = categories.filter((c) => c.parentCategoryId === parent.id);
-                          const yesInParam = children.filter((ch) => (claim.rubricScores.find((s) => s.rubricCategory.id === ch.id)?.score ?? 0) > 0).length;
+                          const yesInParam = children.reduce((sum, ch) => { const rows = claim.rubricScores.filter((s) => s.rubricCategory.id === ch.id); if (rows.length === 0) return sum; const avg = rows.reduce((a,b)=>a+b.score,0)/rows.length; return sum + (avg >= 0.5 ? 1 : avg); }, 0);
                           const paramScore = ((yesInParam / Math.max(children.length, 1)) * parent.weight).toFixed(1);
                           yes += yesInParam;
                           return (
@@ -1218,6 +1234,7 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                                     <div key={child.id} className="flex flex-wrap items-center gap-2 border border-[#e3e2df] bg-[#faf9f5] px-2 py-1.5">
                                       <span className="text-xs text-[#434651] min-w-0 flex-1">{child.label} {child.isCritical ? <span className="ml-1 font-bold text-[#8c4f00]">★</span> : null}</span>
                                       <span className={`px-2 py-1 text-[11px] font-bold uppercase tracking-wider border ${val === 1 ? "border-[#0b6b2e] bg-[#0b6b2e] text-white" : val === 0 ? "border-[#8b0000] bg-[#8b0000] text-white" : "border-[#c4c6d3] bg-white text-[#747782]"}`}>{val === 1 ? "YES" : val === 0 ? "NO" : "—"}</span>
+                                      {(() => { const all = claim.rubricScores.filter((s) => s.rubricCategory.id === child.id); const judgeIds = new Set(all.map((s) => (s as any).judgeId ?? 0)); return judgeIds.size > 1 ? <span className="text-[10px] text-[#747782]">{all.map((s) => `${(s as any).judge?.name ?? 'J' + String((s as any).judgeId ?? 0)}: ${s.score ? 'YES':'NO'}`).join(' · ')}</span> : null; })()}
                                       <input
                                         type="number"
                                         min={0}
@@ -1238,7 +1255,7 @@ function ScoresTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                           );
                         })}
                         <div className="flex justify-end border-t border-[#e3e2df] pt-2">
-                          <span className="text-xs font-bold text-[#002155]">Total: {yes}/25 YES — {claim.rubricScores.filter((s) => s.score > 0).length}/{claim.rubricScores.length} answered</span>
+                          <span className="text-xs font-bold text-[#002155]">Total: {yes}/25 YES — averaged across {new Set(claim.rubricScores.map((s) => (s as any).judgeId ?? 0)).size} judge(s)</span>
                         </div>
                       </>
                     );
