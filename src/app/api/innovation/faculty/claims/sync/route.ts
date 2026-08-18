@@ -143,7 +143,7 @@ export async function PATCH(req: NextRequest) {
       if (eventIds.length > 0) {
         const rubricRows = await prisma.rubricCategory.findMany({
           where: { eventId: { in: eventIds } },
-          orderBy: { order: 'asc' },
+          orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }],
           select: { id: true, eventId: true, key: true, label: true, weight: true },
         });
 

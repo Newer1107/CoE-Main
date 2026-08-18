@@ -84,7 +84,7 @@ export const resolveRubricCategories = async (
 ): Promise<RubricCategoryConfig[] | null> => {
   const rows = await db.rubricCategory.findMany({
     where: { eventId },
-    orderBy: { order: 'asc' },
+    orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }],
     select: { id: true, key: true, label: true, weight: true },
   });
 

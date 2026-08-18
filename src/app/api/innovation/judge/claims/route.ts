@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const venueId = assignment.venueId ?? null;
 
     const [categories, claims] = await Promise.all([
-      prisma.rubricCategory.findMany({ where: { eventId }, orderBy: { order: 'asc' } }),
+      prisma.rubricCategory.findMany({ where: { eventId }, orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }] }),
       prisma.claim.findMany({
         where: { problem: { eventId }, ...(venueId ? { venueId } : {}) },
         include: {

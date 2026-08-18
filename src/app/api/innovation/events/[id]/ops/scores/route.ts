@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const round = currentRound(event);
 
     const [categories, claims, problems] = await Promise.all([
-      prisma.rubricCategory.findMany({ where: { eventId }, orderBy: { order: 'asc' } }),
+      prisma.rubricCategory.findMany({ where: { eventId }, orderBy: [{ parentCategoryId: 'asc' }, { order: 'asc' }] }),
       prisma.claim.findMany({
         where: { problem: { eventId }, ...(venueId ? { venueId } : {}) },
         include: {
