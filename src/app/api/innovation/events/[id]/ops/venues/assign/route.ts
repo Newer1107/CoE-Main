@@ -55,14 +55,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = authenticate(req);
-    if (!user || user.role !== 'ADMIN') return errorRes('Admins only', [], 403);
+    if (!user) return errorRes('Unauthorized', [], 401);
     const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId }, select: { coordinatorId: true, coordinators: { select: { userId: true, departmentCode: true } } } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
     const body = await req.json().catch(() => null);
     const claimIds: number[] = Array.isArray(body?.claimIds) ? body.claimIds.map(Number).filter(Number.isInteger) : [];
     if (claimIds.length === 0) return errorRes('Select teams to unassign', [], 400);
 
-    const claims = await prisma.claim.findMany({ where: { id: { in: claimIds }, problem: { eventId } } });
+    const claims = await prisma.claim.findMany({ where: { id: { in: claimIds }, problem: { eventId } }, include: { members: { include: { user: { select: { uid: true } } } } } });
     if (claims.length !== claimIds.length) return errorRes('Some teams are not part of this event', [], 400);
+    if (user.role !== 'ADMIN') {
+      const allowedDepts = coordinatorDepartments(user.id, event);
+      if (allowedDepts !== null) {
+        for (const c of claims as unknown as { members: { role: string; user: { uid: string | null } }[] }[]) {
+          const lead = c.members.find((m) => m.role === 'LEAD');
+          if (!lead || !allowedDepts.includes(deptFromUid(lead.user.uid) ?? '')) return errorRes('Not allowed for this department', ['You can only unassign teams from your department'], 403);
+        }
+      }
+    }
 
     await prisma.$transaction(
       claimIds.map((id) => prisma.claim.update({ where: { id }, data: { venueId: null } })),

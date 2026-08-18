@@ -383,7 +383,7 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
 }
 
 /* ── Venues ────────────────────────────────────────────────────────────── */
-type VenueRow = { id: number; name: string; capacity: number | null; order: number; departmentCode: string | null; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
+type VenueRow = { id: number; name: string; capacity: number | null; order: number; departmentCode: string | null; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
 type ClaimLite = { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
 
 function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
@@ -421,6 +421,9 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     return lead ? deptFromUid(lead.user.uid ?? "") : "Other";
   }))].sort();
   const [targetVenue, setTargetVenue] = useState("");
+  const [claimVenuePick, setClaimVenuePick] = useState<Record<number, string>>({});
+  const [claimSlotInputs, setClaimSlotInputs] = useState<Record<number, string>>({});
+  const [claimBusy, setClaimBusy] = useState<Record<number, boolean>>({});
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/venues`, { credentials: "include" })
@@ -473,6 +476,42 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
       notify(b.success ? b.message : b.message);
       if (b.success) load();
     } finally { setVenueSlotBusy(false); }
+  };
+
+  const moveClaimVenue = async (claimId: number) => {
+    const raw = claimVenuePick[claimId];
+    if (!raw) return;
+    const venueId = raw === "__none" ? null : Number(raw);
+    setClaimBusy((m) => ({ ...m, [claimId]: true }));
+    try {
+      if (venueId === null) {
+        const res = await fetch(`/api/innovation/events/${eventId}/ops/venues/assign`, { method: "DELETE", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimIds: [claimId] }) });
+        const b = (await res.json()) as Api<unknown>;
+        notify(b.success ? "Team unassigned" : b.message);
+      } else {
+        const res = await fetch(`/api/innovation/events/${eventId}/ops/venues/assign`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimIds: [claimId], venueId }) });
+        const b = (await res.json()) as Api<unknown>;
+        notify(b.success ? "Venue updated" : b.message);
+      }
+      if (true) load();
+    } finally { setClaimBusy((m) => ({ ...m, [claimId]: false })); }
+  };
+
+  const saveClaimSlot = async (claimId: number) => {
+    const raw = claimSlotInputs[claimId] ?? "";
+    setClaimBusy((m) => ({ ...m, [claimId]: true }));
+    try {
+      if (!raw) {
+        const res = await fetch(`/api/innovation/events/${eventId}/ops/presentations`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimId, scheduledAt: null }) });
+        const b = (await res.json()) as Api<unknown>;
+        notify(b.success ? "Slot cleared" : b.message);
+      } else {
+        const res = await fetch(`/api/innovation/events/${eventId}/ops/presentations`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimId, scheduledAt: new Date(raw).toISOString() }) });
+        const b = (await res.json()) as Api<unknown>;
+        notify(b.success ? "Slot updated" : b.message);
+      }
+      load();
+    } finally { setClaimBusy((m) => ({ ...m, [claimId]: false })); }
   };
 
   const assign = async () => {
@@ -550,11 +589,36 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                   <ul className="mt-2 divide-y divide-[#e3e2df] border-t border-[#e3e2df]">
                     {v.claims.map((c) => {
                       const lead = c.members.find((m) => m.role === "LEAD")?.user;
+                      const slot = c.presentationScheduledAt;
                       return (
-                        <li key={c.id} className="flex flex-wrap items-center gap-x-3 py-1.5 text-xs text-[#434651]">
-                          <span className="font-semibold text-[#002155]">{c.teamName ?? `Team #${c.id}`}</span>
-                          <span className="text-[#747782]">·</span>
-                          <span>{lead ? `${lead.name} · ${lead.uid ?? "—"}` : "—"}</span>
+                        <li key={c.id} className="flex flex-col gap-1.5 py-2">
+                          <div className="flex flex-wrap items-center gap-x-3 text-xs text-[#434651]">
+                            <span className="font-semibold text-[#002155]">{c.teamName ?? `Team #${c.id}`}</span>
+                            <span className="text-[#747782]">·</span>
+                            <span>{lead ? `${lead.name} · ${lead.uid ?? "—"}` : "—"}</span>
+                            <span className="text-[#002155]/60">· {c.status}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select className="border border-[#c4c6d3] bg-white px-1.5 py-1 text-[11px]" value={claimVenuePick[c.id] ?? String(v.id)} onChange={(e) => setClaimVenuePick((m) => ({ ...m, [c.id]: e.target.value }))}>
+                              {venues.map((vv) => (<option key={vv.id} value={String(vv.id)}>{vv.name}{vv.id === v.id ? " (current)" : ""}</option>))}
+                              <option value="__none">— Unassign —</option>
+                            </select>
+                            <button type="button" onClick={() => void moveClaimVenue(c.id)} disabled={!!claimBusy[c.id]} className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#002155] underline disabled:opacity-40">Move</button>
+                            <span className="text-[10px] text-[#747782]">|</span>
+                            {slot ? (
+                              <>
+                                <span className="text-[11px] font-semibold text-[#002155]">{new Date(slot).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                                <input type="datetime-local" className="w-[150px] border border-[#c4c6d3] px-1.5 py-1 text-[11px]" value={claimSlotInputs[c.id] ?? ""} onChange={(e) => setClaimSlotInputs((m) => ({ ...m, [c.id]: e.target.value }))} />
+                                <button type="button" onClick={() => void saveClaimSlot(c.id)} disabled={!!claimBusy[c.id] && !claimSlotInputs[c.id]} className="text-[10px] font-bold text-[#002155] underline disabled:opacity-40">{claimSlotInputs[c.id] ? "Change" : "Edit"}</button>
+                                <button type="button" onClick={() => { setClaimSlotInputs((m) => ({ ...m, [c.id]: "" })); void saveClaimSlot(c.id); }} disabled={!!claimBusy[c.id]} className="text-[10px] font-bold text-[#ba1a1a] underline disabled:opacity-40">Clear</button>
+                              </>
+                            ) : (
+                              <>
+                                <input type="datetime-local" className="w-[150px] border border-[#c4c6d3] px-1.5 py-1 text-[11px]" value={claimSlotInputs[c.id] ?? ""} onChange={(e) => setClaimSlotInputs((m) => ({ ...m, [c.id]: e.target.value }))} />
+                                <button type="button" onClick={() => void saveClaimSlot(c.id)} disabled={!!claimBusy[c.id] || !claimSlotInputs[c.id]} className="text-[10px] font-bold text-[#002155] underline disabled:opacity-40">Set time</button>
+                              </>
+                            )}
+                          </div>
                         </li>
                       );
                     })}

@@ -27,6 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               id: true,
               teamName: true,
               status: true,
+              presentationScheduledAt: true,
               members: { select: { role: true, user: { select: { name: true, uid: true } } } },
             },
             orderBy: { id: 'asc' },
