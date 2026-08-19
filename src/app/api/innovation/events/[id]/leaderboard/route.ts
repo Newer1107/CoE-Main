@@ -4,7 +4,7 @@ import { errorRes, successRes } from '@/lib/api-helpers';
 import { getEventLeaderboard } from '@/lib/innovation';
 
 // GET /api/innovation/events/[id]/leaderboard
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const eventId = Number(id);
@@ -25,14 +25,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return errorRes('Leaderboard not available', ['Leaderboard is not visible for this event stage'], 400);
     }
 
-    const ranked = await getEventLeaderboard(prisma, eventId);
+    const deptParam = (req.nextUrl.searchParams.get('dept') ?? '').trim().toUpperCase() || null;
+    const ranked = await getEventLeaderboard(prisma, eventId, deptParam);
 
     const claims = await prisma.claim.findMany({
       where: { id: { in: ranked.map((row) => row.claimId) } },
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true } },
+            user: { select: { id: true, name: true, uid: true } },
           },
         },
         rubricScores: { include: { rubricCategory: true } },
@@ -58,12 +59,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           .map((s) => (s.comment ?? '').trim())
           .filter((c) => c.length > 0 && !c.startsWith('[OVERRIDE]'));
       }
+      const leadUid = (claim?.members?.find((m: {role:string}) => m.role==='LEAD') as {user:{uid:string|null}}|undefined)?.user.uid ?? null;
+      const _map: Record<string,string> = { CSECSA:'CSE',CSECSB:'CSE',CSECSC:'CSE',CSECS:'CSE',CSEIOT:'CSE',CSEA:'CSE',CSEB:'CSE',CSEC:'CSE',COMP:'COMP',IT:'IT',CSE:'CSE',AIML:'AIML',AIDS:'AIDS',ECSA:'ECSA',ECS:'ECS',EXTC:'ENTC',ENTC:'ENTC',EXT:'ENTC',MME:'MME',MECH:'MECH',CIVIL:'CIVIL',BVOC:'BVOC',MCA:'MCA',BCA:'BCA',IOT:'IOT' };
+      const raw2 = (leadUid ?? '').toString().trim().toUpperCase().replace(/&/g,'');
+      const mm = raw2.match(/^(\d{2})-([A-Z]+)/);
+      let b2 = mm ? mm[1] : raw2;
+      let deptCode = b2;
+      for (const [k,v] of Object.entries(_map)) if (b2.startsWith(k)) { deptCode=v; break; }
       return {
         rank: row.rank,
         teamName: row.teamName,
         problemTitle: row.problemTitle,
         score: row.score,
         updatedAt: row.updatedAt,
+        dept: deptCode || '—',
         comments: Array.from(new Set(comments)),
         members: (claim?.members || []).map((member) => ({
           id: member.user.id,

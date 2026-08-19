@@ -130,6 +130,16 @@ export default function EventDetailClient({
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[] | null>(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [leaderDept, setLeaderDept] = useState<string>('');
+  useEffect(() => {
+    if (leaderDept !== '' || !myClaim) return;
+    const uid = (myClaim.members?.find((m: {role:string})=>m.role==='LEAD')?.uid ?? '').toString().trim().toUpperCase().replace(/&/g,'');
+    const mm = uid.match(/^(\d{2})-([A-Z]+)/);
+    let b = mm ? mm[1] : uid;
+    const mp: Record<string,string> = { CSECSA:'CSE',CSECSB:'CSE',CSECSC:'CSE',CSECS:'CSE',CSEIOT:'CSE',CSEA:'CSE',CSEB:'CSE',CSEC:'CSE',COMP:'COMP',IT:'IT',CSE:'CSE',AIML:'AIML',AIDS:'AIDS',ECSA:'ECSA',ECS:'ECS',EXTC:'ENTC',ENTC:'ENTC',EXT:'ENTC',MME:'MME',MECH:'MECH',CIVIL:'CIVIL',BVOC:'BVOC',MCA:'MCA',BCA:'BCA',IOT:'IOT' };
+    for (const [k,v] of Object.entries(mp)) if (b.startsWith(k)) { b=v; break; }
+    if (b) setLeaderDept(b);
+  }, [myClaim, leaderDept]);
 
   const isClosed = event.status === "CLOSED";
   const showRubrics = event.rubricCategories.length > 0;
@@ -141,7 +151,7 @@ export default function EventDetailClient({
     let cancelled = false;
     setLeaderboardLoading(true);
     setLeaderboardError(null);
-    fetch(`/api/innovation/events/${event.id}/leaderboard`, { credentials: "include" })
+    fetch(`/api/innovation/events/${event.id}/leaderboard${leaderDept ? `?dept=${encodeURIComponent(leaderDept)}` : ''}`, { credentials: "include" })
       .then(async (res) => {
         const payload = (await res.json()) as ApiEnvelope<LeaderboardRow[]>;
         if (!res.ok || !payload.success) {
@@ -161,7 +171,7 @@ export default function EventDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [isClosed, event.id]);
+  }, [isClosed, event.id, leaderDept]);
 
   const toggleInterest = async () => {
     if (interestLoading) return;
@@ -800,6 +810,14 @@ export default function EventDetailClient({
                 </p>
               ) : (
                 <div className="mt-4 overflow-x-auto">
+                  <div className="flex flex-wrap items-center gap-2 border-b border-outline-variant/60 py-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted">Dept:</span>
+                    <select className="border border-outline-variant bg-white px-2 py-1 text-xs" value={leaderDept} onChange={(e) => setLeaderDept(e.target.value)}>
+                      <option value="">All departments</option>
+                      {['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','MCA','BCA','IOT'].map((d) => (<option key={d} value={d}>{d}</option>))}
+                    </select>
+                    <span className="text-xs text-muted">({leaderboard?.length ?? 0} teams)</span>
+                  </div>
                   <table className="w-full border-collapse text-left text-sm">
                     <thead>
                       <tr className="border-b-2 border-primary">
@@ -838,6 +856,7 @@ export default function EventDetailClient({
                               </div>
                             ) : null}
                           </td>
+                          <td className="py-3 pr-4 text-on-surface-variant">{(row as unknown as {dept?:string}).dept ?? '—'}</td>
                           <td className="py-3 pr-4 text-on-surface-variant">{row.problemTitle}</td>
                           <td className="py-3 font-bold text-primary">{row.score}</td>
                         </tr>

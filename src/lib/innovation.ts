@@ -157,8 +157,21 @@ export type LeaderboardRow = {
   updatedAt: Date;
 };
 
-export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number): Promise<LeaderboardRow[]> => {
-  const claims = await prisma.claim.findMany({
+export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number, dept: string | null = null): Promise<LeaderboardRow[]> => {
+  // ponytail: one DB roundtrip for all rubric data; in-memory weighted avg per claim (N*J*5 trivial)
+  const categories = await prisma.rubricCategory.findMany({
+    where: { eventId },
+    select: { id: true, weight: true, parentCategoryId: true },
+  });
+  const isBinary = categories.some((c: { parentCategoryId: number | null }) => c.parentCategoryId !== null);
+  const parents = categories.filter((c: { parentCategoryId: number | null }) => c.parentCategoryId === null);
+  const parentMap = new Map<number, number>(parents.map((p: { id: number; weight: number }) => [p.id, p.weight]));
+  const childToParent = new Map<number, number>();
+  for (const c of categories as { id: number; parentCategoryId: number | null }[]) {
+    if (c.parentCategoryId !== null) childToParent.set(c.id, c.parentCategoryId);
+  }
+
+  const claimsRaw = await prisma.claim.findMany({
     where: {
       problem: { eventId },
       OR: [{ finalScore: { not: null } }, { score: { not: null } }, { rubricScores: { some: {} } }],
@@ -166,34 +179,64 @@ export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number)
     select: {
       id: true,
       teamName: true,
-      problem: {
-        select: {
-          title: true,
-        },
-      },
+      problem: { select: { title: true } },
       finalScore: true,
       score: true,
       updatedAt: true,
-      rubricScores: { select: { round: true, score: true } },
+      rubricScores: { select: { round: true, score: true, rubricCategoryId: true, judgeId: true } },
+      members: { include: { user: { select: { uid: true } } } },
     },
   });
 
+// ponytail: dept normalization mirrors hackathon-ops.normalizeDeptCode — longest CSE prefixes first
+const _DEPT_MAP: Record<string, string> = {
+  CSECSA: 'CSE', CSECSB: 'CSE', CSECSC: 'CSE', CSECS: 'CSE', CSEIOT: 'CSE', CSEA: 'CSE', CSEB: 'CSE', CSEC: 'CSE',
+  COMP: 'COMP', IT: 'IT', CSE: 'CSE', AIML: 'AIML', AIDS: 'AIDS', ECSA: 'ECSA', ECS: 'ECS',
+  EXTC: 'ENTC', ENTC: 'ENTC', EXT: 'ENTC', MME: 'MME', MECH: 'MECH', CIVIL: 'CIVIL', BVOC: 'BVOC', MCA: 'MCA', BCA: 'BCA', IOT: 'IOT',
+};
+function _normDept(uid: string | null | undefined): string {
+  if (!uid) return '';
+  const m = uid.trim().toUpperCase().replace(/&/g, '').match(/^(\d{2})-([A-Z]+)/);
+  if (!m) return uid.trim().toUpperCase().replace(/&/g, '');
+  let raw = m[2];
+  for (const [k, code] of Object.entries(_DEPT_MAP)) if (raw.startsWith(k)) return code;
+  return raw;
+}
+
+  const claims = dept ? claimsRaw.filter((c: { members: { role: string; user: { uid: string | null } }[] }) => {
+    const lead = (c.members as { role: string; user: { uid: string | null } }[]).find((m) => m.role === 'LEAD');
+    return _normDept(lead?.user.uid) === dept.toUpperCase();
+  }) : claimsRaw;
+
   return claims
     .map((claim) => {
-      // Live rubric total = sum of the LAST judging round (rounds are audit layers,
-      // never summed together).
-      let rubricTotal: number | null = null;
-      if (claim.rubricScores.length > 0) {
+      if (claim.finalScore !== null) return { claim, score: claim.finalScore };
+      if (claim.rubricScores.length === 0) return { claim, score: claim.score ?? 0 };
+      // Binary weighted: average YES rate per parent across judges, weighted by parent
+      const lastRound = Math.max(...(claim.rubricScores as { round: number }[]).map((s) => s.round));
+      const lastRoundScores = (claim.rubricScores as { round: number; score: number; rubricCategoryId: number; judgeId: number }[]).filter((s) => s.round === lastRound);
+      if (!isBinary) {
         const byRound = new Map<number, number>();
-        for (const s of claim.rubricScores) {
-          byRound.set(s.round, (byRound.get(s.round) ?? 0) + s.score);
-        }
-        rubricTotal = byRound.get(Math.max(...byRound.keys())) ?? 0;
+        for (const s of lastRoundScores) byRound.set(s.round, (byRound.get(s.round) ?? 0) + s.score);
+        const rubricTotal = byRound.get(lastRound) ?? 0;
+        return { claim, score: claim.score ?? rubricTotal };
       }
-      return {
-        claim,
-        score: claim.finalScore ?? claim.score ?? rubricTotal ?? 0,
-      };
+      const judgeIds = new Set(lastRoundScores.map((s) => s.judgeId ?? 0));
+      let finalScore = 0;
+      for (const [parentId, weight] of parentMap) {
+        let sumYesRate = 0;
+        let scoredJudges = 0;
+        for (const jid of judgeIds) {
+          const rows = lastRoundScores.filter((s) => (s.judgeId ?? 0) === jid && childToParent.get(s.rubricCategoryId) === parentId);
+          if (rows.length === 0) continue;
+          const yes = rows.filter((r) => r.score > 0).length;
+          sumYesRate += yes / 5;
+          scoredJudges++;
+        }
+        const avgYesRate = scoredJudges === 0 ? 0 : sumYesRate / scoredJudges;
+        finalScore += avgYesRate * weight;
+      }
+      return { claim, score: Math.round(finalScore) };
     })
     .sort((a, b) => b.score - a.score || a.claim.updatedAt.getTime() - b.claim.updatedAt.getTime())
     .map(({ claim, score }, index) => ({

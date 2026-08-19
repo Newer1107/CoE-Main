@@ -975,21 +975,35 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
   useEffect(load, [load]);
 
   const totalFor = (claim: ScoreClaim) => {
-    // When multiple judges scored the same question, average per category across judges, then weight by parent.
-    // Falls back to simple sum when no judgeId present (legacy single-judge rows).
     if (claim.rubricScores.length === 0) return 0;
-    const hasJudgeId = claim.rubricScores.some((s) => (s as any).judgeId != null);
-    if (!hasJudgeId) return claim.rubricScores.reduce((sum, s) => sum + s.score, 0);
-    const byCat = new Map<number, number[]>();
-    for (const s of claim.rubricScores) {
-      const k = s.rubricCategory.id;
-      if (!byCat.has(k)) byCat.set(k, []);
-      byCat.get(k)!.push(s.score);
+    const isBinary = categories.some((c) => c.parentCategoryId !== null);
+    if (!isBinary) return claim.rubricScores.reduce((sum, s) => sum + s.score, 0);
+    // Binary: weighted average across judges per parent (matches finalScore on CLOSED)
+    const parents = categories.filter((c) => c.parentCategoryId === null);
+    const childToParent = new Map<number, number>();
+    for (const c of categories as { id: number; parentCategoryId: number | null }[]) if (c.parentCategoryId !== null) childToParent.set(c.id, c.parentCategoryId);
+    const byJudge = new Map<number, typeof claim.rubricScores>();
+    for (const s of claim.rubricScores as unknown as { judgeId?: number | null; rubricCategory: { id: number } } & ScoreRow[]) {
+      const jid = ((s as { judgeId?: number | null }).judgeId ?? 0);
+      if (!byJudge.has(jid)) byJudge.set(jid, []);
+      byJudge.get(jid)!.push(s);
     }
-    // per-category average (0 or 1) -> sum
-    let sum = 0;
-    for (const scores of byCat.values()) sum += scores.reduce((a,b)=>a+b,0) / scores.length;
-    return sum;
+    const judgeIds = Array.from(byJudge.keys());
+    if (judgeIds.length === 0) return 0;
+    let finalScore = 0;
+    for (const parent of parents) {
+      let sumYesRate = 0, scoredJudges = 0;
+      for (const jid of judgeIds) {
+        const rows = (byJudge.get(jid) ?? []).filter((s) => childToParent.get(s.rubricCategory.id) === parent.id);
+        if (rows.length === 0) continue;
+        const yes = rows.filter((r) => r.score > 0).length;
+        sumYesRate += yes / 5;
+        scoredJudges++;
+      }
+      const avgYesRate = scoredJudges === 0 ? 0 : sumYesRate / scoredJudges;
+      finalScore += avgYesRate * parent.weight;
+    }
+    return Math.round(finalScore);
   };
 
   const createOIPS = async (claimId: number) => {
@@ -1247,7 +1261,7 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
                       <>
                         {parents.map((parent) => {
                           const children = categories.filter((c) => c.parentCategoryId === parent.id);
-                          const yesInParam = children.reduce((sum, ch) => { const rows = claim.rubricScores.filter((s) => s.rubricCategory.id === ch.id); if (rows.length === 0) return sum; const avg = rows.reduce((a,b)=>a+b.score,0)/rows.length; return sum + (avg >= 0.5 ? 1 : avg); }, 0);
+                          const yesInParam = children.reduce((sum, ch) => { const rows = claim.rubricScores.filter((s) => s.rubricCategory.id === ch.id); if (rows.length === 0) return sum; const avg = rows.reduce((a,b)=>a+b.score,0)/rows.length; return sum + avg; }, 0);
                           const paramScore = ((yesInParam / Math.max(children.length, 1)) * parent.weight).toFixed(1);
                           yes += yesInParam;
                           return (
