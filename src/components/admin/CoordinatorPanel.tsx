@@ -1119,9 +1119,22 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
 
   return (
     <div className="border border-[#c4c6d3] bg-white p-5">
-      <h3 className="font-headline text-xl text-[#002155]">
-        Score Review {round ? <span className="text-sm font-normal text-[#747782]">— Round {round}</span> : null}
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-headline text-xl text-[#002155]">
+          Score Review {round ? <span className="text-sm font-normal text-[#747782]">— Round {round}</span> : null}
+        </h3>
+        <div className="flex items-center gap-2">
+          <select className="border border-[#c4c6d3] bg-white px-2 py-1.5 text-xs" id={`export-dept-${eventId}`} defaultValue="">
+            <option value="">All depts</option>
+            {["COMP","IT","CSE","AIML","AIDS","ECSA","ENTC","MECH","CIVIL","BVOC","MCA","BCA","IOT"].map((d) => (<option key={d} value={d}>{d}</option>))}
+          </select>
+          <button type="button" className={btnGhost + " px-4 py-1.5 text-xs"} onClick={() => {
+            const dept = (document.getElementById(`export-dept-${eventId}`) as HTMLSelectElement | null)?.value ?? "";
+            const url = `/api/innovation/events/${eventId}/ops/scores/export${dept ? `?dept=${encodeURIComponent(dept)}` : ""}`;
+            window.open(url, "_blank");
+          }}>Download Excel (CSV)</button>
+        </div>
+      </div>
       <p className="mt-1 text-sm text-[#434651]">
         Live totals from judges. Overrides are allowed while the event is in JUDGING and are logged with the reason.
       </p>
