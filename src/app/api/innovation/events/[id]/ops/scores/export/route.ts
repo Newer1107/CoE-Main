@@ -115,7 +115,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const parentHeaders: string[] = [];
     for (const p of parents) parentHeaders.push(`${p.label} YES/5`);
     for (const p of parents) parentHeaders.push(`${p.label} weighted (${p.weight})`);
-    const tailHeaders = ['Final Score (0-100)', 'Rank (within export)'];
+    const tailHeaders = ['Final Score (0-100)', 'Rank (within export)', 'Judges'];
 
     const headers = [...fixedHeaders, ...questionHeaders, ...parentHeaders, ...tailHeaders];
 
@@ -185,7 +185,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       // questions
       const qVals = r.perQuestion;
       const parentWeighted: string[] = parents.map((p) => excelText((r.perParent.get(p.id)?.weighted ?? '0.0')));
-      const tail = [r.finalScore, rankById.get(claim.id) ?? ''];
+      const judgeNameSet = new Set((r.claim as { rubricScores: { judge?: { name: string } | null }[] }).rubricScores.map((s) => s.judge?.name).filter(Boolean) as string[]);
+      const judgesList = Array.from(judgeNameSet).join(', ') || '-';
+      const tail = [r.finalScore, rankById.get(claim.id) ?? '', judgesList];
 
       // Recompute YES count properly from rows for accurate display
       const yesCounts = parents.map((p) => {
