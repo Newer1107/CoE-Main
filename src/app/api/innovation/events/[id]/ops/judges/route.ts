@@ -40,7 +40,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           if (!v) return false;
           return v.departmentCode !== null && allowedDepts.includes(v.departmentCode);
         });
-    return successRes({ assignments: assignmentsOut, venues, faculty });
+    // Group by judge — one row per judge, venues as comma-separated list
+    const grouped = new Map<number, { judge: { id: number; name: string; email: string; role: string }; venues: { id: number; name: string }[] }>();
+    for (const a of assignmentsOut as { judgeId: number; judge: { id: number; name: string; email: string; role: string }; venue: { id: number; name: string } | null }[]) {
+      const jid = a.judge.id;
+      if (!grouped.has(jid)) grouped.set(jid, { judge: a.judge, venues: [] });
+      if (a.venue) grouped.get(jid)!.venues.push(a.venue);
+    }
+    const groupedAssignments = Array.from(grouped.values());
+    return successRes({ assignments: groupedAssignments, venues, faculty });
   } catch (err) {
     console.error('judges GET error:', err);
     return errorRes('Internal server error', [], 500);

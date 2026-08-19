@@ -700,7 +700,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
 }
 
 /* ── Judges ────────────────────────────────────────────────────────────── */
-type JudgeRow = { id: number; judge: { id: number; name: string; email: string; role: string }; venue: { id: number; name: string; departmentCode: string | null } | null };
+type JudgeRow = { judge: { id: number; name: string; email: string; role: string }; venues: { id: number; name: string }[] };
 
 function JudgesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
   const [rows, setRows] = useState<JudgeRow[]>([]);
@@ -751,8 +751,8 @@ function JudgesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
     if (body.success) load();
   };
 
-  const remove = async (id: number) => {
-    const res = await fetch(`/api/innovation/events/${eventId}/ops/judges/${id}`, {
+  const remove = async (judgeId: number) => {
+    const res = await fetch(`/api/innovation/events/${eventId}/ops/judges/by-judge/${judgeId}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -791,18 +791,18 @@ function JudgesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
       ) : (
         <div className="mt-4 space-y-2">
           {rows.map((r) => (
-            <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 border border-[#e3e2df] bg-[#faf9f5] px-4 py-3">
+            <div key={r.judge.id} className="flex flex-wrap items-center justify-between gap-3 border border-[#e3e2df] bg-[#faf9f5] px-4 py-3">
               <div>
                 <p className="font-semibold text-[#002155]">{r.judge.name}</p>
                 <p className="text-xs text-[#434651]">
-                  {r.judge.email} · {r.judge.role} · scope: {r.venue ? r.venue.name : "All claims"}
+                  {r.judge.email} · {r.judge.role} · scope: {r.venues.length > 0 ? r.venues.map(v => v.name).join(", ") : "All claims"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <select
                   className="border border-[#c4c6d3] bg-white px-2 py-1 text-xs"
-                  value={r.venue?.id ?? ""}
-                  onChange={(e) => void move(r.id, e.target.value)}
+                  value={r.venues[0]?.id ?? ""}
+                  onChange={(e) => void move(r.judge.id, e.target.value)}
                 >
                   <option value="">All claims</option>
                   {venues.map((v) => (
@@ -811,7 +811,7 @@ function JudgesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                     </option>
                   ))}
                 </select>
-                <button type="button" onClick={() => void remove(r.id)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
+                <button type="button" onClick={() => void remove(r.judge.id)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
                   Remove
                 </button>
               </div>
