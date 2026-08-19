@@ -110,7 +110,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const children = categories.filter((c) => c.parentCategoryId !== null);
     for (const ch of children) {
       const parent = parents.find((p) => p.id === ch.parentCategoryId);
-      questionHeaders.push(`${parent?.label ?? '—'}: ${ch.label} (${ch.isCritical ? 'C' : 'S'})`);
+      questionHeaders.push(`${parent?.label ?? '-'}: ${ch.label} (${ch.isCritical ? 'C' : 'S'})`);
     }
     const parentHeaders: string[] = [];
     for (const p of parents) parentHeaders.push(`${p.label} YES/5`);
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     for (const claim of claims) {
       const lead = (claim as { members: { role: string; user: { name: string; uid: string | null; email: string } }[] }).members.find((m) => m.role === 'LEAD');
-      const dept = _normDeptCode(deptFromUid(lead?.user.uid) ?? '') || '—';
+      const dept = _normDeptCode(deptFromUid(lead?.user.uid) ?? '') || '-';
       const membersAll = (claim as { members: { user: { name: string; uid: string | null } }[] }).members.map((m) => `${m.user.name}(${m.user.uid ?? ''})`).join('; ');
 
       // per-judge averaging for finalScore (same as CLOSED calc)
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const perQuestion: string[] = [];
       for (const ch of children) {
         const rows2 = (claim.rubricScores as { rubricCategory: { id: number }; score: number }[]).filter((s) => s.rubricCategory.id === ch.id);
-        if (rows2.length === 0) perQuestion.push('—');
+        if (rows2.length === 0) perQuestion.push('-');
         else {
           const avg = rows2.reduce((a, b) => a + b.score, 0) / rows2.length;
           perQuestion.push(avg >= 0.5 ? 'YES' : 'NO');
@@ -174,10 +174,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         claim.id,
         claim.teamName ?? `Team-${claim.id}`,
         r.dept,
-        claim.venue?.name ?? '—',
-        claim.problem?.title ?? '—',
+        claim.venue?.name ?? '-',
+        claim.problem?.title ?? '-',
         claim.status,
-        lead?.user.name ?? '—',
+        lead?.user.name ?? '-',
         lead?.user.uid ?? '',
         lead?.user.email ?? '',
         (claim.members as { user: { name: string; uid: string | null } }[]).map((m) => `${m.user.name}(${m.user.uid ?? ''})`).join('; '),
@@ -205,7 +205,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       lines.push(row);
     }
 
-    const csv = [headers.map(csvEscape).join(','), ...lines].join('\n');
+    // ponytail: BOM so Excel detects UTF-8 and shows — correctly; fallback '-' is plain ASCII
+    const csv = '\uFEFF' + [headers.map(csvEscape).join(','), ...lines].join('\n');
     const fname = `scores-${eventId}-${effectiveDept ?? 'all'}-${new Date().toISOString().slice(0, 10)}.csv`;
     return new Response(csv, {
       status: 200,
