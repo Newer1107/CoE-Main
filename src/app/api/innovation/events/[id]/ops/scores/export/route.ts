@@ -8,6 +8,12 @@ const csvEscape = (v: unknown): string => {
   if (/[",\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
   return text;
 };
+const excelText = (v: string): string => {
+  // ponytail: force text in Excel — ="value" defeats date/number sniffing for 3/5, 12.0 etc.
+  if (!v) return v;
+  if (/^(\d+\/\d+|\d+\.\d+)$/.test(v)) return '="' + v.replace(/"/g, '""') + '"';
+  return v;
+};
 
 // ponytail: dept norm mirrors hackathon-ops.normalizeDeptCode — longest CSE prefixes first
 const _DEPT_MAP: Record<string, string> = {
@@ -138,7 +144,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         const avgYesRate = scoredJudges === 0 ? 0 : sumYesRate / scoredJudges;
         const weighted = avgYesRate * parent.weight;
         finalScore += weighted;
-        const yesCount = isBinary ? Math.round(sumYesRate * 5 / Math.max(scoredJudges, 1)) : 0; // approx for display
+        const yesCount = isBinary ? sumYesRate * 5 / Math.max(scoredJudges, 1) : 0; // avg YES count for display
         perParent.set(parent.id, { yes: yesCount, total: 5, weighted: avgYesRate > 0 ? weighted.toFixed(1) : '0.0' });
       }
       finalScore = Math.round(finalScore);
@@ -178,12 +184,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ];
       // questions
       const qVals = r.perQuestion;
-      // parent YES/5 strings
-      const parentYes: string[] = parents.map((p) => {
-        const v = r.perParent.get(p.id);
-        return v ? `${((r.perParent.get(p.id)!.weighted !== '0.0' ? (Number(r.perParent.get(p.id)!.weighted) / p.weight * 5).toFixed(1) : '0') )}/5` : '0/5';
-      });
-      const parentWeighted: string[] = parents.map((p) => r.perParent.get(p.id)?.weighted ?? '0.0');
+      const parentWeighted: string[] = parents.map((p) => excelText((r.perParent.get(p.id)?.weighted ?? '0.0')));
       const tail = [r.finalScore, rankById.get(claim.id) ?? ''];
 
       // Recompute YES count properly from rows for accurate display
@@ -197,7 +198,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           sum += avg;
         }
         const yes = Math.round(sum * 10) / 10; // keep .5 from multi-judge
-        return `${yes}/5`;
+        return excelText(`${yes}/5`);
       });
 
       const row = [...base, ...qVals, ...yesCounts, ...parentWeighted, ...tail].map(csvEscape).join(',');
