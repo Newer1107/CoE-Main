@@ -83,6 +83,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         score: true,
         finalScore: true,
         venue: { select: { id: true, name: true } },
+        round2Venue: { select: { id: true, name: true } },
         problem: { select: { id: true, title: true } },
         members: { include: { user: { select: { name: true, email: true, uid: true } } }, orderBy: { role: 'asc' } },
         rubricScores: { where: { round }, include: { rubricCategory: { select: { id: true, key: true, label: true } }, judge: { select: { id: true, name: true } } } },

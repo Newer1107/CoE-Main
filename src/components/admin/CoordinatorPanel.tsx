@@ -1157,6 +1157,34 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
     } finally { setRoundBusy(false); }
   };
 
+  const undoDeclare = async (dept: string) => {
+    setRoundBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/declare`, {
+        method: "DELETE", credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ dept }),
+      });
+      const b = (await res.json()) as Api<{ dept: string }>;
+      notify(b.success ? `${dept} declaration undone` : b.message);
+      if (b.success) load();
+    } finally { setRoundBusy(false); }
+  };
+
+  const closeDeptR2 = async (dept: string) => {
+    setRoundBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/close-dept`, {
+        method: "POST", credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ dept }),
+      });
+      const b = (await res.json()) as Api<{ dept: string }>;
+      notify(b.success ? `${dept} R2 completed` : b.message);
+      if (b.success) load();
+    } finally { setRoundBusy(false); }
+  };
+
   const openRound2 = async () => {
     setRoundBusy(true);
     try {
@@ -1266,12 +1294,20 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
                 <div key={dept} className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2 text-xs">
                   <p className="font-bold text-[#002155]">{dept}</p>
                   {declared ? (
-                    <p className="mt-1 text-[10px] text-[#0b6b2e] font-semibold">✓ Declared</p>
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="text-[10px] text-[#0b6b2e] font-semibold">✓ Declared</span>
+                      {!r2ByDept[dept] ? (
+                        <button type="button" onClick={() => void undoDeclare(dept)} disabled={roundBusy} className="text-[9px] font-bold text-[#ba1a1a] underline hover:opacity-70 disabled:opacity-50">Undo</button>
+                      ) : null}
+                    </div>
                   ) : (
                     <button type="button" onClick={() => void declareRound1(dept)} disabled={roundBusy} className="mt-1 px-2 py-1 text-[10px] font-bold text-[#8c4f00] border border-[#8c4f00] hover:bg-[#8c4f00]/5 disabled:opacity-50">Declare R1</button>
                   )}
                   {r2?.status === 'open' ? (
-                    <p className="mt-1 text-[10px] text-[#0b6b2e]">Phase 2 Open</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <p className="text-[10px] text-[#0b6b2e] font-semibold">Phase 2 Open</p>
+                      <button type="button" onClick={() => void closeDeptR2(dept)} disabled={roundBusy} className="px-2 py-0.5 text-[9px] font-bold border border-[#002155] text-[#002155] hover:bg-[#002155]/5 disabled:opacity-50">Complete R2</button>
+                    </div>
                   ) : declared ? (
                     <span className="text-[10px] text-[#747782]">Ready for R2</span>
                   ) : null}

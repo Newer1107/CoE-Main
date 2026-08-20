@@ -28,6 +28,8 @@ type LeaderboardRow = {
   problemTitle: string;
   score: number;
   updatedAt: string;
+  dept: string;
+  phase: number;
   comments: string[];
   members: { id: number; name: string; email: string; role: string }[];
 };
@@ -871,7 +873,10 @@ export default function EventDetailClient({
                               </div>
                             ) : null}
                           </td>
-                          <td className="py-3 pr-4 text-on-surface-variant">{(row as unknown as {dept?:string}).dept ?? '—'}</td>
+                          <td className="py-3 pr-4 text-on-surface-variant">
+                            <span>{(row as any).dept ?? '—'}</span>
+                            {(row as any).phase === 2 ? <span className="ml-1 rounded bg-[#0b6b2e]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#0b6b2e]">R2</span> : null}
+                          </td>
                           <td className="py-3 pr-4 text-on-surface-variant">{row.problemTitle}</td>
                           <td className="py-3 font-bold text-primary">{row.score}</td>
                         </tr>

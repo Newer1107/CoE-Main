@@ -58,10 +58,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     if (nextStatus === 'CLOSED') {
+      // SHORTLISTED teams with R1 scores are considered judged (R2 scores are optional)
       const unjudged = await prisma.claim.count({
         where: {
           problem: { eventId },
           rubricScores: { none: {} },
+          NOT: { status: 'SHORTLISTED' as any },
         },
       });
       if (unjudged > 0) {
