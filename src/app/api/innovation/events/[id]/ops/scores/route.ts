@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           round2VenueId: true,
           venue: { select: { id: true, name: true } },
           problem: { select: { id: true, title: true } },
-          rubricScores: { where: { round }, include: { rubricCategory: true, judge: { select: { id: true, name: true } } } },
+          rubricScores: { include: { rubricCategory: true, judge: { select: { id: true, name: true } } }, orderBy: { round: 'asc' } },
           members: { include: { user: { select: { name: true, email: true, uid: true } } } },
         },
         orderBy: { id: 'asc' },
@@ -45,7 +45,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const filteredClaims = allowedDeptsScores === null ? claims : claims.filter((c: { members: { role: string; user: { uid: string | null } }[] }) => { const lead = c.members.find((m) => m.role === 'LEAD'); return lead && allowedDeptsScores.includes(deptFromUid(lead.user.uid) ?? ''); });
     const cfg = (event.config as { registration?: Record<string, unknown> } | null)?.registration ?? {};
     const allowOpenInnovation = cfg.allowOpenInnovation === true;
-    return successRes({ categories, claims: filteredClaims, round, problems, allowOpenInnovation });
+    // Pick latest round's scores per claim (so round 1 shows when round 2 has no scores yet)
+    const enrichedClaims = filteredClaims.map((c) => {
+      if (c.rubricScores.length === 0) return c;
+      const lastRound = Math.max(...c.rubricScores.map((s) => s.round));
+      return { ...c, rubricScores: c.rubricScores.filter((s) => s.round === lastRound) };
+    });
+    return successRes({ categories, claims: enrichedClaims, round, problems, allowOpenInnovation });
   } catch (err) {
     console.error('scores GET error:', err);
     return errorRes('Internal server error', [], 500);
