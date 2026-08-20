@@ -28,6 +28,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               teamName: true,
               status: true,
               presentationScheduledAt: true,
+              round2VenueId: true,
+              round2Venue: { select: { id: true, name: true } },
               members: { select: { role: true, user: { select: { name: true, uid: true } } } },
             },
             orderBy: { id: 'asc' },
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }),
       prisma.claim.findMany({
         where: { problem: { eventId }, venueId: null },
-        select: { id: true, teamName: true, status: true, presentationScheduledAt: true, members: { select: { role: true, user: { select: { name: true, uid: true, email: true } } } } },
+        select: { id: true, teamName: true, status: true, presentationScheduledAt: true, round2VenueId: true, round2Venue: { select: { id: true, name: true } }, members: { select: { role: true, user: { select: { name: true, uid: true, email: true } } } } },
         orderBy: { id: 'asc' },
       }),
     ]);

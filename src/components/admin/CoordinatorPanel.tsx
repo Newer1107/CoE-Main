@@ -383,8 +383,8 @@ function OverviewTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m
 }
 
 /* ── Venues ────────────────────────────────────────────────────────────── */
-type VenueRow = { id: number; name: string; capacity: number | null; order: number; departmentCode: string | null; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
-type ClaimLite = { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
+type VenueRow = { id: number; name: string; capacity: number | null; order: number; departmentCode: string | null; _count: { claims: number }; claims: { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; round2VenueId: number | null; round2Venue: { id: number; name: string } | null; members: { role: string; user: { name: string; uid: string | null } }[] }[] };
+type ClaimLite = { id: number; teamName: string | null; status: string; presentationScheduledAt: string | null; round2VenueId: number | null; round2Venue: { id: number; name: string } | null; members: { role: string; user: { name: string; uid: string | null; email: string } }[] };
 
 function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) => void }) {
   const [venues, setVenues] = useState<VenueRow[]>([]);
@@ -597,6 +597,11 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                             <span className="text-[#747782]">·</span>
                             <span>{lead ? `${lead.name} · ${lead.uid ?? "—"}` : "—"}</span>
                             <span className="text-[#002155]/60">· {c.status}</span>
+                            {c.status === 'SHORTLISTED' ? (
+                              <span className="rounded bg-[#0b6b2e]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#0b6b2e]">
+                                R2{c.round2Venue ? `: ${c.round2Venue.name}` : ''}
+                              </span>
+                            ) : null}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <select className="border border-[#c4c6d3] bg-white px-1.5 py-1 text-[11px]" value={claimVenuePick[c.id] ?? String(v.id)} onChange={(e) => setClaimVenuePick((m) => ({ ...m, [c.id]: e.target.value }))}>
@@ -1227,7 +1232,7 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
       <p className="mt-1 text-sm text-[#434651]">
         Live totals from judges. Overrides are allowed while the event is in JUDGING and are logged with the reason.
       </p>
-      {round === 1 ? (
+      {round != null ? (
         <div className="mt-4 border-t border-[#c4c6d3] pt-4 space-y-3">
           <p className="text-xs font-bold text-[#002155]">Phase 1 Status by Department</p>
           <div className="flex items-center gap-2">
@@ -1286,12 +1291,12 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
           <button type="button" onClick={() => void openRound2()} disabled={roundBusy} className={btnCls + " bg-[#0b6b2e]"}>Open Round 2 ({declareDept})</button>
         </div>
       ) : null}
-      {Object.entries(r2ByDept).filter(([, v]) => v.status === 'open').length > 0 ? (
+      {Object.keys(r2ByDept).length > 0 ? (
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#c4c6d3] pt-4">
-          <p className="text-xs font-bold text-[#0b6b2e]">Phase 2 Open:</p>
-          {Object.entries(r2ByDept).filter(([, v]) => v.status === 'open').map(([dept, v]) => (
-            <span key={dept} className="rounded bg-[#0b6b2e]/10 px-2 py-1 text-[10px] font-bold text-[#0b6b2e]">
-              {dept}{v.startAt ? ` (${new Date(v.startAt).toLocaleDateString('en-IN')})` : ''}
+          <p className="text-xs font-bold text-[#002155]">Phase 2 Status:</p>
+          {Object.entries(r2ByDept).map(([dept, v]) => (
+            <span key={dept} className={`rounded px-2 py-1 text-[10px] font-bold ${v.status === 'open' ? 'bg-[#0b6b2e]/10 text-[#0b6b2e]' : 'bg-[#c4c6d3]/30 text-[#747782]'}`}>
+              {dept}: {v.status === 'open' ? 'R2 Open' : v.status ?? 'pending'}{v.startAt ? ` (${new Date(v.startAt).toLocaleDateString('en-IN')})` : ''}
             </span>
           ))}
         </div>
