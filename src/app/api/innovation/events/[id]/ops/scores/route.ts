@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           status: true,
           presentationScheduledAt: true,
           submissionFileKey: true,
+          round2VenueId: true,
           venue: { select: { id: true, name: true } },
           problem: { select: { id: true, title: true } },
           rubricScores: { where: { round }, include: { rubricCategory: true, judge: { select: { id: true, name: true } } } },

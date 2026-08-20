@@ -937,6 +937,8 @@ type ScoreClaim = {
   problem: { id: number; title: string } | null;
   presentationScheduledAt: string | null;
   submissionFileKey: string | null;
+  round2VenueId: number | null;
+  round2Venue: { id: number; name: string } | null;
   rubricScores: ScoreRow[];
   members: { role: string; user: { name: string; email: string; uid: string | null } }[];
 };
@@ -1168,6 +1170,25 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
     setAdvanceSel((s) => { const next = new Set(s); if (next.has(claimId)) next.delete(claimId); else next.add(claimId); return next; });
   };
 
+  const [r2VenuePick, setR2VenuePick] = useState<Record<number, string>>({});
+  const [r2VenueBusy, setR2VenueBusy] = useState<Record<number, boolean>>({});
+
+  const updateR2Venue = async (claimId: number) => {
+    const raw = r2VenuePick[claimId];
+    if (raw === undefined) return;
+    setR2VenueBusy((m) => ({ ...m, [claimId]: true }));
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/advance`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ claimId, round2VenueId: raw === '__none' ? null : raw || null }),
+      });
+      const b = (await res.json()) as Api<unknown>;
+      notify(b.success ? 'Venue updated' : b.message);
+      if (b.success) load();
+    } finally { setR2VenueBusy((m) => ({ ...m, [claimId]: false })); }
+  };
+
   const uploadPpt = async (claimId: number, file: File | null) => {
     if (!file || !isAdmin) return;
     setPptBusy((m) => ({ ...m, [claimId]: true }));
@@ -1288,7 +1309,20 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
                   ) : null}
                   <p className="font-bold text-[#002155]">{claim.teamName ?? `Team #${claim.id}`}</p>
                   {claim.status === 'SHORTLISTED' ? (
-                    <span className="ml-2 rounded bg-[#0b6b2e]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b6b2e]">R2 Advanced</span>
+                    <>
+                      <span className="ml-2 rounded bg-[#0b6b2e]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b6b2e]">R2 Advanced</span>
+                      <select
+                        className="ml-2 border border-[#c4c6d3] bg-white px-1.5 py-1 text-[10px]"
+                        value={r2VenuePick[claim.id] ?? claim.round2VenueId ?? ''}
+                        onChange={(e) => { setR2VenuePick((m) => ({ ...m, [claim.id]: e.target.value })); void updateR2Venue(claim.id); }}
+                        disabled={!!r2VenueBusy[claim.id]}
+                      >
+                        <option value="">No R2 venue</option>
+                        {venues.map((v) => (
+                          <option key={v.id} value={String(v.id)}>{v.name}{v.id === claim.round2VenueId ? ' (current)' : ''}</option>
+                        ))}
+                      </select>
+                    </>
                   ) : null}
                 </div>
                 <p className="text-xs text-[#434651]">

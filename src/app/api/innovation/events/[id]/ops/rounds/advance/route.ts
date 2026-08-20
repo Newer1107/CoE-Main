@@ -65,3 +65,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return errorRes('Internal server error', [], 500);
   }
 }
+
+
+// PUT — update a single team's Phase 2 venue
+// { claimId: number, round2VenueId: number | null }
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+    const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
+
+    const body = await req.json().catch(() => ({}));
+    const claimId = Number(body?.claimId);
+    const round2VenueId = body?.round2VenueId == null || body.round2VenueId === '' ? null : Number(body.round2VenueId);
+    if (!Number.isInteger(claimId)) return errorRes('claimId is required', [], 400);
+
+    if (round2VenueId) {
+      const venue = await prisma.venue.findFirst({ where: { id: round2VenueId, eventId } });
+      if (!venue) return errorRes('Venue not found', [], 404);
+    }
+
+    const claim = await prisma.claim.findFirst({ where: { id: claimId, problem: { eventId } } });
+    if (!claim) return errorRes('Claim not found', [], 404);
+    if (claim.status !== 'SHORTLISTED' as any) return errorRes('Team not advanced to Round 2', [], 400);
+
+    await prisma.claim.update({ where: { id: claimId }, data: { round2VenueId } });
+    return successRes({ claimId, round2VenueId }, 'Phase 2 venue updated');
+  } catch (err) {
+    console.error('rounds advance PUT error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
