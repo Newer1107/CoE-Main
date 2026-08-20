@@ -1175,6 +1175,20 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
     setAdvanceSel((s) => { const next = new Set(s); if (next.has(claimId)) next.delete(claimId); else next.add(claimId); return next; });
   };
 
+  const deselectFromR2 = async (claimId: number) => {
+    setRoundBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/advance`, {
+        method: "DELETE", credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ claimIds: [claimId] }),
+      });
+      const b = (await res.json()) as Api<{ removed: number }>;
+      notify(b.success ? "Team removed from R2" : b.message);
+      if (b.success) load();
+    } finally { setRoundBusy(false); }
+  };
+
   const [r2VenuePick, setR2VenuePick] = useState<Record<number, string>>({});
   const [r2VenueBusy, setR2VenueBusy] = useState<Record<number, boolean>>({});
 
@@ -1316,6 +1330,9 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
                   {claim.status === 'SHORTLISTED' ? (
                     <>
                       <span className="ml-2 rounded bg-[#0b6b2e]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b6b2e]">R2 Advanced</span>
+                      {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+                        <button type="button" onClick={() => void deselectFromR2(claim.id)} disabled={roundBusy} className="ml-1 text-[10px] font-bold text-[#ba1a1a] underline hover:opacity-70 disabled:opacity-40">Remove</button>
+                      ) : null}
                       <select
                         className="ml-2 border border-[#c4c6d3] bg-white px-1.5 py-1 text-[10px]"
                         value={r2VenuePick[claim.id] ?? claim.round2VenueId ?? ''}

@@ -99,3 +99,37 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return errorRes('Internal server error', [], 500);
   }
 }
+
+
+// DELETE — remove teams from Round 2 (revert SHORTLISTED to SUBMITTED)
+// { claimIds: number[] }
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = authenticate(req);
+    if (!user) return errorRes('Unauthorized', [], 401);
+    const eventId = Number((await params).id);
+    const event = await prisma.hackathonEvent.findUnique({ where: { id: eventId } });
+    if (!event) return errorRes('Event not found', [], 404);
+    if (!canManageEvent(user, event)) return errorRes('Coordinator access required', [], 403);
+
+    const body = await req.json().catch(() => ({}));
+    const claimIds: number[] = Array.isArray(body?.claimIds) ? body.claimIds.map(Number).filter(Number.isInteger) : [];
+    if (claimIds.length === 0) return errorRes('Select teams to remove', [], 400);
+
+    const claims = await prisma.claim.findMany({
+      where: { id: { in: claimIds }, problem: { eventId }, status: 'SHORTLISTED' as any },
+      select: { id: true, status: true },
+    });
+    if (claims.length === 0) return errorRes('No SHORTLISTED teams found', [], 400);
+
+    await prisma.claim.updateMany({
+      where: { id: { in: claims.map((c) => c.id) }, problem: { eventId } },
+      data: { status: 'SUBMITTED' as any, round2VenueId: null },
+    });
+
+    return successRes({ removed: claims.length }, `${claims.length} team(s) removed from Round 2`);
+  } catch (err) {
+    console.error('rounds DELETE error:', err);
+    return errorRes('Internal server error', [], 500);
+  }
+}
