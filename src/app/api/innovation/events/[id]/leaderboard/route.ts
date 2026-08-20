@@ -17,9 +17,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // ACTIVE/JUDGING (leaderboard.visibleAfter per-event setting).
     const visibleAfter = (event.config as { leaderboard?: { visibleAfter?: 'CLOSED' | 'LIVE' } } | null)
       ?.leaderboard?.visibleAfter ?? 'CLOSED';
+    const opsCfg = ((event.config as { ops?: Record<string, unknown> } | null)?.ops ?? {}) as Record<string, unknown>;
+    const anyDeptDeclared = Object.keys((opsCfg.round1DeclaredByDept ?? {}) as Record<string, unknown>).length > 0;
     const visibleNow =
       event.status === 'CLOSED' ||
-      (visibleAfter === 'LIVE' && (event.status === 'ACTIVE' || event.status === 'JUDGING'));
+      (visibleAfter === 'LIVE' && (event.status === 'ACTIVE' || event.status === 'JUDGING')) ||
+      (event.status === 'JUDGING' && anyDeptDeclared);
 
     if (!visibleNow) {
       return errorRes('Leaderboard not available', ['Leaderboard is not visible for this event stage'], 400);

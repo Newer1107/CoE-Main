@@ -813,9 +813,9 @@ export default function EventDetailClient({
           {activeTab === "leaderboard" ? (
             <div>
               <h3 className="font-headline text-xl font-bold text-primary">Leaderboard</h3>
-              {!isClosed ? (
+              {!isClosed && Object.keys(round1DeclaredByDept).length === 0 ? (
                 <p className="mt-4 border border-dashed border-outline-variant bg-surface-container p-6 text-sm text-on-surface-variant">
-                  Results will be published after the event closes.
+                  Results will be available after a department declares Round 1.
                 </p>
               ) : leaderboardLoading ? (
                 <div className="mt-4 h-40 animate-pulse border border-outline-variant bg-surface-container" />
@@ -835,6 +835,13 @@ export default function EventDetailClient({
                       <option value="">All departments</option>
                       {['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','MCA','BCA','IOT'].map((d) => (<option key={d} value={d}>{d}</option>))}
                     </select>
+                    {Object.keys(round1DeclaredByDept).length > 0 ? (
+                      <select className="border border-outline-variant bg-white px-2 py-1 text-xs" value={leaderPhase} onChange={(e) => setLeaderPhase(Number(e.target.value))}>
+                        <option value={0}>Latest</option>
+                        <option value={1}>Round 1</option>
+                        {Object.keys(round2ByDept).length > 0 ? <option value={2}>Round 2</option> : null}
+                      </select>
+                    ) : null}
                     <span className="text-xs text-muted">({leaderboard?.length ?? 0} teams)</span>
                   </div>
                   <table className="w-full border-collapse text-left text-sm">
