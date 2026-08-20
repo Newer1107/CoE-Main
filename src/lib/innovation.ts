@@ -157,7 +157,7 @@ export type LeaderboardRow = {
   updatedAt: Date;
 };
 
-export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number, dept: string | null = null): Promise<LeaderboardRow[]> => {
+export const getEventLeaderboard = async (prisma: PrismaClient, eventId: number, dept: string | null = null, phase: number = 0): Promise<LeaderboardRow[]> => {
   // ponytail: one DB roundtrip for all rubric data; in-memory weighted avg per claim (N*J*5 trivial)
   const categories = await prisma.rubricCategory.findMany({
     where: { eventId },
@@ -214,7 +214,8 @@ function _normDept(uid: string | null | undefined): string {
       if (claim.rubricScores.length === 0) return { claim, score: claim.score ?? 0 };
       // Binary weighted: average YES rate per parent across judges, weighted by parent
       const lastRound = Math.max(...(claim.rubricScores as { round: number }[]).map((s) => s.round));
-      const lastRoundScores = (claim.rubricScores as { round: number; score: number; rubricCategoryId: number; judgeId: number }[]).filter((s) => s.round === lastRound);
+      const targetRound = phase > 0 ? phase : lastRound;
+      const lastRoundScores = (claim.rubricScores as { round: number; score: number; rubricCategoryId: number; judgeId: number }[]).filter((s) => s.round === targetRound);
       if (!isBinary) {
         const byRound = new Map<number, number>();
         for (const s of lastRoundScores) byRound.set(s.round, (byRound.get(s.round) ?? 0) + s.score);

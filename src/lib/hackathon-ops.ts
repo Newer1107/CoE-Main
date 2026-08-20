@@ -15,6 +15,8 @@ export type OpsConfig = {
   feedback?: boolean;
   mediaReport?: boolean;
   currentRound?: number; // live judging round (advanced by coordinator)
+  round1DeclaredByDept?: Record<string, boolean>; // Phase 1 declared per dept (COMP, CSE...)
+  r2ByDept?: Record<string, { status?: string; startAt?: string; endAt?: string; declaredAt?: string }>; // Phase 2 state per dept
 };
 
 export function opsConfig(event: Pick<HackathonEvent, 'config'>): OpsConfig {

@@ -290,8 +290,11 @@ model Claim {
   mentor            String?            @db.VarChar(200)
   derivedInfo       Json?              // snapshot: { lead: StudentInfo|manual, members: {uid: StudentInfo} }
   venueId           Int?
-  venue             Venue?             @relation(fields: [venueId], references: [id], onDelete: NoAction)
+  venue             Venue?             @relation("ClaimVenue", fields: [venueId], references: [id], onDelete: NoAction)
   presentationScheduledAt DateTime?    // coordinator-set presentation slot for this team
+  round2VenueId     Int?
+  round2Venue       Venue?             @relation("ClaimRound2Venue", fields: [round2VenueId], references: [id], onDelete: NoAction)
+  round2PresentationScheduledAt DateTime?
   tickets           Ticket[]
   attendanceRecords TicketAttendance[]
   rubricScores      RubricScore[]
@@ -1092,7 +1095,8 @@ model Venue {
   capacity       Int?
   order          Int     @default(0)
   departmentCode String? @db.VarChar(32) // null = shared/legacy; e.g. COMP, CIVIL
-  claims         Claim[]
+  claims         Claim[]          @relation("ClaimVenue")
+  round2Claims   Claim[]          @relation("ClaimRound2Venue")
   judgeAssignments JudgeAssignment[]
 
   @@unique([eventId, name])

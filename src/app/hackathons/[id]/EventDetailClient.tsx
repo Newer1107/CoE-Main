@@ -131,6 +131,8 @@ export default function EventDetailClient({
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
   const [leaderDept, setLeaderDept] = useState<string>('');
+  const [round2ByDept, setR2ByDept] = useState<Record<string, { status?: string; startAt?: string; endAt?: string }>>({});
+  const [round1DeclaredByDept, setRound1DeclaredByDept] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (leaderDept !== '' || !myClaim) return;
     const uid = (myClaim.members?.find((m: {role:string})=>m.role==='LEAD')?.uid ?? '').toString().trim().toUpperCase().replace(/&/g,'');
@@ -141,7 +143,19 @@ export default function EventDetailClient({
     if (b) setLeaderDept(b);
   }, [myClaim, leaderDept]);
 
-  const isClosed = event.status === "CLOSED";
+  useEffect(() => {
+    if (event.status !== 'JUDGING') return;
+    fetch(`/api/innovation/events/${event.id}/ops/rounds`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((b) => {
+        if (b.success) {
+          setRound1DeclaredByDept(b.data.round1DeclaredByDept ?? {});
+          setR2ByDept(b.data.r2ByDept ?? {});
+        }
+      }).catch(() => null);
+  }, [event.id, event.status]);
+
+  const isClosed = event.status === 'CLOSED';
   const showRubrics = event.rubricCategories.length > 0;
   const teamSize = teamSizeLabel(event.config);
   const config = (event.config ?? {}) as ConfigShape;

@@ -26,7 +26,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const deptParam = (req.nextUrl.searchParams.get('dept') ?? '').trim().toUpperCase() || null;
-    const ranked = await getEventLeaderboard(prisma, eventId, deptParam);
+    const phaseParam = Number(req.nextUrl.searchParams.get('phase')) || 0;
+    const ranked = await getEventLeaderboard(prisma, eventId, deptParam, phaseParam);
 
     const claims = await prisma.claim.findMany({
       where: { id: { in: ranked.map((row) => row.claimId) } },

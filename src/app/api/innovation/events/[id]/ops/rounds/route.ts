@@ -14,7 +14,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const cfg = opsConfig(event);
     const round = cfg.currentRound ?? 1;
     const maxRound = Math.max(1, cfg.judgeRounds ?? 1);
-    return successRes({ round, maxRound });
+    const round1DeclaredByDept = cfg.round1DeclaredByDept ?? {};
+    const r2ByDept = cfg.r2ByDept ?? {};
+    return successRes({ round, maxRound, round1DeclaredByDept, r2ByDept });
   } catch (err) {
     console.error('rounds GET error:', err);
     return errorRes('Internal server error', [], 500);

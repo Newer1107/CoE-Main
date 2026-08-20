@@ -931,6 +931,7 @@ function NoticesTab({ eventId, notify }: { eventId: number; notify: (m: string) 
 type ScoreRow = { id: number; score: number; comment: string | null; judgeId: number | null; judge?: { id: number; name: string } | null; rubricCategory: { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null } };
 type ScoreClaim = {
   id: number;
+  status: string;
   teamName: string | null;
   venue: { id: number; name: string } | null;
   problem: { id: number; title: string } | null;
@@ -945,6 +946,13 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
   const [claims, setClaims] = useState<ScoreClaim[]>([]);
   const [problems, setProblems] = useState<{ id: number; title: string }[]>([]);
   const [round, setRound] = useState<number | null>(null);
+  const [round1DeclaredByDept, setRound1DeclaredByDept] = useState<Record<string, boolean>>({});
+  const [r2ByDept, setR2ByDept] = useState<Record<string, { status?: string; startAt?: string; endAt?: string }>>({});
+  const [advanceSel, setAdvanceSel] = useState<Set<number>>(new Set());
+  const [r2VenueId, setR2VenueId] = useState("");
+  const [r2StartAt, setR2StartAt] = useState("");
+  const [r2EndAt, setR2EndAt] = useState("");
+  const [roundBusy, setRoundBusy] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [slotInputs, setSlotInputs] = useState<Record<string, string>>({});
@@ -958,8 +966,19 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
   const [oiDesc, setOiDesc] = useState<Record<string, string>>({});
   const [problemBusy, setProblemBusy] = useState(false);
   const [pptBusy, setPptBusy] = useState<Record<number, boolean>>({});
+  const [venues, setVenues] = useState<{ id: number; name: string }[]>([]);
+  const deptCodes = ['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','MCA','BCA','IOT'];
 
   const load = useCallback(() => {
+    void fetch(`/api/innovation/events/${eventId}/ops/rounds`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((b: Api<{ round: number; round1DeclaredByDept: Record<string, boolean>; r2ByDept: Record<string, { status?: string; startAt?: string; endAt?: string }> }>) => {
+        if (b.success) {
+          setRound(b.data.round);
+          setRound1DeclaredByDept(b.data.round1DeclaredByDept);
+          setR2ByDept(b.data.r2ByDept);
+        }
+      });
     void fetch(`/api/innovation/events/${eventId}/ops/scores`, { credentials: "include" })
       .then((r) => r.json())
       .then((b: Api<{ categories: { id: number; key: string; label: string; weight: number; isCritical: boolean; parentCategoryId: number | null }[]; claims: ScoreClaim[]; round: number; problems: { id: number; title: string }[]; allowOpenInnovation: boolean }>) => {
@@ -971,6 +990,9 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
           setAllowOI(b.data.allowOpenInnovation);
         }
       });
+    void fetch(`/api/innovation/events/${eventId}/ops/venues`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((b: Api<{ venues: { id: number; name: string }[] }>) => { if (b.success) setVenues(b.data.venues as any); });
   }, [eventId]);
   useEffect(load, [load]);
 
@@ -1100,6 +1122,52 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
     }
   };
 
+  const [declareDept, setDeclareDept] = useState("");
+
+  const declareRound1 = async (dept: string) => {
+    if (!dept) { notify("Select a department first"); return; }
+    setRoundBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/declare`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ dept }) });
+      const b = (await res.json()) as Api<{ round1Declared: boolean }>;
+      notify(b.success ? "Round 1 declared" : b.message);
+      if (b.success) load();
+    } finally { setRoundBusy(false); }
+  };
+
+  const advanceTeams = async () => {
+    if (advanceSel.size === 0) { notify("Select teams to advance"); return; }
+    setRoundBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/advance`, {
+        method: "POST", credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ claimIds: Array.from(advanceSel), round2VenueId: r2VenueId || null, dept: declareDept }),
+      });
+      const b = (await res.json()) as Api<{ advanced: number }>;
+      notify(b.success ? `${b.data.advanced} team(s) advanced` : b.message);
+      if (b.success) { setAdvanceSel(new Set()); load(); }
+    } finally { setRoundBusy(false); }
+  };
+
+  const openRound2 = async () => {
+    setRoundBusy(true);
+    try {
+      const res = await fetch(`/api/innovation/events/${eventId}/ops/rounds/open-r2`, {
+        method: "POST", credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ round2StartAt: r2StartAt || null, round2EndAt: r2EndAt || null, dept: declareDept }),
+      });
+      const b = (await res.json()) as Api<{ round: number; notified: number }>;
+      notify(b.success ? b.message : b.message);
+      if (b.success) load();
+    } finally { setRoundBusy(false); }
+  };
+
+  const toggleAdvance = (claimId: number) => {
+    setAdvanceSel((s) => { const next = new Set(s); if (next.has(claimId)) next.delete(claimId); else next.add(claimId); return next; });
+  };
+
   const uploadPpt = async (claimId: number, file: File | null) => {
     if (!file || !isAdmin) return;
     setPptBusy((m) => ({ ...m, [claimId]: true }));
@@ -1138,6 +1206,75 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
       <p className="mt-1 text-sm text-[#434651]">
         Live totals from judges. Overrides are allowed while the event is in JUDGING and are logged with the reason.
       </p>
+      {round === 1 ? (
+        <div className="mt-4 border-t border-[#c4c6d3] pt-4 space-y-3">
+          <p className="text-xs font-bold text-[#002155]">Phase 1 Status by Department</p>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-[#747782]">Active dept:</span>
+            <select className="border border-[#c4c6d3] bg-white px-2 py-1.5 text-xs" value={declareDept} onChange={(e) => setDeclareDept(e.target.value)}>
+              <option value="">—</option>
+              {deptCodes.map((d) => (
+                <option key={d} value={d}>{d}{round1DeclaredByDept[d] ? ' ✓' : ''}{r2ByDept[d]?.status === 'open' ? ' (R2)' : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+            {deptCodes.map((dept) => {
+              const declared = round1DeclaredByDept[dept];
+              const r2 = r2ByDept[dept];
+              return (
+                <div key={dept} className="border border-[#e3e2df] bg-[#faf9f5] px-3 py-2 text-xs">
+                  <p className="font-bold text-[#002155]">{dept}</p>
+                  {declared ? (
+                    <p className="mt-1 text-[10px] text-[#0b6b2e] font-semibold">✓ Declared</p>
+                  ) : (
+                    <button type="button" onClick={() => void declareRound1(dept)} disabled={roundBusy} className="mt-1 px-2 py-1 text-[10px] font-bold text-[#8c4f00] border border-[#8c4f00] hover:bg-[#8c4f00]/5 disabled:opacity-50">Declare R1</button>
+                  )}
+                  {r2?.status === 'open' ? (
+                    <p className="mt-1 text-[10px] text-[#0b6b2e]">Phase 2 Open</p>
+                  ) : declared ? (
+                    <span className="text-[10px] text-[#747782]">Ready for R2</span>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+        <div className="mt-4 border-t border-[#c4c6d3] pt-4 space-y-3">
+          <p className="text-xs font-bold text-[#002155]">Phase 2 Setup — {declareDept}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <select className="border border-[#c4c6d3] bg-white px-2 py-1.5 text-xs" value={r2VenueId} onChange={(e) => setR2VenueId(e.target.value)}>
+              <option value="">Phase 2 venue (optional)</option>
+              {venues.map((v) => (<option key={v.id} value={v.id}>{v.name}</option>))}
+            </select>
+            <input type="datetime-local" className="border border-[#c4c6d3] px-2 py-1.5 text-xs" placeholder="Phase 2 start" value={r2StartAt} onChange={(e) => setR2StartAt(e.target.value)} />
+            <input type="datetime-local" className="border border-[#c4c6d3] px-2 py-1.5 text-xs" placeholder="Phase 2 end" value={r2EndAt} onChange={(e) => setR2EndAt(e.target.value)} />
+          </div>
+          <p className="text-[11px] text-[#747782]">Select teams below to advance, then click Open Round 2.</p>
+        </div>
+      ) : null}
+      {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1 text-[11px] text-[#747782]">
+            <input type="checkbox" checked={advanceSel.size === claims.length && claims.length > 0} onChange={() => setAdvanceSel(advanceSel.size === claims.length ? new Set() : new Set(claims.map((c) => c.id)))} className="accent-[#0b6b2e]" />
+            Select all {claims.length}
+          </label>
+          <button type="button" onClick={() => void advanceTeams()} disabled={roundBusy || advanceSel.size === 0} className={btnCls}>{advanceSel.size > 0 ? `Advance ${advanceSel.size} team(s) to R2` : "Select teams first"}</button>
+          <button type="button" onClick={() => void openRound2()} disabled={roundBusy} className={btnCls + " bg-[#0b6b2e]"}>Open Round 2 ({declareDept})</button>
+        </div>
+      ) : null}
+      {Object.entries(r2ByDept).filter(([, v]) => v.status === 'open').length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#c4c6d3] pt-4">
+          <p className="text-xs font-bold text-[#0b6b2e]">Phase 2 Open:</p>
+          {Object.entries(r2ByDept).filter(([, v]) => v.status === 'open').map(([dept, v]) => (
+            <span key={dept} className="rounded bg-[#0b6b2e]/10 px-2 py-1 text-[10px] font-bold text-[#0b6b2e]">
+              {dept}{v.startAt ? ` (${new Date(v.startAt).toLocaleDateString('en-IN')})` : ''}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {claims.length === 0 ? (
         <p className="mt-4 text-sm text-[#747782]">No claims yet.</p>
       ) : (
@@ -1145,7 +1282,15 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
           {claims.map((claim) => (
             <div key={claim.id} className="border border-[#e3e2df] bg-[#faf9f5] p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-bold text-[#002155]">{claim.teamName ?? `Team #${claim.id}`}</p>
+                <div className="flex items-center gap-2">
+                  {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+                    <input type="checkbox" checked={advanceSel.has(claim.id)} onChange={() => toggleAdvance(claim.id)} className="accent-[#0b6b2e]" />
+                  ) : null}
+                  <p className="font-bold text-[#002155]">{claim.teamName ?? `Team #${claim.id}`}</p>
+                  {claim.status === 'SHORTLISTED' ? (
+                    <span className="ml-2 rounded bg-[#0b6b2e]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b6b2e]">R2 Advanced</span>
+                  ) : null}
+                </div>
                 <p className="text-xs text-[#434651]">
                   {claim.venue ? claim.venue.name : "No venue"} · Total:{" "}
                   <span className="font-bold text-[#002155]">{totalFor(claim)}</span>/{categories.reduce((s, c) => s + c.weight, 0)}
