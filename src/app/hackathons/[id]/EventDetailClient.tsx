@@ -161,7 +161,8 @@ export default function EventDetailClient({
   const config = (event.config ?? {}) as ConfigShape;
 
   useEffect(() => {
-    if (!isClosed) return;
+    const anyDeptDeclared = Object.keys(round1DeclaredByDept).length > 0;
+    if (!isClosed && !anyDeptDeclared) return;
     let cancelled = false;
     setLeaderboardLoading(true);
     setLeaderboardError(null);
@@ -185,7 +186,7 @@ export default function EventDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [isClosed, event.id, leaderDept]);
+  }, [isClosed, event.id, leaderDept, round1DeclaredByDept]);
 
   const toggleInterest = async () => {
     if (interestLoading) return;
