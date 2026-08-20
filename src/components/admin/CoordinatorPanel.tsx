@@ -1295,7 +1295,7 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
           <p className="text-[11px] text-[#747782]">Select teams below to advance, then click Open Round 2.</p>
         </div>
       ) : null}
-      {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+      {declareDept && round1DeclaredByDept[declareDept] ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-1 text-[11px] text-[#747782]">
             <input type="checkbox" checked={advanceSel.size === claims.length && claims.length > 0} onChange={() => setAdvanceSel(advanceSel.size === claims.length ? new Set() : new Set(claims.map((c) => c.id)))} className="accent-[#0b6b2e]" />
@@ -1323,14 +1323,14 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
             <div key={claim.id} className="border border-[#e3e2df] bg-[#faf9f5] p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+                  {declareDept && round1DeclaredByDept[declareDept] ? (
                     <input type="checkbox" checked={advanceSel.has(claim.id)} onChange={() => toggleAdvance(claim.id)} className="accent-[#0b6b2e]" />
                   ) : null}
                   <p className="font-bold text-[#002155]">{claim.teamName ?? `Team #${claim.id}`}</p>
                   {claim.status === 'SHORTLISTED' ? (
                     <>
                       <span className="ml-2 rounded bg-[#0b6b2e]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b6b2e]">R2 Advanced</span>
-                      {declareDept && round1DeclaredByDept[declareDept] && !r2ByDept[declareDept]?.status ? (
+                      {declareDept && round1DeclaredByDept[declareDept] ? (
                         <button type="button" onClick={() => void deselectFromR2(claim.id)} disabled={roundBusy} className="ml-1 text-[10px] font-bold text-[#ba1a1a] underline hover:opacity-70 disabled:opacity-40">Remove</button>
                       ) : null}
                       <select
