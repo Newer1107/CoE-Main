@@ -1268,7 +1268,15 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
             const dept = (document.getElementById(`export-dept-${eventId}`) as HTMLSelectElement | null)?.value ?? "";
             const url = `/api/innovation/events/${eventId}/ops/scores/export${dept ? `?dept=${encodeURIComponent(dept)}` : ""}`;
             window.open(url, "_blank");
-          }}>Download Excel (CSV)</button>
+          }}>R{round ?? "?"} CSV</button>
+          <button type="button" className={btnGhost + " px-4 py-1.5 text-[10px]"} onClick={() => {
+            const dept = (document.getElementById(`export-dept-${eventId}`) as HTMLSelectElement | null)?.value ?? "";
+            window.open(`/api/innovation/events/${eventId}/ops/scores/export?phase=1${dept ? `&dept=${encodeURIComponent(dept)}` : ""}`, "_blank");
+          }}>R1 CSV</button>
+          <button type="button" className={btnGhost + " px-4 py-1.5 text-[10px]"} onClick={() => {
+            const dept = (document.getElementById(`export-dept-${eventId}`) as HTMLSelectElement | null)?.value ?? "";
+            window.open(`/api/innovation/events/${eventId}/ops/scores/export?phase=2${dept ? `&dept=${encodeURIComponent(dept)}` : ""}`, "_blank");
+          }}>R2 CSV</button>
         </div>
       </div>
       <p className="mt-1 text-sm text-[#434651]">

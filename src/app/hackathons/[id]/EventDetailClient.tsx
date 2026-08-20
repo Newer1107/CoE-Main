@@ -133,6 +133,7 @@ export default function EventDetailClient({
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
   const [leaderDept, setLeaderDept] = useState<string>('');
+  const [leaderPhase, setLeaderPhase] = useState<number>(0); // 0=latest, 1=R1, 2=R2
   const [round2ByDept, setR2ByDept] = useState<Record<string, { status?: string; startAt?: string; endAt?: string }>>({});
   const [round1DeclaredByDept, setRound1DeclaredByDept] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -168,7 +169,8 @@ export default function EventDetailClient({
     let cancelled = false;
     setLeaderboardLoading(true);
     setLeaderboardError(null);
-    fetch(`/api/innovation/events/${event.id}/leaderboard${leaderDept ? `?dept=${encodeURIComponent(leaderDept)}` : ''}`, { credentials: "include" })
+    const phaseQs = leaderPhase > 0 ? `&phase=${leaderPhase}` : '';
+    fetch(`/api/innovation/events/${event.id}/leaderboard${leaderDept ? `?dept=${encodeURIComponent(leaderDept)}` : ''}${phaseQs}`, { credentials: "include" })
       .then(async (res) => {
         const payload = (await res.json()) as ApiEnvelope<LeaderboardRow[]>;
         if (!res.ok || !payload.success) {
@@ -188,7 +190,7 @@ export default function EventDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [isClosed, event.id, leaderDept, round1DeclaredByDept]);
+  }, [isClosed, event.id, leaderDept, round1DeclaredByDept, leaderPhase]);
 
   const toggleInterest = async () => {
     if (interestLoading) return;

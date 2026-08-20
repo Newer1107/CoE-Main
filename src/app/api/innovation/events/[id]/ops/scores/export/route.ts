@@ -54,8 +54,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const effectiveDept = requestedDept ?? (allowedDepts?.[0] ?? null);
     const venueIdParam = req.nextUrl.searchParams.get('venueId');
     const venueId = venueIdParam ? Number(venueIdParam) : null;
+    const phaseParam = Number(req.nextUrl.searchParams.get('phase')) || 0;
 
-    const round = currentRound(event);
+    const round = phaseParam > 0 ? phaseParam : currentRound(event);
 
     const categories = await prisma.rubricCategory.findMany({
       where: { eventId },
