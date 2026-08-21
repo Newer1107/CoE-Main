@@ -140,7 +140,7 @@ export default function EventDetailClient({
     if (leaderDept !== '' || !myClaim) return;
     const uid = (myClaim.members?.find((m: {role:string})=>m.role==='LEAD')?.uid ?? '').toString().trim().toUpperCase().replace(/&/g,'');
     const mm = uid.match(/^(\d{2})-([A-Z]+)/);
-    let b = mm ? mm[1] : uid;
+    let b = mm ? mm[2] : uid;
     const mp: Record<string,string> = { CSECSA:'CSE',CSECSB:'CSE',CSECSC:'CSE',CSECS:'CSE',CSEIOT:'CSE',CSEA:'CSE',CSEB:'CSE',CSEC:'CSE',COMP:'COMP',IT:'IT',CSE:'CSE',AIML:'AIML',AIDS:'AIDS',ECSA:'ECSA',ECS:'ECS',EXTC:'ENTC',ENTC:'ENTC',EXT:'ENTC',MME:'MME',MECH:'MECH',CIVIL:'CIVIL',BVOC:'BVOC',BVDSD:'BVOC',MCA:'MCA',BCA:'BCA',IOT:'IOT' };
     for (const [k,v] of Object.entries(mp)) if (b.startsWith(k)) { b=v; break; }
     if (b) setLeaderDept(b);
