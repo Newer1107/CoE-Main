@@ -164,8 +164,8 @@ export default function EventDetailClient({
   const config = (event.config ?? {}) as ConfigShape;
 
   useEffect(() => {
-    const anyDeptDeclared = Object.keys(round1DeclaredByDept).length > 0;
-    if (!isClosed && !anyDeptDeclared) return;
+    // Always fetch — backend gates visibility. Removed round1DeclaredByDept
+    // dependency to avoid the race where empty state blocks the fetch.
     let cancelled = false;
     setLeaderboardLoading(true);
     setLeaderboardError(null);
@@ -190,7 +190,7 @@ export default function EventDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [isClosed, event.id, leaderDept, round1DeclaredByDept, leaderPhase]);
+  }, [isClosed, event.id, leaderDept, leaderPhase]);
 
   const toggleInterest = async () => {
     if (interestLoading) return;
@@ -815,7 +815,7 @@ export default function EventDetailClient({
               <h3 className="font-headline text-xl font-bold text-primary">Leaderboard</h3>
               {!isClosed && Object.keys(round1DeclaredByDept).length === 0 ? (
                 <p className="mt-4 border border-dashed border-outline-variant bg-surface-container p-6 text-sm text-on-surface-variant">
-                  Results will be available after a department declares Round 1.
+                  Loading leaderboard...
                 </p>
               ) : leaderboardLoading ? (
                 <div className="mt-4 h-40 animate-pulse border border-outline-variant bg-surface-container" />
