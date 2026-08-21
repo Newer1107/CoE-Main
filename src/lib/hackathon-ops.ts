@@ -56,7 +56,7 @@ const DEPT_FROM_BRANCH: Record<string, string> = {
   COMP: 'COMP', IT: 'IT', CSE: 'CSE',
   AIML: 'AIML', AIDS: 'AIDS', ECSA: 'ECSA', ECS: 'ECS',
   EXTC: 'ENTC', ENTC: 'ENTC', EXT: 'ENTC', MME: 'MME', MECH: 'MECH',
-  CIVIL: 'CIVIL', BVOC: 'BVOC', MCA: 'MCA',
+  CIVIL: 'CIVIL', BVSDE: 'BVOC', BVOC: 'BVOC', MCA: 'MCA',
   BCA: 'BCA', IOT: 'IOT',
 };
 
