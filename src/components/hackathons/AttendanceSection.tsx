@@ -58,6 +58,52 @@ const fmtDateTime = (v: string | null | undefined) => {
 const buttonCls =
   "inline-flex items-center gap-1.5 border border-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary hover:text-white disabled:opacity-50";
 
+/* Placeholder shaped exactly like the synced table (period line, Theory /
+ * Practical / Tutorial groups, overall footer) so a refresh swaps content
+ * for shimmer without any height jump. Decorative only — the live status
+ * strip above it carries the announcement. */
+const SKELETON_SECTIONS = [
+  { label: "Theory", rows: 3 },
+  { label: "Practical", rows: 2 },
+  { label: "Tutorial", rows: 1 },
+];
+
+function AttendanceSkeleton() {
+  return (
+    <div className="border-y border-hairline" aria-hidden="true">
+      <div className="border-b border-hairline px-1 py-2">
+        <span className="block h-2.5 w-48 animate-pulse bg-surface-container-highest" />
+      </div>
+      {SKELETON_SECTIONS.map((section) => (
+        <div key={section.label}>
+          <p className="flex items-center justify-between border-b border-hairline bg-surface-container px-1 py-2">
+            <span className="block h-2.5 w-16 animate-pulse bg-surface-container-highest" />
+            <span className="block h-2.5 w-24 animate-pulse bg-surface-container-highest" />
+          </p>
+          <ul className="divide-y divide-hairline">
+            {Array.from({ length: section.rows }).map((_, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+                <span
+                  className="block h-4 animate-pulse bg-surface-container-high"
+                  style={{ width: `${58 - i * 9}%` }}
+                />
+                <span className="block h-4 w-16 shrink-0 animate-pulse bg-surface-container-highest" />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <div className="flex items-center justify-between gap-3 border-t border-hairline bg-surface-container px-1 py-3">
+        <div className="w-full max-w-[220px]">
+          <span className="block h-2 w-32 animate-pulse bg-surface-container-highest" />
+          <span className="mt-1.5 block h-7 w-20 animate-pulse bg-surface-container-highest" />
+        </div>
+        <span className="block h-7 w-24 shrink-0 animate-pulse bg-surface-container-highest" />
+      </div>
+    </div>
+  );
+}
+
 export default function AttendanceSection() {
   const [data, setData] = useState<ApiData | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -394,7 +440,7 @@ export default function AttendanceSection() {
       </div>
 
       {loading ? (
-        <div className="h-24 animate-pulse border border-outline-variant bg-surface-container" aria-busy="true" />
+        <AttendanceSkeleton />
       ) : needsPassword ? (
         <div className="border border-outline-variant bg-surface-container p-5">
           <p className="text-sm font-semibold text-primary">
@@ -460,51 +506,61 @@ export default function AttendanceSection() {
           {capError ? <p className="mt-2 text-xs text-error">{capError}</p> : null}
         </div>
       ) : pending ? (
-        <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
-          <p className="text-sm font-semibold text-primary">Still syncing in the background…</p>
-          <p className="mt-1 text-xs text-on-surface-variant">
-            The ERP can take a couple of minutes. Refresh this page to check — your last
-            data stays visible until the new sync lands.
-          </p>
-        </div>
+        <>
+          <div role="status" aria-live="polite" aria-busy="true" className="border border-outline-variant bg-surface-container p-5">
+            <p className="text-sm font-semibold text-primary">Still syncing in the background…</p>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              The ERP can take a couple of minutes. Refresh this page to check — your new
+              attendance will appear here as soon as the sync lands.
+            </p>
+          </div>
+          <div className="mt-4">
+            <AttendanceSkeleton />
+          </div>
+        </>
       ) : queued ? (
-        <div role="status" aria-live="polite" className="border border-outline-variant bg-surface-container p-5">
-          <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent"
-            />
-            <div>
-              <p className="text-sm font-semibold text-primary">
-                {syncStuck ? "ERP not responding" : "Syncing with ERP…"}
-              </p>
-              {syncStuck ? (
-                <>
-                  <p className="mt-1 text-xs text-on-surface-variant">
-                    The ERP has been unavailable for {stuckFor} — we're checking automatically, and your sync will
-                    run the moment it's back.
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted">
-                    Nothing else needed from you — your last synced data stays visible below.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-1 text-xs text-on-surface-variant">
-                    {liveJob?.status === "RUNNING"
-                      ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
-                      : liveJob?.status === "QUEUED"
-                        ? "Queued — waiting for the sync worker."
-                        : "Connecting to the ERP…"}
-                  </p>
-                  <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-                    {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
-                  </p>
-                </>
-              )}
+        <>
+          <div role="status" aria-live="polite" aria-busy="true" className="border border-outline-variant bg-surface-container p-5">
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent"
+              />
+              <div>
+                <p className="text-sm font-semibold text-primary">
+                  {syncStuck ? "ERP not responding" : "Syncing with ERP…"}
+                </p>
+                {syncStuck ? (
+                  <>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      The ERP has been unavailable for {stuckFor} — we're checking automatically, and your sync will
+                      run the moment it's back.
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted">
+                      Nothing else needed from you — your attendance will appear here automatically.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      {liveJob?.status === "RUNNING"
+                        ? `Fetching your attendance from the ERP${liveJob.attempts > 1 ? ` — attempt ${liveJob.attempts}/2` : ""}. Usually under a minute; the ERP is sometimes slow.`
+                        : liveJob?.status === "QUEUED"
+                          ? "Queued — waiting for the sync worker."
+                          : "Connecting to the ERP…"}
+                    </p>
+                    <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+                      {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed — updates automatically
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="mt-4">
+            <AttendanceSkeleton />
+          </div>
+        </>
       ) : hasData ? (
         <div className="border-y border-hairline">
           {failedBox}
