@@ -151,7 +151,7 @@ export default function JudgePortal() {
         </select>
         {data ? (
           <p className="text-sm text-[#434651]">
-            Round <span className="font-bold text-[#002155]">{data.round}/{data.maxRound}</span>
+            Judging Session
             {data.venue ? ` · Venue: ${data.venue.name}` : " · All claims"}
           </p>
         ) : null}
@@ -234,7 +234,7 @@ export default function JudgePortal() {
                 onChange={(e) => setComments((p) => ({ ...p, [claim.id]: e.target.value }))}
               />
               <button type="button" onClick={() => void save(claim.id)} className="mt-3 bg-[#002155] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:opacity-90">
-                Save Round {data.round} Scores
+                Save Scores
               </button>
             </div>
           ))}
