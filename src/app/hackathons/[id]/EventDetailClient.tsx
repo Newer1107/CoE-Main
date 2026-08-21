@@ -141,7 +141,7 @@ export default function EventDetailClient({
     const uid = (myClaim.members?.find((m: {role:string})=>m.role==='LEAD')?.uid ?? '').toString().trim().toUpperCase().replace(/&/g,'');
     const mm = uid.match(/^(\d{2})-([A-Z]+)/);
     let b = mm ? mm[1] : uid;
-    const mp: Record<string,string> = { CSECSA:'CSE',CSECSB:'CSE',CSECSC:'CSE',CSECS:'CSE',CSEIOT:'CSE',CSEA:'CSE',CSEB:'CSE',CSEC:'CSE',COMP:'COMP',IT:'IT',CSE:'CSE',AIML:'AIML',AIDS:'AIDS',ECSA:'ECSA',ECS:'ECS',EXTC:'ENTC',ENTC:'ENTC',EXT:'ENTC',MME:'MME',MECH:'MECH',CIVIL:'CIVIL',BVOC:'BVOC',MCA:'MCA',BCA:'BCA',IOT:'IOT' };
+    const mp: Record<string,string> = { CSECSA:'CSE',CSECSB:'CSE',CSECSC:'CSE',CSECS:'CSE',CSEIOT:'CSE',CSEA:'CSE',CSEB:'CSE',CSEC:'CSE',COMP:'COMP',IT:'IT',CSE:'CSE',AIML:'AIML',AIDS:'AIDS',ECSA:'ECSA',ECS:'ECS',EXTC:'ENTC',ENTC:'ENTC',EXT:'ENTC',MME:'MME',MECH:'MECH',CIVIL:'CIVIL',BVOC:'BVOC',BVDSD:'BVOC',MCA:'MCA',BCA:'BCA',IOT:'IOT' };
     for (const [k,v] of Object.entries(mp)) if (b.startsWith(k)) { b=v; break; }
     if (b) setLeaderDept(b);
   }, [myClaim, leaderDept]);
@@ -833,7 +833,7 @@ export default function EventDetailClient({
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted">Dept:</span>
                     <select className="border border-outline-variant bg-white px-2 py-1 text-xs" value={leaderDept} onChange={(e) => setLeaderDept(e.target.value)}>
                       <option value="">All departments</option>
-                      {['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','MCA','BCA','IOT'].map((d) => (<option key={d} value={d}>{d}</option>))}
+                      {['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','BVDSD','MCA','BCA','IOT'].map((d) => (<option key={d} value={d}>{d}</option>))}
                     </select>
                     {Object.keys(round1DeclaredByDept).length > 0 ? (
                       <select className="border border-outline-variant bg-white px-2 py-1 text-xs" value={leaderPhase} onChange={(e) => setLeaderPhase(Number(e.target.value))}>

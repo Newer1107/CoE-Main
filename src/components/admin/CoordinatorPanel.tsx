@@ -548,7 +548,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
           <input className={inputCls} placeholder="Capacity (optional)" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
           <select className={inputCls} value={venueDept} onChange={(e) => setVenueDept(e.target.value)} title="Department">
             <option value="">All depts (shared)</option>
-            <option value="COMP">COMP</option><option value="IT">IT</option><option value="CSE">CSE</option><option value="AIML">AIML</option><option value="AIDS">AIDS</option><option value="ECSA">ECSA</option><option value="ENTC">ENTC</option><option value="MME">MME</option><option value="MECH">MECH</option><option value="CIVIL">CIVIL</option><option value="BVOC">BVOC</option><option value="MCA">MCA</option><option value="BCA">BCA</option><option value="IOT">IOT</option>
+            <option value="COMP">COMP</option><option value="IT">IT</option><option value="CSE">CSE</option><option value="AIML">AIML</option><option value="AIDS">AIDS</option><option value="ECSA">ECSA</option><option value="ENTC">ENTC</option><option value="MME">MME</option><option value="MECH">MECH</option><option value="CIVIL">CIVIL</option><option value="BVOC">BVOC</option><option value="BVDSD">BVDSD</option><option value="MCA">MCA</option><option value="BCA">BCA</option><option value="IOT">IOT</option>
           </select>
           <button type="button" onClick={() => void create()} className={btnCls}>
             Add Venue
@@ -578,7 +578,7 @@ function VenuesTab({ eventId, notify }: { eventId: number; notify: (m: string) =
                       void fetch(`/api/innovation/events/${eventId}/ops/venues/${v.id}`, { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ departmentCode: to }) }).then((r) => r.json()).then((b: Api<unknown>) => { notify((b as Api<unknown>).message); if ((b as Api<unknown>).success) load(); });
                     }}>
                       <option value="">All</option>
-                      <option value="COMP">COMP</option><option value="IT">IT</option><option value="CSE">CSE</option><option value="AIML">AIML</option><option value="AIDS">AIDS</option><option value="ECSA">ECSA</option><option value="ENTC">ENTC</option><option value="MME">MME</option><option value="MECH">MECH</option><option value="CIVIL">CIVIL</option><option value="BVOC">BVOC</option><option value="MCA">MCA</option><option value="BCA">BCA</option><option value="IOT">IOT</option>
+                      <option value="COMP">COMP</option><option value="IT">IT</option><option value="CSE">CSE</option><option value="AIML">AIML</option><option value="AIDS">AIDS</option><option value="ECSA">ECSA</option><option value="ENTC">ENTC</option><option value="MME">MME</option><option value="MECH">MECH</option><option value="CIVIL">CIVIL</option><option value="BVOC">BVOC</option><option value="BVDSD">BVDSD</option><option value="MCA">MCA</option><option value="BCA">BCA</option><option value="IOT">IOT</option>
                     </select>
                     <button type="button" onClick={() => void remove(v.id, v.name)} className="text-xs font-bold uppercase tracking-wider text-red-600 hover:underline">
                       Delete
@@ -974,7 +974,7 @@ function ScoresTab({ eventId, notify, isAdmin }: { eventId: number; notify: (m: 
   const [problemBusy, setProblemBusy] = useState(false);
   const [pptBusy, setPptBusy] = useState<Record<number, boolean>>({});
   const [venues, setVenues] = useState<{ id: number; name: string }[]>([]);
-  const deptCodes = ['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','MCA','BCA','IOT'];
+  const deptCodes = ['COMP','IT','CSE','AIML','AIDS','ECSA','ENTC','MECH','CIVIL','BVOC','BVDSD','MCA','BCA','IOT'];
 
   const load = useCallback(() => {
     void fetch(`/api/innovation/events/${eventId}/ops/rounds`, { credentials: "include" })
