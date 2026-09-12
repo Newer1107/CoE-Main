@@ -23,9 +23,14 @@ The CoE needs to communicate with students and faculty about:
 | `src/app/api/events/[id]/route.ts` | Update and delete events |
 | `src/app/api/grants/route.ts` | List and create grants |
 | `src/app/api/grants/[id]/route.ts` | Update and delete grants |
+| `src/app/api/cron/grants-collector/route.ts` | Cron endpoint for monthly grant collection |
+| `src/lib/grants/automation.ts` | Collection pipeline (scrape → AI structure → validate → dedup → store) |
+| `src/lib/grants/scraper.ts` | Live scraper for official source pages (no new deps, fetch + regex) |
+| `src/lib/grants/sources.ts` | Trusted grant source configuration |
 | `src/app/api/announcements/route.ts` | List and create announcements |
 | `src/app/api/announcements/[id]/route.ts` | Delete announcement |
 | `src/app/api/hero-slides/route.ts` | List and create hero slides |
+| `.github/workflows/monthly-grants.yml` | Scheduled workflow (1st of month, 08:00 AM IST) |
 
 ## Access Control
 
@@ -132,9 +137,36 @@ model Grant {
   deadline      DateTime
   referenceLink String?
   attachmentKey String?
-  postedById    Int
-  postedBy      User
+  postedById    Int?           // null for automated grants
+  postedBy      User?
   isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  source        String        @default("MANUAL")  // "MANUAL" | "AUTO"
+  month         String?                            // "2026-10" — collection period
+  isTentative   Boolean       @default(false) // true when deadline is a fallback/review-horizon, not verified
+
+  @@index([month])
+  @@index([source])
+}
+```
+
+### AutomationRun (`automation_runs`)
+
+Tracks monthly grant collection runs.
+
+```prisma
+model AutomationRun {
+  id              Int      @id @default(autoincrement())
+  month           String   // "2026-10"
+  status          String   // "SUCCESS" | "PARTIAL" | "FAILED"
+  grantsFound     Int      @default(0)
+  grantsPublished Int      @default(0)
+  duplicatesSkipped Int    @default(0)
+  errors          String?  @db.Text
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([month])
 }
 ```
 
@@ -196,3 +228,83 @@ model HeroSlide {
 ## Summary
 
 The Content Management System is a straightforward CRUD module for public-facing content. It demonstrates the standard patterns: Zod validation, MinIO uploads, authenticate/authorize, and JSON responses. It's an excellent module for beginners to study because it's simple but touches all the major systems.
+
+## Grants Automation System
+
+Grants are automatically collected monthly via an AI-powered pipeline.
+
+### How It Works
+
+1. **GitHub Actions** triggers on the 1st of every month at 08:00 AM IST
+2. Calls `GET /api/cron/grants-collector` with `x-cron-secret` header
+3. **Scraper** (`src/lib/grants/scraper.ts`) fetches live official pages (DST call-for-proposals, DST announcements, DST fellowships, AICTE scheme pages), extracts opportunity links + dates, filters nav/job/stale noise
+4. The endpoint sends scraped candidates to the college AI Gateway (Qwen3.6) with a structuring prompt — Qwen selects and normalizes, it does not browse
+5. Each grant is validated (schema, deadlines required, URL must belong to a trusted domain)
+6. Duplicates are detected (title + issuingBody + month, plus referenceLink)
+7. Valid grants are saved to the `grants` table with `source: "AUTO"`
+8. `isTentative` is set from the AI-reported `deadlineTentative` flag (anything but explicit `false` counts as tentative); tentative deadlines render with `*` on the homepage plus a legend
+9. Results are logged in `automation_runs` table
+
+### Deadline honesty
+
+Fallback or rolling-horizon dates must never look verified:
+- AI appends a tentative/year-round sentence to the description
+- `isTentative: true` renders `*` next to the deadline on the homepage
+- A legend below the table reads: "* Tentative deadline — confirm on the official page."
+
+### Scraper politeness
+
+`src/lib/grants/scraper.ts` fetches sequentially with a 1.5s gap between pages, 15s timeout and 1.5MB cap per page, and an identifying User-Agent. Neither `dst.gov.in` nor `aicte-india.org` publishes a `robots.txt` (both 404 as of Sept 2026), so no bot-exclusion rules are being violated.
+
+### Retry schedule
+
+The workflow runs on the 1st (primary) and the 5th (retry) of every month at 08:00 AM IST. The endpoint is idempotent: if the 1st succeeded, the 5th skips without duplicates; if the 1st failed (e.g. AI gateway down), the 5th runs the full pipeline.
+
+### Endpoint rate limits
+
+In-memory guard on `/api/cron/grants-collector` (same pattern as the auth routes): collection max once per 10 minutes — returns HTTP 429 when exceeded. This bounds AI/scrape cost on repeated triggers after failed runs (idempotency only skips successful months).
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `QWEN_API_KEY` | College AI Gateway API key |
+| `CRON_SECRET` | Auth token for cron endpoints |
+
+### Trusted Sources
+
+Configured in `src/lib/grants/sources.ts`. Currently includes:
+DST, DBT, UGC, AICTE, ICMR, MeitY, NITI Aayog, DRDO, ISRO, DHE.
+
+### Cron Endpoint
+
+```
+GET /api/cron/grants-collector
+Header: x-cron-secret: <CRON_SECRET>
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "month": "2026-10",
+    "status": "SUCCESS",
+    "grantsFound": 12,
+    "grantsPublished": 10,
+    "duplicatesSkipped": 2,
+    "errors": []
+  }
+}
+```
+
+### Idempotency
+
+Running the collector twice for the same month returns the existing run's results without creating duplicate grants.
+
+### Manual Testing
+
+```bash
+curl -X GET "https://tcetcercd.in/api/cron/grants-collector" \
+  -H "x-cron-secret: YOUR_CRON_SECRET"
+```

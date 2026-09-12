@@ -19,8 +19,12 @@ export async function POST(req: NextRequest) {
     const deadline = formData.get('deadline') as string;
     const referenceLink = (formData.get('referenceLink') as string) || '';
     const attachment = formData.get('attachment') as File | null;
+    const source = (formData.get('source') as string) || 'MANUAL';
+    const month = (formData.get('month') as string) || null;
+    const isTentativeRaw = formData.get('isTentative') as string | null;
+    const isTentative = isTentativeRaw === null || isTentativeRaw === '' ? undefined : isTentativeRaw === 'true';
 
-    const parsed = grantCreateSchema.safeParse({ title, issuingBody, category, description, deadline, referenceLink });
+    const parsed = grantCreateSchema.safeParse({ title, issuingBody, category, description, deadline, referenceLink, source, month, isTentative });
     if (!parsed.success) return errorRes('Validation failed', parsed.error.issues.map((e: any) => e.message), 400);
 
     let attachmentKey: string | null = null;
@@ -41,6 +45,9 @@ export async function POST(req: NextRequest) {
         description, deadline: new Date(deadline),
         referenceLink: referenceLink || null,
         attachmentKey, postedById: user.id,
+        source: parsed.data.source || 'MANUAL',
+        month: parsed.data.month || null,
+        isTentative: parsed.data.isTentative ?? false,
       },
     });
 

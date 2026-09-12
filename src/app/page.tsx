@@ -348,6 +348,7 @@ export default async function HomePage() {
                       </td>
                       <td className="p-3 md:p-4">
                         {formatDate(grant.deadline)}
+                        {grant.isTentative ? "*" : ""}
                       </td>
                       <td className="p-3 md:p-4">
                         {grant.referenceLink ? (
@@ -372,6 +373,11 @@ export default async function HomePage() {
               </tbody>
             </table>
           </div>
+          {grants.some((grant) => grant.isTentative) && (
+            <p className="mt-2 text-xs text-[#434651]">
+              * Tentative deadline — confirm on the official page.
+            </p>
+          )}
         </section>
 
         <section id="events" className="mb-10">

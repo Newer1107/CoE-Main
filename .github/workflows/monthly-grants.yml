@@ -1,0 +1,39 @@
+name: Monthly Grants Collection
+
+on:
+  schedule:
+    # 08:00 AM IST = 02:30 UTC, 1st of every month (primary run)
+    - cron: "30 2 1 * *"
+    # Retry on the 5th if the 1st failed (e.g. AI gateway down).
+    # The endpoint is idempotent: if the 1st succeeded, the 5th
+    # run detects the existing AutomationRun and skips without
+    # creating duplicates.
+    - cron: "30 2 5 * *"
+  workflow_dispatch:
+
+jobs:
+  collect-grants:
+    runs-on: self-hosted
+
+    steps:
+      - name: Trigger grants collector
+        shell: bash
+        run: |
+          echo "Triggering grants collection at $(date -u) UTC..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+            "https://tcetcercd.in/api/cron/grants-collector" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "ERROR: Grants collection failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Grants collection completed successfully."

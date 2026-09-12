@@ -798,11 +798,16 @@ model Grant {
   deadline      DateTime
   referenceLink String?
   attachmentKey String?
-  postedById    Int
-  postedBy      User          @relation(fields: [postedById], references: [id], onDelete: Cascade)
+  postedById    Int?
+  postedBy      User?         @relation(fields: [postedById], references: [id], onDelete: Cascade)
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
+  source        String        @default("MANUAL") // "MANUAL" | "AUTO"
+  month         String?                              // "2026-10" — collection period for auto grants
+  isTentative   Boolean       @default(false) // true when deadline is a fallback/review-horizon, not a verified published date
 
+  @@index([month])
+  @@index([source])
   @@map("grants")
 }
 
@@ -1161,4 +1166,19 @@ model EventMedia {
 
   @@index([eventId])
   @@map("event_media")
+}
+
+model AutomationRun {
+  id              Int      @id @default(autoincrement())
+  month           String   // "2026-10"
+  status          String   // "SUCCESS" | "PARTIAL" | "FAILED"
+  grantsFound     Int      @default(0)
+  grantsPublished Int      @default(0)
+  duplicatesSkipped Int    @default(0)
+  errors          String?  @db.Text // JSON array of error strings
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([month])
+  @@map("automation_runs")
 }
