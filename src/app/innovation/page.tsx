@@ -76,6 +76,12 @@ export default async function InnovationLandingPage() {
         >
           Innovation Home
         </Link>
+        <Link
+          href="/innovation/hackathon-hub"
+          className="border border-[#8c4f00] text-[#8c4f00] px-4 py-2 text-xs font-bold uppercase tracking-wider"
+        >
+          Hackathon Hub
+        </Link>
 
         <Link
           href="/innovation/problems"

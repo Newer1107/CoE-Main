@@ -800,3 +800,35 @@ export const sendTicketIssuedEmail = async (
     throw err;
   }
 };
+
+// ─── Hackathon Hub (§32): admin alerts + closing-soon student reminders ───
+export const sendHubAdminAlert = async (
+  email: string | string[],
+  details: { kind: string; title: string; detail: string; link?: string }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Hackathon Hub — ${details.kind}</h2>
+    <p style="color:#434651;font-size:14px;"><strong>${details.title}</strong></p>
+    <p style="color:#434651;font-size:14px;">${details.detail}</p>
+    ${details.link ? `<p style="font-size:14px;"><a href="${details.link}">Open in admin panel</a></p>` : ''}`;
+  await send(email, `Hackathon Hub: ${details.kind} — ${details.title}`, body, {
+    mode: 'immediate',
+    category: 'HUB_ADMIN',
+  });
+};
+
+export const sendHubClosingSoonReminder = async (
+  email: string,
+  details: { eventTitle: string; deadline: string; applyUrl?: string | null; dedupeKey: string }
+) => {
+  const body = `
+    <h2 style="color:#002155;margin:0 0 8px;">Registration closing soon</h2>
+    <p style="color:#434651;font-size:14px;"><strong>${details.eventTitle}</strong> closes registrations on <strong>${formatEmailDateTime(details.deadline)}</strong>.</p>
+    ${details.applyUrl ? `<p style="font-size:14px;"><a href="${details.applyUrl}">Register now</a></p>` : ''}
+    <p style="color:#747782;font-size:12px;">You saved this opportunity in the Hackathon Hub.</p>`;
+  await send(email, `Closing soon: ${details.eventTitle}`, body, {
+    mode: 'bulk',
+    category: 'HUB_CLOSING_SOON',
+    dedupeKey: details.dedupeKey,
+  });
+};

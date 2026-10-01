@@ -141,6 +141,7 @@ export default function Navbar({ user }: NavbarProps) {
     ...(user ? [{ label: "Project Dashboard", href: "https://showcase.tcetcercd.in/showcase" }] : []),
     ...(user ? [{ label: "Coding Platform", href: "https://code.tcetcercd.in" }] : []),
     ...(canSeeAdminPanel ? [{ label: "Hosting Requests", href: "/admin/hosting-requests" }] : []),
+    ...(canSeeAdminPanel ? [{ label: "Hackathons Content", href: "/admin/hackathons-content" }] : []),
     ...(canSeeAdminPanel ? [{ label: "Admin Panel", href: "/admin" }] : []),
   ];
 

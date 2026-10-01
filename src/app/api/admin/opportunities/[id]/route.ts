@@ -50,6 +50,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (typeof data.applicationUrl !== 'undefined') updateData.applicationUrl = data.applicationUrl || null;
     if (typeof data.facultyRecommended !== 'undefined') updateData.facultyRecommended = data.facultyRecommended;
+    if (typeof data.showInHub !== 'undefined') updateData.showInHub = data.showInHub;
+    if (typeof data.mode !== 'undefined') updateData.mode = data.mode || null;
+    if (typeof data.venue !== 'undefined') updateData.venue = data.venue || null;
+    if (typeof data.city !== 'undefined') updateData.city = data.city || null;
+    if (typeof data.state !== 'undefined') updateData.state = data.state || null;
+    if (typeof data.startDate !== 'undefined') {
+      updateData.startDate = data.startDate ? new Date(data.startDate as string) : null;
+    }
+    if (typeof data.endDate !== 'undefined') {
+      updateData.endDate = data.endDate ? new Date(data.endDate as string) : null;
+    }
+    if (typeof data.teamMin !== 'undefined') updateData.teamMin = data.teamMin ?? null;
+    if (typeof data.teamMax !== 'undefined') updateData.teamMax = data.teamMax ?? null;
+    if (typeof data.sourceUrl !== 'undefined') updateData.sourceUrl = data.sourceUrl || null;
+    if (typeof data.sourceType !== 'undefined') updateData.sourceType = data.sourceType;
+    if (typeof data.verificationStatus !== 'undefined') {
+      updateData.verificationStatus = data.verificationStatus;
+      (updateData as Record<string, unknown>).lastVerifiedAt = new Date();
+    }
 
     if (Object.keys(updateData).length === 0) {
       return errorRes('No fields to update', [], 400);

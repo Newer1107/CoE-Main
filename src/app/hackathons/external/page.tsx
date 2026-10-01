@@ -72,6 +72,14 @@ export default function ExternalOpportunitiesPage() {
     themes: '',
     technologies: '',
     facultyRecommended: false,
+    mode: '',
+    city: '',
+    venue: '',
+    startDate: '',
+    endDate: '',
+    teamMin: '',
+    teamMax: '',
+    sourceUrl: '',
   });
 
   const load = async () => {
@@ -187,6 +195,14 @@ export default function ExternalOpportunitiesPage() {
       if (form.prize.trim()) payload.prize = form.prize.trim();
       if (form.applicationUrl.trim()) payload.applicationUrl = form.applicationUrl.trim();
       if (form.registrationDeadline) payload.registrationDeadline = form.registrationDeadline;
+      if (form.mode) payload.mode = form.mode;
+      if (form.city.trim()) payload.city = form.city.trim();
+      if (form.venue.trim()) payload.venue = form.venue.trim();
+      if (form.startDate) payload.startDate = form.startDate;
+      if (form.endDate) payload.endDate = form.endDate;
+      if (form.teamMin) payload.teamMin = Number(form.teamMin);
+      if (form.teamMax) payload.teamMax = Number(form.teamMax);
+      if (form.sourceUrl.trim()) payload.sourceUrl = form.sourceUrl.trim();
       const themes = parseList(form.themes);
       if (themes.length > 0) payload.themes = themes;
       const technologies = parseList(form.technologies);
@@ -217,6 +233,14 @@ export default function ExternalOpportunitiesPage() {
         themes: '',
         technologies: '',
         facultyRecommended: false,
+        mode: '',
+        city: '',
+        venue: '',
+        startDate: '',
+        endDate: '',
+        teamMin: '',
+        teamMax: '',
+        sourceUrl: '',
       });
       setSubmitOpen(false);
       void load();
@@ -413,6 +437,110 @@ export default function ExternalOpportunitiesPage() {
                 value={form.technologies}
                 onChange={(e) => setForm({ ...form, technologies: e.target.value })}
                 placeholder="comma-separated, e.g. React, Python"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-mode" className="mb-2 block text-sm font-medium text-[#002155]">
+                Mode
+              </label>
+              <select
+                id="opp-mode"
+                value={form.mode}
+                onChange={(e) => setForm({ ...form, mode: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">Select…</option>
+                <option value="ONLINE">Online</option>
+                <option value="OFFLINE">Offline</option>
+                <option value="HYBRID">Hybrid</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="opp-city" className="mb-2 block text-sm font-medium text-[#002155]">
+                City
+              </label>
+              <input
+                id="opp-city"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="e.g. Mumbai"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-venue" className="mb-2 block text-sm font-medium text-[#002155]">
+                Venue
+              </label>
+              <input
+                id="opp-venue"
+                value={form.venue}
+                onChange={(e) => setForm({ ...form, venue: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-source" className="mb-2 block text-sm font-medium text-[#002155]">
+                Source URL
+              </label>
+              <input
+                id="opp-source"
+                type="url"
+                value={form.sourceUrl}
+                onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })}
+                placeholder="https://…"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-start" className="mb-2 block text-sm font-medium text-[#002155]">
+                Start Date
+              </label>
+              <input
+                id="opp-start"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-end" className="mb-2 block text-sm font-medium text-[#002155]">
+                End Date
+              </label>
+              <input
+                id="opp-end"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-tmin" className="mb-2 block text-sm font-medium text-[#002155]">
+                Team Min
+              </label>
+              <input
+                id="opp-tmin"
+                type="number"
+                min={1}
+                max={20}
+                value={form.teamMin}
+                onChange={(e) => setForm({ ...form, teamMin: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="opp-tmax" className="mb-2 block text-sm font-medium text-[#002155]">
+                Team Max
+              </label>
+              <input
+                id="opp-tmax"
+                type="number"
+                min={1}
+                max={20}
+                value={form.teamMax}
+                onChange={(e) => setForm({ ...form, teamMax: e.target.value })}
                 className={inputClass}
               />
             </div>

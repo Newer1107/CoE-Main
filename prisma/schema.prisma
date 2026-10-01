@@ -976,6 +976,21 @@ model Opportunity {
   applicationUrl       String?
   facultyRecommended   Boolean   @default(false)
   status               String    @default("PENDING") // PENDING | APPROVED | REJECTED
+
+  // ── Hackathon Hub Phase 1 (§6): discovery/publish metadata, all nullable for zero-backfill ──
+  mode                 String?   // ONLINE | OFFLINE | HYBRID
+  venue                String?
+  city                 String?
+  state                String?
+  startDate            DateTime?
+  endDate              DateTime?
+  teamMin              Int?
+  teamMax              Int?
+  sourceUrl            String?   @db.Text
+  sourceType           String    @default("ADMIN")
+  verificationStatus   String    @default("UNVERIFIED")
+  lastVerifiedAt       DateTime?
+  pageHash             String?
   createdById          Int
   createdBy            User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdAt            DateTime  @default(now())
@@ -986,6 +1001,10 @@ model Opportunity {
   @@index([status])
   @@index([category])
   @@index([registrationDeadline])
+  @@index([mode])
+  @@index([city])
+  @@index([verificationStatus])
+  @@index([startDate])
   @@map("opportunities")
 }
 
@@ -1000,6 +1019,57 @@ model OpportunityInterest {
 
   @@unique([userId, opportunityId])
   @@map("opportunity_interests")
+}
+
+// ── Hackathon Hub pipeline (§8, §12, §24.4): source registry, candidate store, import logs ──
+model HubSource {
+  id         Int       @id @default(autoincrement())
+  key        String    @unique // e.g. devfolio, unstop, official-tcet
+  label      String
+  method     String    @default("PAGE") // PAGE | RSS | API | MANUAL
+  frequency  String    @default("DAILY") // DAILY | WEEKLY
+  priority   Int       @default(50) // higher wins on conflict (§20)
+  enabled    Boolean   @default(true)
+  lastRunAt  DateTime?
+  lastError  String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("hub_sources")
+}
+
+model HubCandidate {
+  id          Int       @id @default(autoincrement())
+  url         String    @unique @db.VarChar(512)
+  source      String    // hub source key or 'CSV' / 'SHEET' / 'ADMIN'
+  sourceType  String    @default("OTHER")
+  status      String    @default("DISCOVERED") // DISCOVERED | PROCESSING | EXTRACTED | NEEDS_REVIEW | VERIFIED | PUBLISHED | REJECTED | NEEDS_UPDATE
+  title       String?
+  extracted   Json?
+  confidence  Float?
+  pageHash    String?
+  error       String?   @db.Text
+  opportunityId Int?
+  discoveredAt DateTime @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@map("hub_candidates")
+}
+
+model HubImportLog {
+  id         Int      @id @default(autoincrement())
+  source     String   // CSV | SHEET_URL | DISCOVERY
+  discovered Int      @default(0)
+  inserted   Int      @default(0)
+  updated    Int      @default(0)
+  rejected   Int      @default(0)
+  published  Int      @default(0)
+  errors     Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("hub_import_logs")
 }
 
 model LearningResource {

@@ -4376,6 +4376,20 @@ const [busyAllAttendance, setBusyAllAttendance] = useState(false);
 
       {operationsTab === "content" ? (
       <section className="mb-10 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="border border-[#c4c6d3] bg-white p-5 xl:col-span-2">
+          <h2 className="font-headline text-2xl text-[#002155] mb-2">Hackathon Hub Content</h2>
+          <p className="text-sm text-[#434651] mb-4">
+            Moderate external opportunities, run the Hub discovery pipeline, manage Sheet/CSV imports and review queue.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <a href="/admin/hackathons-content" className="bg-[#002155] text-white px-5 py-2 text-xs font-bold uppercase tracking-wider">
+              Open Hackathons Content
+            </a>
+            <a href="/innovation/hackathon-hub" className="border border-[#002155] text-[#002155] px-5 py-2 text-xs font-bold uppercase tracking-wider">
+              View Student Hub
+            </a>
+          </div>
+        </div>
         <div className="border border-[#c4c6d3] bg-white p-5">
           <h2 className="font-headline text-2xl text-[#002155] mb-4">Homepage Hero Upload</h2>
           <p className="text-sm text-[#434651] mb-4">

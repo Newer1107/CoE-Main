@@ -1,0 +1,62 @@
+name: Hackathon Hub Pipeline
+
+on:
+  schedule:
+    # Full pipeline daily — 02:00 AM IST = 20:30 UTC previous day.
+    # discover + extract (10) + monitor + closing-soon + email drain.
+    - cron: "30 20 * * *"
+    # Closing-soon reminders every 6h (IST 08:00, 14:00, 20:00 = UTC 02:30, 08:30, 14:30).
+    # The 02:00 IST full run covers the 4th slot.
+    - cron: "30 2 * * *"
+    - cron: "30 8 * * *"
+    - cron: "30 14 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Pipeline stage"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - discover
+          - extract
+          - monitor
+          - closing-soon
+
+jobs:
+  hub-pipeline:
+    runs-on: self-hosted
+
+    steps:
+      - name: Trigger hub pipeline
+        shell: bash
+        run: |
+          JOB="${{ inputs.job || 'all' }}"
+          # The 6-hourly slots only need reminders; the daily slot runs everything.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "30 20 * * *" ]; then
+              JOB="all"
+            else
+              JOB="closing-soon"
+            fi
+          fi
+
+          echo "Triggering hub pipeline (job=$JOB) at $(date -u) UTC..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+            "https://tcetcercd.in/api/cron/hub?job=$JOB" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "ERROR: Hub pipeline failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Hub pipeline completed successfully."
