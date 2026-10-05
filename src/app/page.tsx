@@ -1,11 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
+import { authenticate } from "@/lib/api-helpers";
 import { getSignedUrl } from "@/lib/minio";
 import NewsCard from "@/components/NewsModal";
 import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
 import NewOpportunitiesModal from "@/components/NewOpportunitiesModal";
 import TrackedContentLink from "@/components/TrackedContentLink";
+import GrantPipelineButton from "@/components/GrantPipelineButton";
 import CountUp from "@/components/CountUp";
 
 type HomeNews = {
@@ -38,6 +42,15 @@ function formatDate(dateInput: Date | string) {
 
 export default async function HomePage() {
   const now = new Date();
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get("accessToken")?.value;
+  const fakeReq = {
+    headers: { get: (name: string) => (name === "cookie" ? `accessToken=${token ?? ""}` : null) },
+    cookies: { get: (name: string) => (name === "accessToken" && token ? { value: token } : undefined) },
+  } as unknown as NextRequest;
+  const viewer = token ? authenticate(fakeReq) : null;
+  const isAdmin = viewer?.role === "ADMIN";
 
   const [heroSlidesRaw, newsRaw, events, grants, announcements, openHackathons, openProblems] =
     await Promise.all([
@@ -307,13 +320,16 @@ export default async function HomePage() {
         </section>
 
         <section id="grants" className="mb-14">
-          <div className="border-l-4 border-[#002155] pl-4 md:pl-6 mb-6">
-            <h2 className="text-2xl sm:text-3xl font-headline tracking-tight text-[#002155]">
-              Current Grant Opportunities
-            </h2>
-            <p className="text-sm text-[#8c4f00] uppercase tracking-widest mt-1">
-              Curated Grants & Funding Programs
-            </p>
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="border-l-4 border-[#002155] pl-4 md:pl-6">
+              <h2 className="text-2xl sm:text-3xl font-headline tracking-tight text-[#002155]">
+                Current Grant Opportunities
+              </h2>
+              <p className="text-sm text-[#8c4f00] uppercase tracking-widest mt-1">
+                Curated Grants & Funding Programs
+              </p>
+            </div>
+            <GrantPipelineButton isAdmin={isAdmin} />
           </div>
           <div className="overflow-x-auto border border-[#c4c6d3] bg-white">
             <table className="w-full min-w-[760px] border-collapse">
@@ -348,6 +364,7 @@ export default async function HomePage() {
                       </td>
                       <td className="p-3 md:p-4">
                         {formatDate(grant.deadline)}
+                        {grant.isTentative ? "*" : ""}
                       </td>
                       <td className="p-3 md:p-4">
                         {grant.referenceLink ? (
@@ -372,6 +389,11 @@ export default async function HomePage() {
               </tbody>
             </table>
           </div>
+          {grants.some((grant) => grant.isTentative) && (
+            <p className="mt-2 text-xs text-[#434651]">
+              * Tentative deadline — confirm on the official page.
+            </p>
+          )}
         </section>
 
         <section id="events" className="mb-10">

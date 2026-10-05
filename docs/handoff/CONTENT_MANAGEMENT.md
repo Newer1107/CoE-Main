@@ -23,9 +23,16 @@ The CoE needs to communicate with students and faculty about:
 | `src/app/api/events/[id]/route.ts` | Update and delete events |
 | `src/app/api/grants/route.ts` | List and create grants |
 | `src/app/api/grants/[id]/route.ts` | Update and delete grants |
+| `src/app/api/cron/grants-collector/route.ts` | Cron endpoint for monthly grant collection |
+| `src/app/api/admin/grants/collect/route.ts` | Admin-only manual trigger (same pipeline, session auth) |
+| `src/components/GrantPipelineButton.tsx` | Admin "Run Pipeline" button on homepage grants section |
+| `src/lib/grants/automation.ts` | Collection pipeline (Tavily live search → AI structure → validate → dedup → store) |
+| `src/lib/grants/tavily.ts` | Tavily live-search client (open-internet queries, basic depth) |
+| `src/lib/grants/sources.ts` | Trusted grant source configuration |
 | `src/app/api/announcements/route.ts` | List and create announcements |
 | `src/app/api/announcements/[id]/route.ts` | Delete announcement |
 | `src/app/api/hero-slides/route.ts` | List and create hero slides |
+| `.github/workflows/monthly-grants.yml` | Scheduled workflow (1st of month, 08:00 AM IST) |
 
 ## Access Control
 
@@ -132,9 +139,36 @@ model Grant {
   deadline      DateTime
   referenceLink String?
   attachmentKey String?
-  postedById    Int
-  postedBy      User
+  postedById    Int?           // null for automated grants
+  postedBy      User?
   isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  source        String        @default("MANUAL")  // "MANUAL" | "AUTO"
+  month         String?                            // "2026-10" — collection period
+  isTentative   Boolean       @default(false) // true when deadline is a fallback/review-horizon, not verified
+
+  @@index([month])
+  @@index([source])
+}
+```
+
+### AutomationRun (`automation_runs`)
+
+Tracks monthly grant collection runs.
+
+```prisma
+model AutomationRun {
+  id              Int      @id @default(autoincrement())
+  month           String   // "2026-10"
+  status          String   // "SUCCESS" | "PARTIAL" | "FAILED"
+  grantsFound     Int      @default(0)
+  grantsPublished Int      @default(0)
+  duplicatesSkipped Int    @default(0)
+  errors          String?  @db.Text
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([month])
 }
 ```
 
@@ -196,3 +230,89 @@ model HeroSlide {
 ## Summary
 
 The Content Management System is a straightforward CRUD module for public-facing content. It demonstrates the standard patterns: Zod validation, MinIO uploads, authenticate/authorize, and JSON responses. It's an excellent module for beginners to study because it's simple but touches all the major systems.
+
+## Grants Automation System
+
+Grants are automatically collected monthly via an AI-powered pipeline.
+
+### How It Works
+
+1. **GitHub Actions** triggers on the 1st of every month at 08:00 AM IST (retry on the 5th)
+2. Calls `GET /api/cron/grants-collector` with `x-cron-secret` header
+3. **Tavily** (`src/lib/grants/tavily.ts`) runs 3 open-internet searches (basic depth, 1 credit each) for current Indian grant opportunities — this is the live-data layer, replacing the retired hand-rolled scraper
+4. The endpoint sends Tavily results to the college AI Gateway (Qwen3.6) with a structuring prompt — Qwen selects and normalizes, it does not browse
+5. Each grant is validated (schema, deadlines required, URL must belong to a trusted domain — aggregators and unknown domains are rejected here)
+6. Duplicates are detected (title + issuingBody + month, plus referenceLink)
+7. Valid grants are saved to the `grants` table with `source: "AUTO"`
+8. `isTentative` is set from the AI-reported `deadlineTentative` flag (anything but explicit `false` counts as tentative); tentative deadlines render with `*` on the homepage plus a legend
+9. Results are logged in `automation_runs` table
+
+### Deadline honesty
+
+Fallback or rolling-horizon dates must never look verified:
+- AI appends a tentative/year-round sentence to the description
+- `isTentative: true` renders `*` next to the deadline on the homepage
+- A legend below the table reads: "* Tentative deadline — confirm on the official page."
+
+### Live-data layer (Tavily)
+
+`src/lib/grants/tavily.ts` runs 3 open-internet searches per collection at basic depth (1 credit each — ~3 credits/run, ~6 worst case with the 5th-day retry; free tier is 1,000/month). Search is deliberately NOT domain-restricted; the trusted-domain URL check in validation is what keeps aggregators out of published grants. Using a search API does not remove reproduction obligations — the MeitY/DHE/AICTE permission emails still apply to what we publish. Neither `dst.gov.in` nor `aicte-india.org` publishes a `robots.txt` (both 404 as of Sept 2026).
+
+### Retry schedule
+
+The workflow runs on the 1st (primary) and the 5th (retry) of every month at 08:00 AM IST. The endpoint is idempotent: if the 1st succeeded, the 5th skips without duplicates; if the 1st failed (e.g. AI gateway down), the 5th runs the full pipeline.
+
+### Endpoint rate limits
+
+In-memory guard on `/api/cron/grants-collector` (same pattern as the auth routes): collection max once per 10 minutes — returns HTTP 429 when exceeded. Missing setup fails loudly instead: if `QWEN_API_KEY` or `TAVILY_API_KEY` is absent, the endpoint returns HTTP 503 with `NOT_CONFIGURED` errors and creates no run row — distinguishable from a transient `FAILED` run. Env-configured fetch URLs are constrained by `FETCH_HOST_ALLOWLIST` (default: api.tavily.com, ai.tcetcercd.in). Each run first sweeps stale rows (unfinished >2h → `FAILED`) so killed runs never look in-flight forever.
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `QWEN_API_KEY` | College AI Gateway API key (required) |
+| `AI_GATEWAY_URL` | AI gateway endpoint (required, no default) |
+| `AI_GATEWAY_MODEL` | AI model name, must match the served model exactly (required, no default) |
+| `TAVILY_API_URL` | Tavily search endpoint (required, no default) |
+| `TAVILY_API_KEY` | Tavily API key (required) |
+| `CRON_SECRET` | Auth token for cron endpoints |
+
+### Trusted Sources
+
+Configured in `src/lib/grants/sources.ts`. Currently includes:
+DST (+ onlinedst.gov.in portal), DBT, UGC, AICTE, ICMR, MeitY, NITI Aayog, DRDO, ISRO, DHE, ANRF (+ serb.gov.in, serbonline.in, prism.serbonline.in).
+
+### Cron Endpoint
+
+```
+GET /api/cron/grants-collector
+Header: x-cron-secret: <CRON_SECRET>
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "month": "2026-10",
+    "status": "SUCCESS",
+    "grantsFound": 12,
+    "grantsPublished": 10,
+    "duplicatesSkipped": 2,
+    "errors": [],
+    "liveResults": 24,
+    "liveQueries": 3
+  }
+}
+```
+
+### Idempotency
+
+Running the collector twice for the same month returns the existing run's results without creating duplicate grants.
+
+### Manual Testing
+
+```bash
+curl -X GET "https://tcetcercd.in/api/cron/grants-collector" \
+  -H "x-cron-secret: YOUR_CRON_SECRET"
+```
